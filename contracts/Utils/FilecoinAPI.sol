@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@zondax/filecoin-solidity/contracts/v0.8/types/CommonTypes.sol";
+import "@zondax/filecoin-solidity/contracts/v0.8/MinerAPI.sol";
+import "@zondax/filecoin-solidity/contracts/v0.8/SendAPI.sol";
+import "./Convertion.sol";
+
+contract FilecoinAPI{
+    using Convertion for *;
+
+    function getAvailableBalance(uint64 actorId) external returns (CommonTypes.BigInt memory){
+        return MinerAPI.getAvailableBalance(wrapId(actorId));
+    }
+
+    function getBeneficiary(uint64 minerId) external returns (MinerTypes.GetBeneficiaryReturn memory){
+        return MinerAPI.getBeneficiary(wrapId(minerId));
+    }
+
+    function getOwner(uint64 minerId) external returns (MinerTypes.GetOwnerReturn memory){
+        return MinerAPI.getOwner(wrapId(minerId));
+    }
+
+    function changeBeneficiary(
+        uint64 minerId,
+        CommonTypes.FilAddress memory beneficiary,
+        CommonTypes.BigInt memory quota,
+        CommonTypes.ChainEpoch expiration
+    ) external{
+        MinerAPI.changeBeneficiary(
+            wrapId(minerId),
+            MinerTypes.ChangeBeneficiaryParams({
+                new_beneficiary: beneficiary,
+                new_quota: quota,
+                new_expiration: expiration
+            })
+        );
+    }
+
+    function withdrawBalance(uint64 actorId, uint amount) external returns (uint){
+        return MinerAPI.withdrawBalance(wrapId(actorId), amount.uint2BigInt()).bigInt2Uint();
+    }
+
+    function send(uint64 actorId, uint amount) external{
+        SendAPI.send(wrapId(actorId), amount);
+    }
+
+    function wrapId(uint64 actorId) private pure returns(CommonTypes.FilActorId) {
+        return CommonTypes.FilActorId.wrap(actorId);
+    }
+}

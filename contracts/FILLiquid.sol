@@ -10,9 +10,9 @@ import "./Utils/Convertion.sol";
 import "./Utils/Calculation.sol";
 import "./Utils/FilAddress.sol";
 import "./Utils/FilecoinAPI.sol";
-import "./FLE.sol";
+import "./FILTrust.sol";
 
-interface FILLInterface {
+interface FILLiquidInterface {
     struct BorrowInfo {
         bool beingSlashed; //whether there is existing slash in this borrow
         uint id; //borrow id
@@ -42,14 +42,14 @@ interface FILLInterface {
         uint borrowAmount;
         uint slashedAmount;
     }
-    struct FILLInfo {
+    struct FILLiquidInfo {
         uint totalFIL;                  // a.   Total FIL Liquidity a=b+c=d+j-e-k
         uint availableFIL;              // b.	Available FIL Liquidity b=d+i+j-e-h-k-l
         uint utilizedLiquidity;         // c.	Current Utilized Liquidity c=h-i+l
         uint accumulatedDeposit;        // d.	Accumulated Deposited Liquidity
         uint accumulatedRedeem;         // e.	Accumulated FIL Redemptions
-        uint accumulatedBurntFLE;       // f.	Accumulated FLE Burnt
-        uint accumulatedMintFLE;        // g.	Accumulated FLE Mint
+        uint accumulatedBurntFILTrust;  // f.	Accumulated FILTrust Burnt
+        uint accumulatedMintFILTrust;   // g.	Accumulated FILTrust Mint
         uint accumulatedBorrow;         // h.	Accumulated Borrowed Liquidity
         uint accumulatedPayback;        // i.	Accumulated Repayments
         uint accumulatedInterest;       // j.	Accumulated Interest Payment Received
@@ -58,7 +58,7 @@ interface FILLInterface {
         uint accumulatedSlashReward;    // m.   Total slash reward
         uint accumulatedSlashFee;       // n.   Total slash fee
         uint utilizationRate;           // o.	Current Utilization Rate n=c/a=(h-i+l)/(d+j-e-k)
-        uint exchangeRate;              // p.	Current FLE/FIL Exchange Rate
+        uint exchangeRate;              // p.	Current FILTrust/FIL Exchange Rate
         uint interestRate;              // q.	Current Interest Rate
         uint collateralRate;            // r.   Current Collateral Rate
         uint rateBase;                  // s.   Rate base
@@ -72,20 +72,20 @@ interface FILLInterface {
         uint withdrawn;
     }
 
-    /// @dev deposit FIL to the contract, mint FLE
+    /// @dev deposit FIL to the contract, mint FILTrust
     /// @param amountFIL  the amount of FIL user would like to deposit
     /// @param exchangeRate approximated exchange rate at the point of request
     /// @param slippageTolr slippage tolerance
-    /// @return amount actual FLE minted
+    /// @return amount actual FILTrust minted
     function deposit(uint amountFIL, uint exchangeRate, uint slippageTolr) external payable returns (uint amount);
 
-    /// @dev redeem FLE to the contract, withdraw FIL
-    /// @param amountFLE the amount of FLE user would like to redeem
+    /// @dev redeem FILTrust to the contract, withdraw FIL
+    /// @param amountFILTrust the amount of FILTrust user would like to redeem
     /// @param exchangeRate approximated exchange rate at the point of request
     /// @param slippageTolr slippage tolerance
     /// @return amount actual FIL withdrawal
     /// @return fee fee deducted
-    function redeem(uint amountFLE, uint exchangeRate, uint slippageTolr) external returns (uint amount, uint fee);
+    function redeem(uint amountFILTrust, uint exchangeRate, uint slippageTolr) external returns (uint amount, uint fee);
 
     /// @dev borrow FIL from the contract
     /// @param minerId miner id
@@ -134,10 +134,10 @@ interface FILLInterface {
     /// @return flag result flag for change beneficiary
     function uncollateralizingMiner(uint64 minerId) external returns (bool);
 
-    /// @dev FLE balance of a user
+    /// @dev FILTrust balance of a user
     /// @param account user account
-    /// @return balance user’s FLE account balance
-    function fleBalanceOf(address account) external view returns (uint balance);
+    /// @return balance user’s FILTrust account balance
+    function filTrustBalanceOf(address account) external view returns (uint balance);
 
     /// @dev user’s borrowing information
     /// @param account user’s account address
@@ -149,13 +149,13 @@ interface FILLInterface {
     /// @return info return collateralizing miner info
     function getCollateralizingMinerInfo(uint64 minerId) external view returns (MinerCollateralizingInfo memory);
 
-    /// @dev FLE token address
-    function fleAddress() external view returns (address);
+    /// @dev FILTrust token address
+    function filTrustAddress() external view returns (address);
 
     /// @dev Validation contract address
     function validationAddress() external view returns (address);
 
-    /// @dev return FIL/FLE exchange rate: total amount of FIL liquidity divided by total amount of FLE outstanding
+    /// @dev return FIL/FILTrust exchange rate: total amount of FIL liquidity divided by total amount of FILTrust outstanding
     function exchangeRate() external view returns (uint);
 
     /// @dev return transaction redeem fee rate
@@ -174,7 +174,7 @@ interface FILLInterface {
     function utilizationRate() external view returns (uint);
 
     /// @dev return fill contract infos
-    function fillInfo() external view returns (FILLInfo memory);
+    function filliquidInfo() external view returns (FILLiquidInfo memory);
 
     /// @dev Emitted when `user` binds `minerId`
     event BindMiner(uint64 indexed minerId, address indexed user);
@@ -182,11 +182,11 @@ interface FILLInterface {
     /// @dev Emitted when `user` unbinds `minerId`
     event UnbindMiner(uint64 indexed minerId, address indexed user);
 
-    /// @dev Emitted when `account` deposits `amountFIL` and mints `amountFLE`
-    event Deposit(address indexed account, uint amountFIL, uint amountFLE);
+    /// @dev Emitted when `account` deposits `amountFIL` and mints `amountFILTrust`
+    event Deposit(address indexed account, uint amountFIL, uint amountFILTrust);
 
-    /// @dev Emitted when `account` redeems `amountFLE` and withdraws `amountFIL`
-    event Redeem(address indexed account, uint amountFLE, uint amountFIL, uint fee);
+    /// @dev Emitted when `account` redeems `amountFILTrust` and withdraws `amountFIL`
+    event Redeem(address indexed account, uint amountFILTrust, uint amountFIL, uint fee);
 
     /// @dev Emitted when collateralizing `minerId` : change beneficiary to `beneficiary` with info `quota`,`expiration`
     event CollateralizingMiner(uint64 minerId, bytes beneficiary, uint quota, uint64 expiration);
@@ -224,7 +224,7 @@ interface FILLInterface {
     );
 }
 
-contract FILL is Context, FILLInterface {
+contract FILLiquid is Context, FILLiquidInterface {
     using Convertion for *;
 
     mapping(uint64 => BorrowInfo[]) private _minerBorrows;
@@ -238,8 +238,8 @@ contract FILL is Context, FILLInterface {
 
     uint private _accumulatedDepositFIL;
     uint private _accumulatedRedeemFIL;
-    uint private _accumulatedBurntFLE;
-    uint private _accumulatedMintFLE;
+    uint private _accumulatedBurntFILTrust;
+    uint private _accumulatedMintFILTrust;
     uint private _accumulatedBorrowFIL;
     uint private _accumulatedPaybackFIL;
     uint private _accumulatedInterestFIL;
@@ -273,7 +273,7 @@ contract FILL is Context, FILLInterface {
     uint private _slashFeeRate;
 
     //Collateralization rate factors
-    uint private _c_m; // collateralizationRate = cm() * collateralizationGrossRate / (_rateBase * _rateBase)
+    uint private _c_m; // collateralizationRate = c_m() * collateralizationGrossRate / (_rateBase * _rateBase)
     uint private _u_d; // Ud = _ud / _rateBase
     uint private _i_n; // i_n = _i_n / _rateBase
 
@@ -281,13 +281,14 @@ contract FILL is Context, FILLInterface {
     uint private _u_1;
     uint private _r_0;
     uint private _r_1;
+    uint private _r_m;
 
     //Deposit & Redeem factors
     uint private _u_m;
     uint private _j_n;
     
     //todo : add funcs to reset these addresses?
-    FLE private _tokenFLE;
+    FILTrust private _tokenFILTrust;
     Validation private _validation;
     Calculation private _calculation;
     FilecoinAPI private _filecoinAPI;
@@ -304,8 +305,9 @@ contract FILL is Context, FILLInterface {
     uint constant DEFAULT_U_D = 800000;
     uint constant DEFAULT_I_N = 10000000;
     uint constant DEFAULT_U_1 = 500000;
-    uint constant DEFAULT_R_0 = 1000;
+    uint constant DEFAULT_R_0 = 10000;
     uint constant DEFAULT_R_1 = 100000;
+    uint constant DEFAULT_R_M = 600000;
     uint constant DEFAULT_U_M = 900000;
     uint constant DEFAULT_J_N = 2500000;
     uint constant DEFAULT_MAX_SLASHES = 10;
@@ -317,8 +319,8 @@ contract FILL is Context, FILLInterface {
     uint constant DEFAULT_REQUIRED_QUOTA = 10 ** 68 - 10 ** 18;
     int64 constant DEFAULT_REQUIRED_EXPIRATION = type(int64).max;
 
-    constructor(address fleAddr, address validationAddr, address calculationAddr, address filecoinAPI, address payable foundationAddr) {
-        _tokenFLE = FLE(fleAddr);
+    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPI, address payable foundationAddr) {
+        _tokenFILTrust = FILTrust(filTrustAddr);
         _validation = Validation(validationAddr);
         _calculation = Calculation(calculationAddr);
         _filecoinAPI = FilecoinAPI(filecoinAPI);
@@ -346,63 +348,65 @@ contract FILL is Context, FILLInterface {
         _u_1 = DEFAULT_U_1;
         _r_0 = DEFAULT_R_0;
         _r_1 = DEFAULT_R_1;
+        _r_m = DEFAULT_R_M;
         _u_m = DEFAULT_U_M;
         _j_n = DEFAULT_J_N;
     }
 
     function deposit(uint amountFIL, uint exchRate, uint slippage) public payable returns (uint) {
-        require(msg.value == amountFIL, "Depositing value not match.");
-        require(msg.value >= _minDepositAmount, "Depositing value too small.");
+        require(msg.value == amountFIL, "Value mismatch.");
+        require(msg.value >= _minDepositAmount, "Value too small.");
         uint realTimeExchRate = exchangeRateDeposit(amountFIL);
         checkRateLower(exchRate, realTimeExchRate, slippage);
-        uint amountFLE = amountFIL * realTimeExchRate / _rateBase;
+        uint amountFILTrust = amountFIL * realTimeExchRate / _rateBase;
         
         _accumulatedDepositFIL += amountFIL;
-        _accumulatedMintFLE += amountFLE;
+        _accumulatedMintFILTrust += amountFILTrust;
         address sender = _msgSender();
-        _tokenFLE.mint(sender, amountFLE);
+        _tokenFILTrust.mint(sender, amountFILTrust);
         
-        emit Deposit(sender, amountFIL, amountFLE);
-        return amountFLE;
+        emit Deposit(sender, amountFIL, amountFILTrust);
+        return amountFILTrust;
     }
 
-    function redeem(uint amountFLE, uint expectExchRate, uint slippage) external returns (uint, uint) {
-        uint realTimeExchRate = exchangeRateRedeem(amountFLE);
+    function redeem(uint amountFILTrust, uint expectExchRate, uint slippage) external returns (uint, uint) {
+        uint realTimeExchRate = exchangeRateRedeem(amountFILTrust);
         checkRateUpper(expectExchRate, realTimeExchRate, slippage);
-        uint amountFIL = (amountFLE * _rateBase) / realTimeExchRate;
-        require(amountFIL < availableFIL(), "Not enough available FIL.");
+        uint amountFIL = (amountFILTrust * _rateBase) / realTimeExchRate;
+        require(amountFIL < availableFIL(), "Insufficient available FIL.");
 
-        _accumulatedBurntFLE += amountFLE;
+        _accumulatedBurntFILTrust += amountFILTrust;
         uint[2] memory fees = calculateFee(amountFIL, _redeemFeeRate);
         _accumulatedRedeemFIL += fees[0];
         _accumulatedRedeemFee += fees[1];
         address sender = _msgSender();
-        _tokenFLE.burn(sender, amountFLE);
+        _tokenFILTrust.burn(sender, amountFILTrust);
         _foundation.transfer(fees[1]);
         if (fees[0] > 0) payable(sender).transfer(fees[0]);
 
-        emit Redeem(sender, amountFLE, fees[0], fees[1]);
+        emit Redeem(sender, amountFILTrust, fees[0], fees[1]);
         return (fees[0], fees[1]);
     }
 
     function borrow(uint64 minerId, uint amount, uint expectInterestRate, uint slippage) external isBindMiner(minerId) returns (uint, uint) {
         haveCollateralizing(minerId);
-        require(amount >= _minBorrowAmount, "Borrow amount lower than minimum amount.");
-        require(amount < availableFIL(), "Borrowing amount exceeds pool size.");
-        require(_slashedTimes[minerId] < _maxSlashes, "Miner has exceeds max slashing limit.");
+        require(amount >= _minBorrowAmount, "Amount lower than minimum.");
+        require(amount < availableFIL(), "Amount exceeds pool size.");
+        require(utilizationRateBorrow(amount) <= _u_m, "Utilization rate afterwards exceeds u_m.");
+        require(_slashedTimes[minerId] < _maxSlashes, "Miner exceeds max slashed limit.");
         MinerCollateralizingInfo storage collateralizingInfo = _minerCollateralizing[minerId];
-        require(!collateralizingInfo.slashExists, "Miner with existing slash cannot borrow.");
+        require(!collateralizingInfo.slashExists, "Miner with existing slashes cannot borrow.");
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
-        require(borrows.length < _maxExistingBorrows, "Have reached maximum existing borrows");
+        require(borrows.length < _maxExistingBorrows, "Have reached maximum existing borrows.");
         (, bool slashable) = slashCondition(minerId);
         require(!slashable, "Miner is slashable.");
         uint realInterestRate = interestRateBorrow(amount);
         checkRateUpper(expectInterestRate, realInterestRate, slippage);
         require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance cannot be negative.");
-        require(amount <= maxBorrowAllowed(minerId), "Not enough collateral to borrow.");
+        require(amount <= maxBorrowAllowed(minerId), "Insufficient collateral to borrow.");
         //todo: check quota and expiration is big enough
         //MinerTypes.BeneficiaryTerm memory term = _filecoinAPI.getBeneficiary(minerId).active.term;
-        //require(collateralNeeded + collateralizingInfo.collateralAmount <= term.quota.bigInt2Uint() - term.used_quota.bigInt2Uint(), "Not enough quota.");
+        //require(collateralNeeded + collateralizingInfo.collateralAmount <= term.quota.bigInt2Uint() - term.used_quota.bigInt2Uint(), "Insufficient quota.");
         
         uint borrowId = _minerNextBorrowID[_msgSender()];
         borrows.push(
@@ -441,9 +445,9 @@ contract FILL is Context, FILLInterface {
     }
 
     function slash(uint64 minerId, uint borrowId) external returns (uint, uint, uint, uint) {
-        require(_lastSlash[minerId] == 0 || block.timestamp - _lastSlash[minerId] >= _minSlashInterval, "Not enough time past since last slash.");
+        require(_lastSlash[minerId] == 0 || block.timestamp - _lastSlash[minerId] >= _minSlashInterval, "Insufficient time past since last slash.");
         (, bool slashable) = slashCondition(minerId);
-        require(slashable, "Miner shoud not be slashed");
+        require(slashable, "Miner cannot be slashed.");
         _lastSlash[minerId] = block.timestamp;
         _slashedTimes[minerId] += 1;
         PaybackResult memory r = paybackProcess(minerId, borrowId, type(uint).max, true);
@@ -461,7 +465,7 @@ contract FILL is Context, FILLInterface {
     }
 
     function bindMiner(uint64 minerId, bytes memory signature) external returns (bool) {
-        require(_minerBindsMap[minerId] == address(0), "Should unbind first");
+        require(_minerBindsMap[minerId] == address(0), "Unbind first.");
         address sender = _msgSender();
         _validation.validateOwner(minerId, signature, sender);
         _minerBindsMap[minerId] = sender;
@@ -556,16 +560,16 @@ contract FILL is Context, FILLInterface {
         return true;
     }
 
-    function fillInfo() external view returns (FILLInfo memory) {
+    function filliquidInfo() external view returns (FILLiquidInfo memory) {
         return
-            FILLInfo({
+            FILLiquidInfo({
                 totalFIL: totalFILLiquidity(),
                 availableFIL: availableFIL(),
                 utilizedLiquidity: utilizedLiquidity(),
                 accumulatedDeposit: _accumulatedDepositFIL,
                 accumulatedRedeem: _accumulatedRedeemFIL,
-                accumulatedBurntFLE: _accumulatedBurntFLE,
-                accumulatedMintFLE: _accumulatedMintFLE,
+                accumulatedBurntFILTrust: _accumulatedBurntFILTrust,
+                accumulatedMintFILTrust: _accumulatedMintFILTrust,
                 accumulatedBorrow: _accumulatedBorrowFIL,
                 accumulatedPayback: _accumulatedPaybackFIL,
                 accumulatedInterest: _accumulatedInterestFIL,
@@ -605,7 +609,7 @@ contract FILL is Context, FILLInterface {
         uint total = totalFILLiquidity();
         require(total != 0, "Total FIL Liquidity is 0.");
         uint utilized = utilizedLiquidity() + amount;
-        require(utilized < total, "Utilized liquidity cannot be more than total liquidity.");
+        require(utilized < total, "Utilized liquidity should be smaller than total liquidity.");
         return utilized * _rateBase / total;
     }
 
@@ -628,23 +632,23 @@ contract FILL is Context, FILLInterface {
     }
 
     function exchangeRate() public view returns (uint) {
-        return _calculation.getExchangeRate(utilizationRate(), _u_m, _j_n, _rateBase, _tokenFLE.totalSupply(), totalFILLiquidity());
+        return _calculation.getExchangeRate(utilizationRate(), _u_m, _j_n, _rateBase, _tokenFILTrust.totalSupply(), totalFILLiquidity());
     }
 
     function exchangeRateDeposit(uint amount) public view returns (uint) {
-        return _calculation.getExchangeRate(utilizationRateDeposit(amount), _u_m, _j_n, _rateBase, _tokenFLE.totalSupply(), totalFILLiquidity());
+        return _calculation.getExchangeRate(utilizationRateDeposit(amount), _u_m, _j_n, _rateBase, _tokenFILTrust.totalSupply(), totalFILLiquidity());
     }
 
     function exchangeRateRedeem(uint amount) public view returns (uint) {
-        return _calculation.getExchangeRate(utilizationRateRedeem(amount), _u_m, _j_n, _rateBase, _tokenFLE.totalSupply(), totalFILLiquidity());
+        return _calculation.getExchangeRate(utilizationRateRedeem(amount), _u_m, _j_n, _rateBase, _tokenFILTrust.totalSupply(), totalFILLiquidity());
     }
 
     function interestRate() public view returns (uint) {
-        return _calculation.getInterestRate(utilizationRate(), _u_1, _r_0, _r_1, _rateBase);
+        return _calculation.getInterestRate(utilizationRate(), _u_1, _u_m, _r_0, _r_1, _r_m, _rateBase);
     }
 
     function interestRateBorrow(uint amount) public view returns (uint) {
-        return _calculation.getInterestRate(utilizationRateBorrow(amount), _u_1, _r_0, _r_1, _rateBase);
+        return _calculation.getInterestRate(utilizationRateBorrow(amount), _u_1, _u_m, _r_0, _r_1, _r_m, _rateBase);
     }
 
     function collateralizationRate(uint64 minerId) public view returns (uint) {
@@ -659,8 +663,8 @@ contract FILL is Context, FILLInterface {
         return _calculation.getPaybackAmount(borrowAmount, borrowPeriod, annualRate, _rateBase);
     }
 
-    function fleBalanceOf(address account) external view returns (uint) {
-        return _tokenFLE.balanceOf(account);
+    function filTrustBalanceOf(address account) external view returns (uint) {
+        return _tokenFILTrust.balanceOf(account);
     }
 
     function allMiners() external view returns (uint64[] memory) {
@@ -711,8 +715,8 @@ contract FILL is Context, FILLInterface {
         return _slashedTimes[minerId];
     }
 
-    function fleAddress() external view returns (address) {
-        return address(_tokenFLE);
+    function filTrustAddress() external view returns (address) {
+        return address(_tokenFILTrust);
     }
 
     function validationAddress() external view returns (address) {
@@ -759,7 +763,7 @@ contract FILL is Context, FILLInterface {
     }
 
     function setRedeemFeeRate(uint new_redeemFeeRate) external onlyOwner returns (uint) {
-        require(new_redeemFeeRate <= _rateBase, "Redeem fee rate cannot be lower than rate base");
+        require(new_redeemFeeRate <= _rateBase, "Invalid redeem fee rate.");
         _redeemFeeRate = new_redeemFeeRate;
         return _redeemFeeRate;
     }
@@ -769,7 +773,7 @@ contract FILL is Context, FILLInterface {
     }
 
     function setBorrowFeeRate(uint new_borrowFeeRate) external onlyOwner returns (uint) {
-        require(new_borrowFeeRate <= _rateBase, "Borrow fee rate cannot be lower than rate base");
+        require(new_borrowFeeRate <= _rateBase, "Invalid borrow fee rate.");
         _borrowFeeRate = new_borrowFeeRate;
         return _borrowFeeRate;
     }
@@ -779,7 +783,7 @@ contract FILL is Context, FILLInterface {
     }
 
     function setCollateralRate(uint new_collateralRate) external onlyOwner returns (uint) {
-        require(new_collateralRate < _rateBase, "Collateral fee rate cannot be lower than rate base");
+        require(new_collateralRate < _rateBase, "Invalid collateral fee rate.");
         _collateralRate = new_collateralRate;
         return _collateralRate;
     }
@@ -876,12 +880,12 @@ contract FILL is Context, FILLInterface {
         return _slashThreshold;
     }
 
-    function slashDiscountRate() external view returns (uint) {
-        return _slashDiscountRate;
-    }
-
     function slashRewardRate() external view returns (uint) {
         return _rateBase - _slashDiscountRate - _slashFeeRate;
+    }
+
+    function slashDiscountRate() external view returns (uint) {
+        return _slashDiscountRate;
     }
 
     function slashFeeRate() external view returns (uint) {
@@ -934,6 +938,7 @@ contract FILL is Context, FILLInterface {
     //Todo: add logic to check n > 1
     function setU_1(uint new_u_1) external onlyOwner returns (uint) {
         require(new_u_1 <= _rateBase, "Invalid u_1 value.");
+        require(new_u_1 < _u_m, "u_1 should be smaller than u_m.");
         _u_1 = new_u_1;
         return _u_1;
     }
@@ -945,6 +950,7 @@ contract FILL is Context, FILLInterface {
     //Todo: add logic to check n > 1
     function setR_0(uint new_r_0) external onlyOwner returns (uint) {
         require(new_r_0 <= _rateBase, "Invalid r_0 value.");
+        require(new_r_0 < _r_1, "r_0 should be smaller than r_1.");
         _r_0 = new_r_0;
         return _r_0;
     }
@@ -956,8 +962,20 @@ contract FILL is Context, FILLInterface {
     //Todo: add logic to check n > 1
     function setR_1(uint new_r_1) external onlyOwner returns (uint) {
         require(new_r_1 <= _rateBase, "Invalid r_1 value.");
+        require(new_r_1 > _r_0, "r_1 should be greater than r_0.");
         _r_1 = new_r_1;
         return _r_1;
+    }
+
+    function r_m() external view returns (uint) {
+        return _r_m;
+    }
+
+    //Todo: add logic to check n > 1
+    function setR_M(uint new_r_m) external onlyOwner returns (uint) {
+        require(new_r_m <= _rateBase, "Invalid r_m value.");
+        _r_m = new_r_m;
+        return _r_m;
     }
 
     function u_m() external view returns (uint) {
@@ -967,6 +985,7 @@ contract FILL is Context, FILLInterface {
     //Todo: add logic to check n > 1
     function setU_m(uint new_u_m) external onlyOwner returns (uint) {
         require(new_u_m <= _rateBase, "Invalid u_m value.");
+        require(new_u_m > _u_1, "u_m should be greater than u_1.");
         _u_m = new_u_m;
         return _u_m;
     }
@@ -982,7 +1001,7 @@ contract FILL is Context, FILLInterface {
     }
 
     modifier onlyOwner() {
-        require(_msgSender() == _owner, "Only owner can call.");
+        require(_msgSender() == _owner, "Only owner allowed.");
         _;
     }
 
@@ -995,11 +1014,11 @@ contract FILL is Context, FILLInterface {
     }
 
     function noCollateralizing(uint64 _id) private view {
-        require(_minerCollateralizing[_id].quota == 0, "Please uncollateralize first.");
+        require(_minerCollateralizing[_id].quota == 0, "Uncollateralize first.");
     }
 
     function haveCollateralizing(uint64 _id) private view {
-        require(_minerCollateralizing[_id].quota > 0, "Please collateralizing first.");
+        require(_minerCollateralizing[_id].quota > 0, "Collateralize first.");
     }
 
     function checkRateLower(uint expectRate, uint realTimeRate, uint slippage) private pure {
@@ -1035,7 +1054,7 @@ contract FILL is Context, FILLInterface {
 
     function getPrincipalAndInterest(BorrowInterestInfo[] memory infos) private pure returns (uint result) {
         for (uint i = 0; i < infos.length; i++) {
-            result += infos[i].interest;
+            result += infos[i].interest + infos[i].borrow.borrowAmount;
         }
     }
 

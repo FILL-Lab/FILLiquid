@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
-
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract FLE is ERC20 {
+contract FILTrust is ERC20 {
     address private _owner;
     mapping(address => bool) private manageAddresses;
 

@@ -8,7 +8,7 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: "0.8.17",
+    version: "0.8.19",
     settings: {
       optimizer: {
         enabled: true,
@@ -20,12 +20,12 @@ module.exports = {
   networks: {
     wallaby: {
       chainId: 31415,
-      url: "https://wallaby.node.glif.io/rpc/v0",
+      url: "https://calibration.filfox.info/rpc/v0",
       accounts: [PRIVATE_KEY],
     },
     hyperspace: {
       chainId: 3141,
-      url: "https://api.hyperspace.node.glif.io/rpc/v1",
+      url: "https://filecoin-hyperspace.chainup.net/rpc/v1",
       accounts: [PRIVATE_KEY],
     },
   },

@@ -19,11 +19,11 @@ contract DataFetcher {
     }
 
     function fetchPersonalData(address player) external view returns (
-        uint fleBalance,
+        uint filTrustBalance,
         uint filBalance,
         FILLiquid.MinerBorrowInfo[] memory infos
     ) {
-        fleBalance = _filliquid.fleBalanceOf(player);
+        filTrustBalance = _filliquid.filTrustBalanceOf(player);
         filBalance = player.balance;
         infos = _filliquid.userBorrows(player);
     }

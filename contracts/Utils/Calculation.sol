@@ -10,7 +10,7 @@ contract Calculation {
         require(u < rateBase, "Utilization rate cannot be bigger than 1.");
         if (u <= u_1) return r_0 + ((r_1 - r_0) * u) / u_1;
         UD60x18 base = toUD60x18((rateBase * (rateBase - u_1)) / (rateBase - u), rateBase);
-        UD60x18 exp = (toUD60x18(r_m, rateBase).log2() - toUD60x18(r_1, rateBase).log2()) / toUD60x18(rateBase - u_1, rateBase).log2() - toUD60x18(rateBase - u_m, rateBase).log2();
+        UD60x18 exp = (toUD60x18Direct(r_m).log2() - toUD60x18Direct(r_1).log2()) / (toUD60x18Direct(rateBase - u_1).log2() - toUD60x18Direct(rateBase - u_m).log2());
         return toUint(base.pow(exp), rateBase) * r_1 / rateBase;
     }
 
@@ -18,7 +18,7 @@ contract Calculation {
         require(u < rateBase, "Utilization rate cannot be bigger than 1.");
         uint fleFil = rateBase;
         if (fleLiquidity != 0 && fleLiquidity != filLiquidity) {
-            fleFil = filLiquidity * rateBase / fleLiquidity;
+            fleFil = fleLiquidity * rateBase / filLiquidity;
         }
         if (u <= u_m) return fleFil;
         uint base = (rateBase * (rateBase - u_m)) / (rateBase - u);
@@ -45,6 +45,10 @@ contract Calculation {
 
     function toUD60x18(uint input, uint rateBase) private pure returns (UD60x18){
         return ud(input * conventionFactor(rateBase));
+    }
+
+    function toUD60x18Direct(uint input) private pure returns (UD60x18){
+        return ud(input * FACTOR);
     }
 
     function toUint(UD60x18 input, uint rateBase) private pure returns (uint) {

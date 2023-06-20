@@ -26,6 +26,10 @@ contract FilecoinAPI{
         return PrecompilesAPI.resolveAddress(MinerAPI.getOwner(wrapId(minerId)).owner);
     }
 
+    function resolveEthAddress(address addr) external view returns (uint64){
+        return PrecompilesAPI.resolveEthAddress(addr);
+    }
+
     function changeBeneficiary(
         uint64 minerId,
         CommonTypes.FilAddress memory beneficiary,

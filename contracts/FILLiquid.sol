@@ -255,6 +255,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint private _minDepositAmount; // minimum deposit amount acceptable
     uint private _minBorrowAmount; // minimum borrow amount acceptable
     uint private _maxExistingBorrows; // maximum existing borrows for each miner
+    uint private _maxFamilySize; // maximum family size
     uint private _requiredQuota; // require quota upon changing beneficiary
     int64 private _requiredExpiration; // required expiration upon changing beneficiary
 
@@ -285,6 +286,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_MIN_DEPOSIT = 1 ether;
     uint constant DEFAULT_MIN_BORROW = 10 ether;
     uint constant DEFAULT_MAX_EXISTING_BORROWS = 3;
+    uint constant DEFAULT_MAX_FAMILY_SIZE = 5;
     uint constant DEFAULT_RATE_BASE = 1000000;
     uint constant DEFAULT_REDEEM_FEE_RATE = 5000;
     uint constant DEFAULT_BORROW_FEE_RATE = 10000;
@@ -318,6 +320,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _minDepositAmount = DEFAULT_MIN_DEPOSIT;
         _minBorrowAmount = DEFAULT_MIN_BORROW;
         _maxExistingBorrows = DEFAULT_MAX_EXISTING_BORROWS;
+        _maxFamilySize = DEFAULT_MAX_FAMILY_SIZE;
         _requiredQuota = DEFAULT_REQUIRED_QUOTA;
         _requiredExpiration = DEFAULT_REQUIRED_EXPIRATION;
         _maxLiquidations = DEFAULT_MAX_LIQUIDATIONS;
@@ -374,17 +377,17 @@ contract FILLiquid is Context, FILLiquidInterface {
         require(amount >= _minBorrowAmount, "Amount lower than minimum");
         require(amount < availableFIL(), "Amount exceeds pool size");
         require(utilizationRateBorrow(amount) <= _u_m, "Utilization rate afterwards exceeds u_m");
-        require(_liquidatedTimes[minerId] < _maxLiquidations, "Miner exceeds max liquidation limit");
+        require(_liquidatedTimes[minerId] < _maxLiquidations, "Exceed max liquidation limit");
         MinerCollateralizingInfo storage collateralizingInfo = _minerCollateralizing[minerId];
-        require(!collateralizingInfo.liquidateExists, "Miner with existing liquidations cannot borrow");
+        require(!collateralizingInfo.liquidateExists, "Existing liquidations");
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
-        require(borrows.length < _maxExistingBorrows, "Have reached maximum existing borrows");
-        (, bool liquidatable) = liquidateCondition(minerId);
-        require(!liquidatable, "Miner is liquidatable");
+        require(borrows.length < _maxExistingBorrows, "Maximum existing borrows");
+        (, bool liquidatable,) = liquidateCondition(minerId);
+        require(!liquidatable, "Is liquidatable");
         uint realInterestRate = interestRateBorrow(amount);
         checkRateUpper(expectInterestRate, realInterestRate, slippage);
-        require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance cannot be negative");
-        require(amount <= maxBorrowAllowed(minerId), "Insufficient collateral to borrow");
+        require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance is negative");
+        require(amount <= maxBorrowAllowed(minerId), "Insufficient collateral");
         //todo: check quota and expiration is big enough
         //MinerTypes.BeneficiaryTerm memory term = _filecoinAPI.getBeneficiary(minerId).active.term;
         //require(collateralNeeded + collateralizingInfo.collateralAmount <= term.quota.bigInt2Uint() - term.used_quota.bigInt2Uint(), "Insufficient quota");
@@ -414,8 +417,8 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (fees[0], fees[1]);
     }
 
-    function payback(uint64 minerId, uint amount) external isBindMinerOrOwner(minerId) payable returns (uint, uint) {
-        PaybackResult memory r = paybackProcess(minerId, amount, false);
+    function payback(uint64 minerId, uint amount) external isSameFamily(minerId) payable returns (uint, uint) {
+        PaybackResult memory r = paybackProcess(minerId, amount, false, 0);
         _accumulatedPaybackFIL += r.paybackPrincipal;
         _accumulatedInterestFIL += r.payBackInterest;
         withdrawBalance(minerId, r.withdrawn);
@@ -427,11 +430,11 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function liquidate(uint64 minerId) external returns (uint, uint, uint, uint) {
         require(_lastLiquidate[minerId] == 0 || block.timestamp - _lastLiquidate[minerId] >= _minLiquidateInterval, "Insufficient time since last liquidation");
-        (, bool liquidatable) = liquidateCondition(minerId);
-        require(liquidatable, "Miner is not liquidatable");
+        (, bool liquidatable, uint totalPrincipalAndInterest) = liquidateCondition(minerId);
+        require(liquidatable, "Not liquidatable");
         _lastLiquidate[minerId] = block.timestamp;
         _liquidatedTimes[minerId] += 1;
-        PaybackResult memory r = paybackProcess(minerId, type(uint).max, true);
+        PaybackResult memory r = paybackProcess(minerId, type(uint).max, true, totalPrincipalAndInterest);
         _accumulatedPaybackFIL += r.paybackPrincipal;
         _accumulatedInterestFIL += r.payBackInterest;
         _accumulatedLiquidateReward += r.liquidateReward;
@@ -448,6 +451,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     function bindMiner(uint64 minerId, bytes memory signature) external returns (bool) {
         require(_minerBindsMap[minerId] == address(0), "Unbind first");
         address sender = _msgSender();
+        require(_userMinerPairs[sender].length < _maxFamilySize, "Family size too big");
         if (sender != FilAddress.toAddress(_filecoinAPI.getOwnerActorId(minerId))) {
             _validation.validateOwner(minerId, signature, sender);
         }
@@ -524,6 +528,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     function uncollateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) returns (bool) {
         haveCollateralizing(minerId);
         require(_minerCollateralizing[minerId].borrowAmount == 0, "Payback first");
+        require(canMinerExitFamily(minerId), "Cannot exit family");
 
         // change Beneficiary to owner
         CommonTypes.FilAddress memory minerOwner = _filecoinAPI.getOwner(minerId).owner;
@@ -586,14 +591,14 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint total = totalFILLiquidity();
         require(total != 0, "Total FIL Liquidity is 0");
         uint utilized = utilizedLiquidity() + amount;
-        require(utilized < total, "Utilized liquidity must be smaller than total");
+        require(utilized < total, "Utilized liquidity exceeds total");
         return utilized * _rateBase / total;
     }
 
     function utilizationRateDeposit(uint amount) public view returns (uint) {
         uint utilized = utilizedLiquidity();
         uint total = totalFILLiquidity() + amount;
-        require(total != 0, "Total FIL Liquidity is 0");
+        require(total != 0, "Total liquidity is 0");
         return utilized * _rateBase / total;
     }
 
@@ -604,7 +609,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         if (utilized != totalLiquidity) {
             approxFIL = amount * (totalLiquidity - utilized) * _rateBase / (exchangeRate() * totalLiquidity);
         }
-        require(totalLiquidity > approxFIL, "Approximate redeem amount must be smaller than total liquidity");
+        require(totalLiquidity > approxFIL, "Approximate redeem exceeds total liquidity");
         return utilized * _rateBase / (totalLiquidity - approxFIL);
     }
 
@@ -657,7 +662,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             result[i].minerId = minerId;
             result[i].haveCollateralizing = _minerCollateralizing[minerId].quota > 0;
             result[i].borrows = minerBorrows(minerId);
-            (result[i].alertable, result[i].liquidatable) = liquidateCondition(minerId, result[i].borrows);
+            (result[i].alertable, result[i].liquidatable,) = liquidateCondition(minerId, result[i].borrows);
         }
     }
 
@@ -670,8 +675,15 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function maxBorrowAllowed(uint64 minerId) public view returns (uint256) {
-        uint a = _collateralRate * FilAddress.toAddress(minerId).balance;
-        uint b = _rateBase * getPrincipalAndInterest(minerBorrows(minerId));
+        uint a = 0;
+        uint b = 0;
+        uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
+        for (uint i = 0; i < miners.length; i++) {
+            a += FilAddress.toAddress(miners[i]).balance;
+            b += getPrincipalAndInterest(minerBorrows(minerId));
+        }
+        a *= _collateralRate;
+        b *= _rateBase;
         if (a <= b) return 0;
         else return (a - b) / (_rateBase - _collateralRate);
     }
@@ -782,6 +794,15 @@ contract FILLiquid is Context, FILLiquidInterface {
     function setMaxExistingBorrows(uint new_maxExistingBorrows) external onlyOwner returns (uint) {
         _maxExistingBorrows = new_maxExistingBorrows;
         return _maxExistingBorrows;
+    }
+
+    function maxFamilySize() external view returns (uint) {
+        return _maxFamilySize;
+    }
+
+    function setMaxFamilySize(uint new_maxFamilySize) external onlyOwner returns (uint) {
+        _maxFamilySize = new_maxFamilySize;
+        return _maxFamilySize;
     }
 
     function requiredQuota() external view returns (uint) {
@@ -937,6 +958,14 @@ contract FILLiquid is Context, FILLiquidInterface {
         _;
     }
 
+    modifier isSameFamily(uint64 minerId) {
+        address sender = _msgSender();
+        require(sender != address(0), "Invalid account");
+        require(minerId != 0, "Invalid minerId");
+        require(sender == _minerBindsMap[minerId] || sender == FilAddress.toAddress(_filecoinAPI.getOwnerActorId(minerId)) || _minerBindsMap[minerId] == _minerBindsMap[_filecoinAPI.resolveEthAddress(sender)], "Not same family");
+        _;
+    }
+
     function noCollateralizing(uint64 _id) private view {
         require(_minerCollateralizing[_id].quota == 0, "Uncollateralize first");
     }
@@ -961,17 +990,19 @@ contract FILLiquid is Context, FILLiquidInterface {
         fees[0] = input - fees[1];
     }
 
-    function liquidateCondition(uint64 minerId) private view returns (bool alertable, bool liquidatable) {
-        if (_minerCollateralizing[minerId].liquidateExists) {
+    function liquidateCondition(uint64 minerId) private view returns (bool alertable, bool liquidatable, uint principalAndInterest) {
+        if (!_minerCollateralizing[minerId].liquidateExists) {
+            (alertable, liquidatable, principalAndInterest) = liquidateCondition(minerId, minerBorrows(minerId));
+        }
+        else {
             alertable = true;
             liquidatable = true;
-        } else {
-            (alertable, liquidatable) = liquidateCondition(minerId, minerBorrows(minerId));
         }
     }
 
-    function liquidateCondition(uint64 minerId, BorrowInterestInfo[] memory infos) private view returns (bool alertable, bool liquidatable) {
-        uint rate = getPrincipalAndInterest(infos) * _rateBase / FilAddress.toAddress(minerId).balance;
+    function liquidateCondition(uint64 minerId, BorrowInterestInfo[] memory infos) private view returns (bool alertable, bool liquidatable, uint principalAndInterest) {
+        principalAndInterest = getPrincipalAndInterest(infos);
+        uint rate = principalAndInterest * _rateBase / FilAddress.toAddress(minerId).balance;
         alertable = rate >= _alertThreshold;
         liquidatable = rate >= _liquidateThreshold;
     }
@@ -982,13 +1013,17 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
     }
 
-    function paybackProcess(uint64 minerId, uint amount, bool isLiquidation) private returns (PaybackResult memory r) {
+    function paybackProcess(uint64 minerId, uint amount, bool isLiquidation, uint totalPrincipalAndInterest) private returns (PaybackResult memory r) {
         require(minerId != 0, "Invalid miner id");
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         require(borrows.length != 0, "No borrow exists");
         uint available = _filecoinAPI.getAvailableBalance(minerId).bigInt2Uint();
         if (isLiquidation || amount > available) {
             amount = available;
+        }
+        if (isLiquidation) {
+            uint maxPayBack = (totalPrincipalAndInterest - FilAddress.toAddress(minerId).balance * _collateralRate / _rateBase) * _rateBase / _liquidateDiscountRate;
+            if (amount > maxPayBack) amount = maxPayBack;
         }
         uint valueLeft = msg.value;
         uint amountLeft = amount;
@@ -1065,6 +1100,19 @@ contract FILLiquid is Context, FILLiquidInterface {
             borrows[i] = borrows[i - 1];
         }
         borrows[index] = last;
+    }
+
+    function canMinerExitFamily(uint64 minerId) private view returns (bool) {
+        uint balanceSum = 0;
+        uint principalAndInterestSum = 0;
+        uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
+        for (uint i = 0; i < miners.length; i++) {
+            if (miners[i] == minerId) continue;
+            balanceSum += FilAddress.toAddress(miners[i]).balance;
+            principalAndInterestSum += getPrincipalAndInterest(minerBorrows(minerId));
+        }
+        if (_collateralRate * balanceSum < _rateBase * principalAndInterestSum) return false;
+        else return true;
     }
 
     function changeBeneficiary(

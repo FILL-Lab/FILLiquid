@@ -74,26 +74,23 @@ interface FILLiquidInterface {
     /// @dev deposit FIL to the contract, mint FILTrust
     /// @param amountFIL  the amount of FIL user would like to deposit
     /// @param exchangeRate approximated exchange rate at the point of request
-    /// @param slippageTolr slippage tolerance
     /// @return amount actual FILTrust minted
-    function deposit(uint amountFIL, uint exchangeRate, uint slippageTolr) external payable returns (uint amount);
+    function deposit(uint amountFIL, uint exchangeRate) external payable returns (uint amount);
 
     /// @dev redeem FILTrust to the contract, withdraw FIL
     /// @param amountFILTrust the amount of FILTrust user would like to redeem
     /// @param exchangeRate approximated exchange rate at the point of request
-    /// @param slippageTolr slippage tolerance
     /// @return amount actual FIL withdrawal
     /// @return fee fee deducted
-    function redeem(uint amountFILTrust, uint exchangeRate, uint slippageTolr) external returns (uint amount, uint fee);
+    function redeem(uint amountFILTrust, uint exchangeRate) external returns (uint amount, uint fee);
 
     /// @dev borrow FIL from the contract
     /// @param minerId miner id
     /// @param amountFIL the amount of FIL user would like to borrow
     /// @param interestRate approximated interest rate at the point of request
-    /// @param slippageTolr slippage tolerance
     /// @return amount actual FIL borrowed
     /// @return fee fee deducted
-    function borrow(uint64 minerId, uint amountFIL, uint interestRate, uint slippageTolr) external returns (uint amount, uint fee);
+    function borrow(uint64 minerId, uint amountFIL, uint interestRate) external returns (uint amount, uint fee);
 
     /// @dev payback principal and interest
     /// @param minerId miner id
@@ -295,7 +292,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_J_N = 2500000;
     uint constant DEFAULT_MAX_LIQUIDATIONS = 10;
     uint constant DEFAULT_MIN_LIQUIDATE_INTERVAL = 12 hours;
-    uint constant DEFAULT_ALERT_THRESHOLD = 800000;
+    uint constant DEFAULT_ALERT_THRESHOLD = 750000;
     uint constant DEFAULT_LIQUIDATE_THRESHOLD = 850000;
     uint constant DEFAULT_LIQUIDATE_DISCOUNT_RATE = 900000;
     uint constant DEFAULT_LIQUIDATE_FEE_RATE = 70000;
@@ -333,11 +330,11 @@ contract FILLiquid is Context, FILLiquidInterface {
         _j_n = DEFAULT_J_N;
     }
 
-    function deposit(uint amountFIL, uint exchRate, uint slippage) public payable returns (uint) {
+    function deposit(uint amountFIL, uint exchRate) public payable returns (uint) {
         require(msg.value == amountFIL, "Value mismatch");
         require(msg.value >= _minDepositAmount, "Value too small");
         uint realTimeExchRate = exchangeRateDeposit(amountFIL);
-        checkRateLower(exchRate, realTimeExchRate, slippage);
+        checkRateLower(exchRate, realTimeExchRate);
         uint amountFILTrust = amountFIL * realTimeExchRate / _rateBase;
         
         _accumulatedDepositFIL += amountFIL;
@@ -349,9 +346,9 @@ contract FILLiquid is Context, FILLiquidInterface {
         return amountFILTrust;
     }
 
-    function redeem(uint amountFILTrust, uint expectExchRate, uint slippage) external returns (uint, uint) {
+    function redeem(uint amountFILTrust, uint expectExchRate) external returns (uint, uint) {
         uint realTimeExchRate = exchangeRateRedeem(amountFILTrust);
-        checkRateUpper(expectExchRate, realTimeExchRate, slippage);
+        checkRateUpper(expectExchRate, realTimeExchRate);
         uint amountFIL = (amountFILTrust * _rateBase) / realTimeExchRate;
         require(amountFIL < availableFIL(), "Insufficient available FIL");
 
@@ -368,8 +365,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (fees[0], fees[1]);
     }
 
-    function borrow(uint64 minerId, uint amount, uint expectInterestRate, uint slippage) external isBindMinerOrOwner(minerId) returns (uint, uint) {
-        haveCollateralizing(minerId);
+    function borrow(uint64 minerId, uint amount, uint expectInterestRate) external isBindMinerOrOwner(minerId) haveCollateralizing(minerId) returns (uint, uint) {
         require(amount >= _minBorrowAmount, "Amount lower than minimum");
         require(amount < availableFIL(), "Amount exceeds pool size");
         require(utilizationRateBorrow(amount) <= _u_m, "Utilization rate afterwards exceeds u_m");
@@ -381,7 +377,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         (, bool liquidatable,) = liquidateCondition(minerId);
         require(!liquidatable, "Miner liquidatable");
         uint realInterestRate = interestRateBorrow(amount);
-        checkRateUpper(expectInterestRate, realInterestRate, slippage);
+        checkRateUpper(expectInterestRate, realInterestRate);
         require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance is negative");
         require(amount <= maxBorrowAllowed(minerId), "Insufficient collateral");
         //todo: check quota and expiration is big enough
@@ -458,7 +454,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         emit BindMiner(minerId, sender);
     }
 
-    function unbindMiner(uint64 minerId) external isBindMinerOrOwner(minerId) {
+    function unbindMiner(uint64 minerId) external isBindMinerOrOwner(minerId) noCollateralizing(minerId){
         require(_minerBindsMap[minerId] != address(0), "Not bound");
         address sender = _msgSender();
         delete _minerBindsMap[minerId];
@@ -485,8 +481,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         emit UnbindMiner(minerId, sender);
     }
 
-    function collateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) {
-        noCollateralizing(minerId);
+    function collateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) noCollateralizing(minerId){
         MinerTypes.GetBeneficiaryReturn memory beneficiaryRet = _filecoinAPI.getBeneficiary(minerId);
         MinerTypes.PendingBeneficiaryChange memory proposedBeneficiaryRet = beneficiaryRet.proposed;
         require(uint(keccak256(abi.encode(_filecoinAPI.getOwner(minerId).owner.data))) == 
@@ -518,8 +513,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         );
     }
 
-    function uncollateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) {
-        haveCollateralizing(minerId);
+    function uncollateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) haveCollateralizing(minerId) {
         require(_minerCollateralizing[minerId].borrowAmount == 0, "Payback first");
         require(canMinerExitFamily(minerId), "Cannot exit family");
 
@@ -935,20 +929,22 @@ contract FILLiquid is Context, FILLiquidInterface {
         _;
     }
 
-    function noCollateralizing(uint64 _id) private view {
+    modifier noCollateralizing(uint64 _id) {
         require(_minerCollateralizing[_id].quota == 0, "Uncollateralize first");
+        _;
     }
 
-    function haveCollateralizing(uint64 _id) private view {
+    modifier haveCollateralizing(uint64 _id) {
         require(_minerCollateralizing[_id].quota > 0, "Collateralize first");
+        _;
     }
 
-    function checkRateLower(uint expectRate, uint realTimeRate, uint slippage) private pure {
-        require(expectRate <= realTimeRate + slippage, "Expected rate too high");
+    function checkRateLower(uint expectRate, uint realTimeRate) private pure {
+        require(expectRate <= realTimeRate, "Expected rate too high");
     }
 
-    function checkRateUpper(uint expectRate, uint realTimeRate, uint slippage) private pure {
-        require(realTimeRate <= expectRate + slippage, "Expected rate too low");
+    function checkRateUpper(uint expectRate, uint realTimeRate) private pure {
+        require(realTimeRate <= expectRate, "Expected rate too low");
     }
 
     function calculateFee(uint input, uint rate) private view returns (uint[2] memory fees) {

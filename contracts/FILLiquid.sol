@@ -113,23 +113,19 @@ interface FILLiquidInterface {
     /// @dev bind miner with sender address
     /// @param minerId miner id
     /// @param signature miner signature
-    /// @return success calling result
-    function bindMiner(uint64 minerId, bytes memory signature) external returns (bool success);
+    function bindMiner(uint64 minerId, bytes memory signature) external;
 
     /// @dev unbind miner with bound address
     /// @param minerId miner id
-    /// @return success calling result
-    function unbindMiner(uint64 minerId) external returns (bool success);
+    function unbindMiner(uint64 minerId) external;
 
     /// @dev collateralizing miner : change beneficiary to contract , need owner for miner propose change beneficiary first
     /// @param minerId miner id
-    /// @return flag result flag for change beneficiary
-    function collateralizingMiner(uint64 minerId) external returns (bool);
+    function collateralizingMiner(uint64 minerId) external;
 
     /// @dev uncollateralizing miner : change beneficiary back to miner owner, need payback all first
     /// @param minerId miner id
-    /// @return flag result flag for change beneficiary
-    function uncollateralizingMiner(uint64 minerId) external returns (bool);
+    function uncollateralizingMiner(uint64 minerId) external;
 
     /// @dev FILTrust balance of a user
     /// @param account user account
@@ -383,7 +379,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         require(borrows.length < _maxExistingBorrows, "Maximum existing borrows");
         (, bool liquidatable,) = liquidateCondition(minerId);
-        require(!liquidatable, "Is liquidatable");
+        require(!liquidatable, "Miner liquidatable");
         uint realInterestRate = interestRateBorrow(amount);
         checkRateUpper(expectInterestRate, realInterestRate, slippage);
         require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance is negative");
@@ -448,7 +444,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (r.paybackPrincipal, r.payBackInterest, r.liquidateReward, r.liquidateFee);
     }
 
-    function bindMiner(uint64 minerId, bytes memory signature) external returns (bool) {
+    function bindMiner(uint64 minerId, bytes memory signature) external {
         require(_minerBindsMap[minerId] == address(0), "Unbind first");
         address sender = _msgSender();
         require(_userMinerPairs[sender].length < _maxFamilySize, "Family size too big");
@@ -460,10 +456,9 @@ contract FILLiquid is Context, FILLiquidInterface {
         _allMiners.push(minerId);
 
         emit BindMiner(minerId, sender);
-        return true;
     }
 
-    function unbindMiner(uint64 minerId) external isBindMinerOrOwner(minerId) returns (bool) {
+    function unbindMiner(uint64 minerId) external isBindMinerOrOwner(minerId) {
         require(_minerBindsMap[minerId] != address(0), "Not bound");
         address sender = _msgSender();
         delete _minerBindsMap[minerId];
@@ -488,10 +483,9 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
 
         emit UnbindMiner(minerId, sender);
-        return true;
     }
 
-    function collateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) returns (bool) {
+    function collateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) {
         noCollateralizing(minerId);
         MinerTypes.GetBeneficiaryReturn memory beneficiaryRet = _filecoinAPI.getBeneficiary(minerId);
         MinerTypes.PendingBeneficiaryChange memory proposedBeneficiaryRet = beneficiaryRet.proposed;
@@ -522,10 +516,9 @@ contract FILLiquid is Context, FILLiquidInterface {
             quota,
             uExpiration
         );
-        return true;
     }
 
-    function uncollateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) returns (bool) {
+    function uncollateralizingMiner(uint64 minerId) external isBindMinerOrOwner(minerId) {
         haveCollateralizing(minerId);
         require(_minerCollateralizing[minerId].borrowAmount == 0, "Payback first");
         require(canMinerExitFamily(minerId), "Cannot exit family");
@@ -539,7 +532,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         delete _minerCollateralizing[minerId];
 
         emit UncollateralizingMiner(minerId, minerOwner.data, 0, 0);
-        return true;
     }
 
     function filliquidInfo() external view returns (FILLiquidInfo memory) {
@@ -716,149 +708,133 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _owner;
     }
 
-    function setOwner(address new_owner) onlyOwner external returns (address) {
+    function setOwner(address new_owner) onlyOwner external {
         _owner = new_owner;
-        return _owner;
     }
 
     function foundation() external view returns (address payable) {
         return _foundation;
     }
 
-    function setFoundation(address payable new_foundation) onlyOwner external returns (address payable) {
+    function setFoundation(address payable new_foundation) onlyOwner external {
         _foundation = new_foundation;
-        return _foundation;
     }
 
     function rateBase() public view returns (uint) {
         return _rateBase;
     }
 
-    function setRateBase(uint new_rateBase) external onlyOwner returns (uint) {
+    function setRateBase(uint new_rateBase) external onlyOwner {
         _rateBase = new_rateBase;
-        return _rateBase;
     }
 
     function redeemFeeRate() external view returns (uint) {
         return _redeemFeeRate;
     }
 
-    function setRedeemFeeRate(uint new_redeemFeeRate) external onlyOwner returns (uint) {
+    function setRedeemFeeRate(uint new_redeemFeeRate) external onlyOwner {
         require(new_redeemFeeRate <= _rateBase, "Invalid value");
         _redeemFeeRate = new_redeemFeeRate;
-        return _redeemFeeRate;
     }
 
     function borrowFeeRate() external view returns (uint) {
         return _borrowFeeRate;
     }
 
-    function setBorrowFeeRate(uint new_borrowFeeRate) external onlyOwner returns (uint) {
+    function setBorrowFeeRate(uint new_borrowFeeRate) external onlyOwner {
         require(new_borrowFeeRate <= _rateBase, "Invalid value");
         _borrowFeeRate = new_borrowFeeRate;
-        return _borrowFeeRate;
     }
 
     function collateralRate() external view returns (uint) {
         return _collateralRate;
     }
 
-    function setCollateralRate(uint new_collateralRate) external onlyOwner returns (uint) {
+    function setCollateralRate(uint new_collateralRate) external onlyOwner {
         require(new_collateralRate < _rateBase, "Invalid value");
         _collateralRate = new_collateralRate;
-        return _collateralRate;
     }
 
     function minDepositAmount() external view returns (uint) {
         return _minDepositAmount;
     }
 
-    function setMinDepositAmount(uint new_minDepositAmount) external onlyOwner returns (uint) {
+    function setMinDepositAmount(uint new_minDepositAmount) external onlyOwner {
         _minDepositAmount = new_minDepositAmount;
-        return _minDepositAmount;
     }
 
     function minBorrowAmount() external view returns (uint) {
         return _minBorrowAmount;
     }
 
-    function setMinBorrowAmount(uint new_minBorrowAmount) external onlyOwner returns (uint) {
+    function setMinBorrowAmount(uint new_minBorrowAmount) external onlyOwner {
         _minBorrowAmount = new_minBorrowAmount;
-        return _minBorrowAmount;
     }
 
     function maxExistingBorrows() external view returns (uint) {
         return _maxExistingBorrows;
     }
 
-    function setMaxExistingBorrows(uint new_maxExistingBorrows) external onlyOwner returns (uint) {
+    function setMaxExistingBorrows(uint new_maxExistingBorrows) external onlyOwner {
         _maxExistingBorrows = new_maxExistingBorrows;
-        return _maxExistingBorrows;
     }
 
     function maxFamilySize() external view returns (uint) {
         return _maxFamilySize;
     }
 
-    function setMaxFamilySize(uint new_maxFamilySize) external onlyOwner returns (uint) {
+    function setMaxFamilySize(uint new_maxFamilySize) external onlyOwner {
         _maxFamilySize = new_maxFamilySize;
-        return _maxFamilySize;
     }
 
     function requiredQuota() external view returns (uint) {
         return _requiredQuota;
     }
 
-    function setRequiredQuota(uint new_requiredQuota) external onlyOwner returns (uint) {
+    function setRequiredQuota(uint new_requiredQuota) external onlyOwner {
         _requiredQuota = new_requiredQuota;
-        return _requiredQuota;
     }
 
     function requiredExpiration() external view returns (int64) {
         return _requiredExpiration;
     }
 
-    function setRequiredExpiration(int64 new_requiredExpiration) external onlyOwner returns (int64) {
+    function setRequiredExpiration(int64 new_requiredExpiration) external onlyOwner {
         _requiredExpiration = new_requiredExpiration;
-        return _requiredExpiration;
     }
 
     function maxLiquidations() external view returns (uint) {
         return _maxLiquidations;
     }
 
-    function setMaxLiquidations(uint new_maxLiquidations) external onlyOwner returns (uint) {
+    function setMaxLiquidations(uint new_maxLiquidations) external onlyOwner {
         _maxLiquidations = new_maxLiquidations;
-        return _maxLiquidations;
     }
 
     function minLiquidateInterval() external view returns (uint) {
         return _minLiquidateInterval;
     }
 
-    function setMinLiquidateInterval(uint new_minLiquidateInterval) external onlyOwner returns (uint) {
+    function setMinLiquidateInterval(uint new_minLiquidateInterval) external onlyOwner {
         _minLiquidateInterval = new_minLiquidateInterval;
-        return _minLiquidateInterval;
     }
 
     function alertThreshold() external view returns (uint) {
         return _alertThreshold;
     }
 
-    function setAlertThreshold(uint new_alertThreshold) external onlyOwner returns (uint) {
+    function setAlertThreshold(uint new_alertThreshold) external onlyOwner {
         require(new_alertThreshold <= _rateBase, "Invalid value");
         _alertThreshold = new_alertThreshold;
-        return _alertThreshold;
     }
 
     function liquidateThreshold() external view returns (uint) {
         return _liquidateThreshold;
     }
 
-    function setLiquidateThreshold(uint new_liquidateThreshold) external onlyOwner returns (uint) {
+    function setLiquidateThreshold(uint new_liquidateThreshold) external onlyOwner {
         require(new_liquidateThreshold <= _rateBase, "Invalid value");
         _liquidateThreshold = new_liquidateThreshold;
-        return _liquidateThreshold;
     }
 
     function liquidateRewardRate() external view returns (uint) {
@@ -873,11 +849,10 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _liquidateFeeRate;
     }
 
-    function setLiquidateRates(uint new_liquidateDiscountRate, uint new_liquidateFeeRate) external onlyOwner returns (uint, uint) {
+    function setLiquidateRates(uint new_liquidateDiscountRate, uint new_liquidateFeeRate) external onlyOwner {
         require(new_liquidateDiscountRate + new_liquidateFeeRate <= _rateBase && new_liquidateDiscountRate != 0, "Invalid value");
         _liquidateDiscountRate = new_liquidateDiscountRate;
         _liquidateFeeRate = new_liquidateFeeRate;
-        return (_liquidateDiscountRate, _liquidateFeeRate);
     }
 
     function u_1() external view returns (uint) {
@@ -885,10 +860,9 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     //Todo: add logic to check n > 1
-    function setU_1(uint new_u_1) external onlyOwner returns (uint) {
+    function setU_1(uint new_u_1) external onlyOwner {
         require(new_u_1 <= _rateBase && new_u_1 < _u_m, "Invalid value");
         _u_1 = new_u_1;
-        return _u_1;
     }
 
     function r_0() external view returns (uint) {
@@ -896,10 +870,9 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     //Todo: add logic to check n > 1
-    function setR_0(uint new_r_0) external onlyOwner returns (uint) {
+    function setR_0(uint new_r_0) external onlyOwner {
         require(new_r_0 <= _rateBase && new_r_0 < _r_1, "Invalid value");
         _r_0 = new_r_0;
-        return _r_0;
     }
 
     function r_1() external view returns (uint) {
@@ -907,10 +880,9 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     //Todo: add logic to check n > 1
-    function setR_1(uint new_r_1) external onlyOwner returns (uint) {
+    function setR_1(uint new_r_1) external onlyOwner {
         require(new_r_1 <= _rateBase && new_r_1 > _r_0 && new_r_1 < _r_m, "Invalid value");
         _r_1 = new_r_1;
-        return _r_1;
     }
 
     function r_m() external view returns (uint) {
@@ -918,10 +890,9 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     //Todo: add logic to check n > 1
-    function setR_M(uint new_r_m) external onlyOwner returns (uint) {
+    function setR_M(uint new_r_m) external onlyOwner {
         require(new_r_m <= _rateBase && new_r_m > _r_1, "Invalid value");
         _r_m = new_r_m;
-        return _r_m;
     }
 
     function u_m() external view returns (uint) {
@@ -929,10 +900,9 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     //Todo: add logic to check n > 1
-    function setU_m(uint new_u_m) external onlyOwner returns (uint) {
+    function setU_m(uint new_u_m) external onlyOwner {
         require(new_u_m <= _rateBase && new_u_m > _u_1, "Invalid value");
         _u_m = new_u_m;
-        return _u_m;
     }
 
     function j_n() external view returns (uint) {
@@ -940,9 +910,8 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     //Todo: add logic to check n > 1
-    function setJ_n(uint new_j_n) external onlyOwner returns (uint) {
+    function setJ_n(uint new_j_n) external onlyOwner {
         _j_n = new_j_n;
-        return _j_n;
     }
 
     modifier onlyOwner() {
@@ -991,10 +960,8 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function liquidateCondition(uint64 minerId) private view returns (bool alertable, bool liquidatable, uint principalAndInterest) {
-        if (!_minerCollateralizing[minerId].liquidateExists) {
-            (alertable, liquidatable, principalAndInterest) = liquidateCondition(minerId, minerBorrows(minerId));
-        }
-        else {
+        (alertable, liquidatable, principalAndInterest) = liquidateCondition(minerId, minerBorrows(minerId));
+        if (_minerCollateralizing[minerId].liquidateExists) {
             alertable = true;
             liquidatable = true;
         }

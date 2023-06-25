@@ -40,7 +40,7 @@ contract Deployer {
         _dataFetcher = new DataFetcher(address(_filLiquid));
         emit ContractPublishing("DataFetcher", address(_dataFetcher));
         _filTrust.addManager(address(_filLiquid));
-        _filLiquid.deposit{value: msg.value}(msg.value, _filLiquid.rateBase(), 0);
+        _filLiquid.deposit{value: msg.value}(msg.value, _filLiquid.rateBase());
         uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);

@@ -409,11 +409,21 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (fees[0], fees[1]);
     }
 
-    function payback(uint64 minerId, uint amount) external isSameFamily(minerId) payable returns (uint, uint) {
-        PaybackResult memory r = paybackProcess(minerId, amount, false, 0);
+    function payback(uint64 minerId, uint amount) external isBindMinerOrOwner (minerId) payable returns (uint, uint) {
+        PaybackResult memory r = paybackProcess(minerId, amount, false, true, 0);
         _accumulatedPaybackFIL += r.paybackPrincipal;
         _accumulatedInterestFIL += r.payBackInterest;
-        withdrawBalance(minerId, r.withdrawn);
+        if (r.withdrawn > 0) withdrawBalance(minerId, r.withdrawn);
+        if (r.overpaid > 0) payable(_msgSender()).transfer(r.overpaid);
+
+        emit Payback(_msgSender(), minerId, r.paybackPrincipal, r.payBackInterest);
+        return (r.paybackPrincipal, r.payBackInterest);
+    }
+
+    function paybackWithoutLimit(uint64 minerId, uint amount) external payable returns (uint, uint) {
+        PaybackResult memory r = paybackProcess(minerId, amount, false, false, 0);
+        _accumulatedPaybackFIL += r.paybackPrincipal;
+        _accumulatedInterestFIL += r.payBackInterest;
         if (r.overpaid > 0) payable(_msgSender()).transfer(r.overpaid);
 
         emit Payback(_msgSender(), minerId, r.paybackPrincipal, r.payBackInterest);
@@ -426,12 +436,12 @@ contract FILLiquid is Context, FILLiquidInterface {
         require(liquidatable, "Not liquidatable");
         _lastLiquidate[minerId] = block.timestamp;
         _liquidatedTimes[minerId] += 1;
-        PaybackResult memory r = paybackProcess(minerId, type(uint).max, true, totalPrincipalAndInterest);
+        PaybackResult memory r = paybackProcess(minerId, type(uint).max, true, true, totalPrincipalAndInterest);
         _accumulatedPaybackFIL += r.paybackPrincipal;
         _accumulatedInterestFIL += r.payBackInterest;
         _accumulatedLiquidateReward += r.liquidateReward;
         _accumulatedLiquidateFee += r.liquidateFee;
-        withdrawBalance(minerId, r.withdrawn);
+        if (r.withdrawn > 0) withdrawBalance(minerId, r.withdrawn);
         _foundation.transfer(r.liquidateFee);
         uint bonus = r.overpaid + r.liquidateReward;
         if (bonus > 0) payable(_msgSender()).transfer(bonus);
@@ -976,7 +986,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
     }
 
-    function paybackProcess(uint64 minerId, uint amount, bool isLiquidation, uint totalPrincipalAndInterest) private returns (PaybackResult memory r) {
+    function paybackProcess(uint64 minerId, uint amount, bool isLiquidation, bool canWithdraw, uint totalPrincipalAndInterest) private returns (PaybackResult memory r) {
         require(minerId != 0, "Invalid miner id");
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         require(borrows.length != 0, "No borrow exists");
@@ -990,6 +1000,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
         uint valueLeft = msg.value;
         uint amountLeft = amount;
+        if (!canWithdraw) amountLeft = 0;
         for (uint i = borrows.length - 1; i >= 0; i--) {
             BorrowInfo storage info = borrows[i];
             uint principalAndInterest = paybackAmount(info.borrowAmount, block.timestamp - info.datedDate, info.interestRate);

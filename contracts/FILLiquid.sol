@@ -410,24 +410,11 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function payback(uint64 minerId, uint amount) external isBindMinerOrOwner (minerId) payable returns (uint, uint) {
-        PaybackResult memory r = paybackProcess(minerId, amount, false, true, 0);
-        _accumulatedPaybackFIL += r.paybackPrincipal;
-        _accumulatedInterestFIL += r.payBackInterest;
-        if (r.withdrawn > 0) withdrawBalance(minerId, r.withdrawn);
-        if (r.overpaid > 0) payable(_msgSender()).transfer(r.overpaid);
-
-        emit Payback(_msgSender(), minerId, r.paybackPrincipal, r.payBackInterest);
-        return (r.paybackPrincipal, r.payBackInterest);
+        return paybackLogic(minerId, amount, true);
     }
 
     function paybackWithoutLimit(uint64 minerId, uint amount) external payable returns (uint, uint) {
-        PaybackResult memory r = paybackProcess(minerId, amount, false, false, 0);
-        _accumulatedPaybackFIL += r.paybackPrincipal;
-        _accumulatedInterestFIL += r.payBackInterest;
-        if (r.overpaid > 0) payable(_msgSender()).transfer(r.overpaid);
-
-        emit Payback(_msgSender(), minerId, r.paybackPrincipal, r.payBackInterest);
-        return (r.paybackPrincipal, r.payBackInterest);
+        return paybackLogic(minerId, amount, false);
     }
 
     function liquidate(uint64 minerId) external returns (uint, uint, uint, uint) {
@@ -585,7 +572,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function utilizationRateBorrow(uint amount) public view returns (uint) {
         uint total = totalFILLiquidity();
-        require(total != 0, "Total FIL Liquidity is 0");
+        require(total != 0, "Total liquidity is 0");
         uint utilized = utilizedLiquidity() + amount;
         require(utilized < total, "Utilized liquidity exceeds total");
         return utilized * _rateBase / total;
@@ -737,7 +724,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function setRedeemFeeRate(uint new_redeemFeeRate) external onlyOwner {
-        require(new_redeemFeeRate <= _rateBase, "Invalid value");
+        require(new_redeemFeeRate <= _rateBase, "Invalid");
         _redeemFeeRate = new_redeemFeeRate;
     }
 
@@ -746,7 +733,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function setBorrowFeeRate(uint new_borrowFeeRate) external onlyOwner {
-        require(new_borrowFeeRate <= _rateBase, "Invalid value");
+        require(new_borrowFeeRate <= _rateBase, "Invalid");
         _borrowFeeRate = new_borrowFeeRate;
     }
 
@@ -755,7 +742,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function setCollateralRate(uint new_collateralRate) external onlyOwner {
-        require(new_collateralRate < _rateBase, "Invalid value");
+        require(new_collateralRate < _rateBase, "Invalid");
         _collateralRate = new_collateralRate;
     }
 
@@ -828,7 +815,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function setAlertThreshold(uint new_alertThreshold) external onlyOwner {
-        require(new_alertThreshold <= _rateBase, "Invalid value");
+        require(new_alertThreshold <= _rateBase, "Invalid");
         _alertThreshold = new_alertThreshold;
     }
 
@@ -837,7 +824,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function setLiquidateThreshold(uint new_liquidateThreshold) external onlyOwner {
-        require(new_liquidateThreshold <= _rateBase, "Invalid value");
+        require(new_liquidateThreshold <= _rateBase, "Invalid");
         _liquidateThreshold = new_liquidateThreshold;
     }
 
@@ -854,7 +841,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function setLiquidateRates(uint new_liquidateDiscountRate, uint new_liquidateFeeRate) external onlyOwner {
-        require(new_liquidateDiscountRate + new_liquidateFeeRate <= _rateBase && new_liquidateDiscountRate != 0, "Invalid value");
+        require(new_liquidateDiscountRate + new_liquidateFeeRate <= _rateBase && new_liquidateDiscountRate != 0, "Invalid");
         _liquidateDiscountRate = new_liquidateDiscountRate;
         _liquidateFeeRate = new_liquidateFeeRate;
     }
@@ -865,7 +852,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //Todo: add logic to check n > 1
     function setU_1(uint new_u_1) external onlyOwner {
-        require(new_u_1 <= _rateBase && new_u_1 < _u_m, "Invalid value");
+        require(new_u_1 <= _rateBase && new_u_1 < _u_m, "Invalid");
         _u_1 = new_u_1;
     }
 
@@ -875,7 +862,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //Todo: add logic to check n > 1
     function setR_0(uint new_r_0) external onlyOwner {
-        require(new_r_0 <= _rateBase && new_r_0 < _r_1, "Invalid value");
+        require(new_r_0 <= _rateBase && new_r_0 < _r_1, "Invalid");
         _r_0 = new_r_0;
     }
 
@@ -885,7 +872,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //Todo: add logic to check n > 1
     function setR_1(uint new_r_1) external onlyOwner {
-        require(new_r_1 <= _rateBase && new_r_1 > _r_0 && new_r_1 < _r_m, "Invalid value");
+        require(new_r_1 <= _rateBase && new_r_1 > _r_0 && new_r_1 < _r_m, "Invalid");
         _r_1 = new_r_1;
     }
 
@@ -895,7 +882,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //Todo: add logic to check n > 1
     function setR_M(uint new_r_m) external onlyOwner {
-        require(new_r_m <= _rateBase && new_r_m > _r_1, "Invalid value");
+        require(new_r_m <= _rateBase && new_r_m > _r_1, "Invalid");
         _r_m = new_r_m;
     }
 
@@ -905,7 +892,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //Todo: add logic to check n > 1
     function setU_m(uint new_u_m) external onlyOwner {
-        require(new_u_m <= _rateBase && new_u_m > _u_1, "Invalid value");
+        require(new_u_m <= _rateBase && new_u_m > _u_1, "Invalid");
         _u_m = new_u_m;
     }
 
@@ -986,21 +973,32 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
     }
 
+    function paybackLogic(uint64 minerId, uint amount, bool canWithdraw) private returns (uint, uint) {
+        PaybackResult memory r = paybackProcess(minerId, amount, false, canWithdraw, 0);
+        _accumulatedPaybackFIL += r.paybackPrincipal;
+        _accumulatedInterestFIL += r.payBackInterest;
+        if (r.overpaid > 0) payable(_msgSender()).transfer(r.overpaid);
+
+        emit Payback(_msgSender(), minerId, r.paybackPrincipal, r.payBackInterest);
+        return (r.paybackPrincipal, r.payBackInterest);
+    }
+
     function paybackProcess(uint64 minerId, uint amount, bool isLiquidation, bool canWithdraw, uint totalPrincipalAndInterest) private returns (PaybackResult memory r) {
         require(minerId != 0, "Invalid miner id");
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         require(borrows.length != 0, "No borrow exists");
-        uint available = _filecoinAPI.getAvailableBalance(minerId).bigInt2Uint();
-        if (isLiquidation || amount > available) {
-            amount = available;
-        }
-        if (isLiquidation) {
-            uint maxPayBack = (totalPrincipalAndInterest - FilAddress.toAddress(minerId).balance * _collateralRate / _rateBase) * _rateBase / _liquidateDiscountRate;
-            if (amount > maxPayBack) amount = maxPayBack;
-        }
+        if (canWithdraw) {
+            uint available = _filecoinAPI.getAvailableBalance(minerId).bigInt2Uint();
+            if (isLiquidation || amount > available) {
+                amount = available;
+            }
+            if (isLiquidation) {
+                uint maxPayBack = (totalPrincipalAndInterest - FilAddress.toAddress(minerId).balance * _collateralRate / _rateBase) * _rateBase / _liquidateDiscountRate;
+                if (amount > maxPayBack) amount = maxPayBack;
+            }
+        } else amount = 0;
         uint valueLeft = msg.value;
         uint amountLeft = amount;
-        if (!canWithdraw) amountLeft = 0;
         for (uint i = borrows.length - 1; i >= 0; i--) {
             BorrowInfo storage info = borrows[i];
             uint principalAndInterest = paybackAmount(info.borrowAmount, block.timestamp - info.datedDate, info.interestRate);

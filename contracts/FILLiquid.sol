@@ -92,12 +92,18 @@ interface FILLiquidInterface {
     /// @return fee fee deducted
     function borrow(uint64 minerId, uint amountFIL, uint interestRate) external returns (uint amount, uint fee);
 
-    /// @dev payback principal and interest
+    /// @dev payback principal and interest by self
     /// @param minerId miner id
-    /// @param paybackAmount payback amount
+    /// @param withdrawAmount payback amount
     /// @return principal repaid principal FIL
     /// @return interest repaid interest FIL
-    function payback(uint64 minerId, uint paybackAmount) external payable returns (uint principal, uint interest);
+    function withdraw4Payback(uint64 minerId, uint withdrawAmount) external payable returns (uint principal, uint interest);
+
+    /// @dev payback principal and interest by anyone
+    /// @param minerId miner id
+    /// @return principal repaid principal FIL
+    /// @return interest repaid interest FIL
+    function directPayback(uint64 minerId) external payable returns (uint principal, uint interest);
 
     /// @dev liquidate process
     /// @param minerId miner id
@@ -409,11 +415,11 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (fees[0], fees[1]);
     }
 
-    function payback(uint64 minerId, uint amount) external isBindMinerOrOwner (minerId) payable returns (uint, uint) {
+    function withdraw4Payback(uint64 minerId, uint amount) external isBindMinerOrOwner (minerId) payable returns (uint, uint) {
         return paybackLogic(minerId, amount);
     }
 
-    function paybackWithoutLimit(uint64 minerId) external payable returns (uint, uint) {
+    function directPayback(uint64 minerId) external payable returns (uint, uint) {
         return paybackLogic(minerId, 0);
     }
 

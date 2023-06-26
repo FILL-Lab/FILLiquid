@@ -981,6 +981,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _accumulatedPaybackFIL += r.paybackPrincipal;
         _accumulatedInterestFIL += r.payBackInterest;
         if (r.overpaid > 0) payable(_msgSender()).transfer(r.overpaid);
+        if (r.withdrawn > 0) withdrawBalance(minerId, r.withdrawn);
 
         emit Payback(_msgSender(), minerId, r.paybackPrincipal, r.payBackInterest);
         return (r.paybackPrincipal, r.payBackInterest);

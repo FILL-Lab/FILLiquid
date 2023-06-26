@@ -7,7 +7,7 @@ import "@zondax/filecoin-solidity/contracts/v0.8/PrecompilesAPI.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 
 contract Validation is Context {
-    mapping(bytes => uint256) private nonces;
+    mapping(bytes => uint256) private _nonces;
 
     event ShowMsg(bytes m);
 
@@ -29,13 +29,17 @@ contract Validation is Context {
                 message: digest
             })
         );
-        nonces[ownerAddr.data] += 1;
+        _nonces[ownerAddr.data] += 1;
     }
 
     function getSigningMsg(uint64 minerID) external returns (bytes memory m) {
         bytes memory ownerAddr = getOwner(minerID).data;
         m = getDigest(ownerAddr, minerID, _msgSender());
         emit ShowMsg(m);
+    }
+
+    function getNonce(bytes memory addr) external view returns (uint256) {
+        return _nonces[addr];
     }
 
     function getDigest(
@@ -48,7 +52,7 @@ contract Validation is Context {
             ownerAddr,
             minerID,
             sender,
-            nonces[ownerAddr],
+            _nonces[ownerAddr],
             getChainId()
         ));
         return bytes.concat(digest);

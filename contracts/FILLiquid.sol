@@ -25,10 +25,14 @@ interface FILLiquidInterface {
         BorrowInfo borrow;
         uint interest;
     }
-    struct MinerBorrowInfo {
-        uint64 minerId;
+    struct LiquidateConditionInfo{
+        uint maxLiquidatable;
         bool alertable;
         bool liquidatable;
+    }
+    struct MinerBorrowInfo {
+        uint64 minerId;
+        LiquidateConditionInfo info;
         bool haveCollateralizing;
         BorrowInterestInfo[] borrows;
     }
@@ -60,8 +64,6 @@ interface FILLiquidInterface {
         uint collateralRate;                // r.   Current Collateral Rate
         uint rateBase;                      // s.   Rate base
     }
-
-    // this is used in paybackProcess, could be deleted too if we use the simplified version. 
     struct PaybackResult{
         uint amountleft;
         uint totalPrinciple;
@@ -376,8 +378,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         require(borrows.length < _maxExistingBorrows, "Maximum existing borrows");
-        (, bool liquidatable) = liquidateCondition(minerId);
-        require(!liquidatable, "Miner liquidatable");
+        require(!liquidateCondition(minerId).liquidatable, "Miner liquidatable");
         uint realInterestRate = interestRateBorrow(amount);
         checkRateUpper(expectInterestRate, realInterestRate);
         require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance is negative");
@@ -436,14 +437,15 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function liquidate(uint64 minerId) external isBorrower(minerId) returns (uint, uint, uint, uint) {
         require(_lastLiquidate[minerId] == 0 || block.timestamp - _lastLiquidate[minerId] >= _minLiquidateInterval, "Insufficient time since last liquidation");
-        (, bool liquidatable) = liquidateCondition(minerId);
-        require(liquidatable, "Not liquidatable");
+        LiquidateConditionInfo memory s = liquidateCondition(minerId);
+        require(s.liquidatable, "Not liquidatable");
         _lastLiquidate[minerId] = block.timestamp;
         _liquidatedTimes[minerId] += 1;
 
         // calculate the maximum amount for pinciple+interest
         uint available = _filecoinAPI.getAvailableBalance(minerId).bigInt2Uint();
         uint maxAmount = available * _liquidateDiscountRate / _rateBase;
+        if (maxAmount > s.maxLiquidatable) maxAmount = s.maxLiquidatable;
         
         PaybackResult memory r = paybackProcess(minerId, maxAmount);
  
@@ -668,7 +670,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             result[i].minerId = minerId;
             result[i].haveCollateralizing = _minerCollateralizing[minerId].quota > 0;
             result[i].borrows = minerBorrows(minerId);
-            (result[i].alertable, result[i].liquidatable) = liquidateCondition(minerId);
+            result[i].info = liquidateCondition(minerId);
         }
     }
 
@@ -982,7 +984,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         fees[0] = input - fees[1];
     }
 
-    function liquidateCondition(uint64 minerId) private view returns (bool alertable, bool liquidatable) {
+    function liquidateCondition(uint64 minerId) private view returns (LiquidateConditionInfo memory r) {
         uint balanceSum = 0;
         uint principalAndInterestSum = 0;
         uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
@@ -991,8 +993,11 @@ contract FILLiquid is Context, FILLiquidInterface {
             principalAndInterestSum += getPrincipalAndInterest(miners[i]);
         }
         uint rate = principalAndInterestSum * _rateBase / balanceSum;
-        alertable = rate >= _alertThreshold;
-        liquidatable = rate >= _liquidateThreshold;
+        r.alertable = rate >= _alertThreshold;
+        r.liquidatable = rate >= _liquidateThreshold;
+        if (r.liquidatable) {
+            r.maxLiquidatable = principalAndInterestSum - balanceSum * _collateralRate / _rateBase;
+        }
     }
 
     function getPrincipalAndInterest(uint64 minerId) private view returns (uint result) {

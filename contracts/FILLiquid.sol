@@ -26,7 +26,6 @@ interface FILLiquidInterface {
         uint interest;
     }
     struct LiquidateConditionInfo{
-        uint maxLiquidatable;
         bool alertable;
         bool liquidatable;
     }
@@ -92,11 +91,12 @@ interface FILLiquidInterface {
     function borrow(uint64 minerId, uint amountFIL, uint interestRate) external returns (uint amount, uint fee);
 
     /// @dev payback principal and interest by self
-    /// @param minerId miner id
+    /// @param minerIdPayee miner id being paid
+    /// @param minerIdPayer miner id paying
     /// @param withdrawAmount maximum withdrawal amount
     /// @return principal repaid principal FIL
     /// @return interest repaid interest FIL
-    function withdraw4Payback(uint64 minerId, uint withdrawAmount) external payable returns (uint principal, uint interest);
+    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint withdrawAmount) external payable returns (uint principal, uint interest);
 
     /// @dev payback principal and interest by anyone
     /// @param minerId miner id
@@ -201,9 +201,12 @@ interface FILLiquidInterface {
     /// @dev Emitted when user `account` repays `principal + interest` FIL for `borrowId` of `minerId`
     event Payback(
         address account,
-        uint64 minerId,
+        uint64 minerIdPayee,
+        uint64 minerIdPayer,
         uint principal,
-        uint interest
+        uint interest,
+        uint withdrawn,
+        uint valueTx
     );
 
     /// @dev Emitted when user `account` liquidate `principal + interest + reward + fee` FIL for `borrowId` of `minerId`
@@ -410,40 +413,42 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (fees[0], fees[1]);
     }
 
-    function withdraw4Payback(uint64 minerId, uint amount) external isBindMinerOrOwner (minerId) isBorrower(minerId) payable returns (uint, uint) {
-        uint available = _filecoinAPI.getAvailableBalance(minerId).bigInt2Uint();
+    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint amount) external isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) payable returns (uint, uint) {
+        uint available = _filecoinAPI.getAvailableBalance(minerIdPayer).bigInt2Uint();
         if (amount > available) {
             amount = available;
         }
         
-        PaybackResult memory r = paybackProcess(minerId, msg.value + amount);
+        PaybackResult memory r = paybackProcess(minerIdPayee, msg.value + amount);
+        uint sentBack = 0;
+        uint withdrawn = 0;
         if (r.amountLeft > amount) {
-            payable(_msgSender()).transfer(r.amountLeft - amount);
+            sentBack = r.amountLeft - amount;
+            payable(_msgSender()).transfer(sentBack);
         } else if (r.amountLeft < amount) {
-            withdrawBalance(minerId, amount - r.amountLeft);
+            withdrawn = amount - r.amountLeft;
+            withdrawBalance(minerIdPayer, withdrawn);
         }
 
-        emit Payback(_msgSender(), minerId, r.totalPrinciple, r.totalInterest);
+        emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r.totalPrinciple, r.totalInterest, withdrawn, msg.value - sentBack);
         return (r.totalPrinciple, r.totalInterest);
     }
 
     function directPayback(uint64 minerId) external isBorrower(minerId) payable returns (uint, uint) {
         PaybackResult memory r = paybackProcess(minerId, msg.value);
         if (r.amountLeft > 0) payable(_msgSender()).transfer(r.amountLeft);
-        emit Payback(_msgSender(), minerId, r.totalPrinciple, r.totalInterest);
+        emit Payback(_msgSender(), minerId, minerId, r.totalPrinciple, r.totalInterest, 0, msg.value - r.amountLeft);
         return (r.totalPrinciple, r.totalInterest);
     }
 
     function liquidate(uint64 minerId) external isBorrower(minerId) returns (uint, uint, uint, uint) {
         require(_lastLiquidate[minerId] == 0 || block.timestamp - _lastLiquidate[minerId] >= _minLiquidateInterval, "Insufficient time since last liquidation");
-        LiquidateConditionInfo memory s = liquidateCondition(minerId);
-        require(s.liquidatable, "Not liquidatable");
+        require(liquidateCondition(minerId).liquidatable, "Not liquidatable");
         _lastLiquidate[minerId] = block.timestamp;
         _liquidatedTimes[minerId] += 1;
 
         // calculate the maximum amount for pinciple+interest
         uint maxAmount = _filecoinAPI.getAvailableBalance(minerId).bigInt2Uint() * _liquidateDiscountRate / _rateBase;
-        if (maxAmount > s.maxLiquidatable) maxAmount = s.maxLiquidatable;
         
         PaybackResult memory r = paybackProcess(minerId, maxAmount);
  
@@ -942,11 +947,14 @@ contract FILLiquid is Context, FILLiquidInterface {
         _;
     }
 
-    modifier isSameFamily(uint64 minerId) {
+    modifier isSameFamily(uint64 minerIdPayee, uint64 minerIdPayer) {
         address sender = _msgSender();
         require(sender != address(0), "Invalid account");
-        require(minerId != 0, "Invalid minerId");
-        require(sender == _minerBindsMap[minerId] || sender == FilAddress.toAddress(_filecoinAPI.getOwnerActorId(minerId)) || _minerBindsMap[minerId] == _minerBindsMap[_filecoinAPI.resolveEthAddress(sender)], "Not same family");
+        require(minerIdPayee != 0 && minerIdPayer != 0, "Invalid minerId");
+        require(sender == _minerBindsMap[minerIdPayer] || sender == FilAddress.toAddress(_filecoinAPI.getOwnerActorId(minerIdPayer)), "Not bind or owner");
+        if (minerIdPayee != minerIdPayer) {
+            require(_minerBindsMap[minerIdPayer] == _minerBindsMap[minerIdPayee], "Not same family");
+        }
         _;
     }
 
@@ -994,9 +1002,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint rate = principalAndInterestSum * _rateBase / balanceSum;
         r.alertable = rate >= _alertThreshold;
         r.liquidatable = rate >= _liquidateThreshold;
-        if (r.liquidatable) {
-            r.maxLiquidatable = principalAndInterestSum - balanceSum * _collateralRate / _rateBase;
-        }
     }
 
     function getPrincipalAndInterest(uint64 minerId) private view returns (uint result) {

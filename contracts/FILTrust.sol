@@ -11,11 +11,11 @@ contract FILTrust is ERC20 {
         addManager(_owner);
     }
     
-    function mint(address account, uint256 amount) external isManager {
+    function mint(address account, uint256 amount) external onlyManager {
         _mint(account, amount);
     }
 
-    function burn(address account, uint256 amount) external isManager {
+    function burn(address account, uint256 amount) external onlyManager {
         _burn(account, amount);
     }
 
@@ -41,12 +41,12 @@ contract FILTrust is ERC20 {
     }
 
     modifier onlyOwner() {
-        require(_msgSender() == _owner, "Caller is not the owner.");
+        require(_msgSender() == _owner, "Only owner allowed");
         _;
     }
 
-    modifier isManager() {
-        require(verifyManager(_msgSender()), "You need to be manager.");
+    modifier onlyManager() {
+        require(verifyManager(_msgSender()), "Only manager allowed");
         _;
     }
 }

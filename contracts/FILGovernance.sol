@@ -7,7 +7,7 @@ contract FILGovernance is ERC20 {
     mapping(address => bool) private manageAddresses;
 
     //TODO: make sure of total supply
-    uint constant MAX_SUPPLY = 10 ** 12;
+    uint constant MAX_SUPPLY = 2 * 10 ** 12;
 
     //TODO: add initial mint
     constructor(string memory name, string memory symbol) ERC20(name, symbol){

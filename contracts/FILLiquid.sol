@@ -273,6 +273,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint private _r_0;
     uint private _r_1;
     uint private _r_m;
+    uint private _n;
 
     //Deposit & Redeem factors
     uint private _u_m;
@@ -336,6 +337,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _r_m = DEFAULT_R_M;
         _u_m = DEFAULT_U_M;
         _j_n = DEFAULT_J_N;
+        _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
     function deposit(uint amountFIL, uint exchRate) public payable returns (uint) {
@@ -638,11 +640,11 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function interestRate() public view returns (uint) {
-        return _calculation.getInterestRate(utilizationRate(), _u_1, _u_m, _r_0, _r_1, _r_m, _rateBase);
+        return _calculation.getInterestRate(utilizationRate(), _u_1, _r_0, _r_1, _rateBase, _n);
     }
 
     function interestRateBorrow(uint amount) public view returns (uint) {
-        return _calculation.getInterestRate(utilizationRateBorrow(amount), _u_1, _u_m, _r_0, _r_1, _r_m, _rateBase);
+        return _calculation.getInterestRate(utilizationRateBorrow(amount), _u_1, _r_0, _r_1, _rateBase, _n);
     }
 
     function paybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate) public view returns (uint) {
@@ -746,6 +748,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function setRateBase(uint new_rateBase) external onlyOwner {
         _rateBase = new_rateBase;
+        _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
     function redeemFeeRate() external view returns (uint) {
@@ -875,63 +878,24 @@ contract FILLiquid is Context, FILLiquidInterface {
         _liquidateFeeRate = new_liquidateFeeRate;
     }
 
-    function u_1() external view returns (uint) {
-        return _u_1;
+    function getCalculationFactors() external view returns (uint, uint, uint, uint, uint, uint) {
+        return (_u_1, _r_0, _r_1, _r_m, _u_m, _j_n);
     }
 
     //Todo: add logic to check n > 1
-    function setU_1(uint new_u_1) external onlyOwner {
-        require(new_u_1 <= _rateBase && new_u_1 < _u_m, "Invalid");
+    function setCalculationFactors(uint new_u_1, uint new_r_0, uint new_r_1, uint new_r_m, uint new_u_m, uint new_j_n) external onlyOwner {
+        require(new_u_1 <= _rateBase && new_u_1 < new_u_m, "Invalid u_1");
+        require(new_r_0 <= _rateBase && new_r_0 < new_r_1, "Invalid r_0");
+        require(new_r_1 <= _rateBase && new_r_1 < new_r_m, "Invalid r_1");
+        require(new_r_m <= _rateBase, "Invalid r_m");
+        require(new_u_m <= _rateBase, "Invalid u_m");
         _u_1 = new_u_1;
-    }
-
-    function r_0() external view returns (uint) {
-        return _r_0;
-    }
-
-    //Todo: add logic to check n > 1
-    function setR_0(uint new_r_0) external onlyOwner {
-        require(new_r_0 <= _rateBase && new_r_0 < _r_1, "Invalid");
         _r_0 = new_r_0;
-    }
-
-    function r_1() external view returns (uint) {
-        return _r_1;
-    }
-
-    //Todo: add logic to check n > 1
-    function setR_1(uint new_r_1) external onlyOwner {
-        require(new_r_1 <= _rateBase && new_r_1 > _r_0 && new_r_1 < _r_m, "Invalid");
         _r_1 = new_r_1;
-    }
-
-    function r_m() external view returns (uint) {
-        return _r_m;
-    }
-
-    //Todo: add logic to check n > 1
-    function setR_M(uint new_r_m) external onlyOwner {
-        require(new_r_m <= _rateBase && new_r_m > _r_1, "Invalid");
         _r_m = new_r_m;
-    }
-
-    function u_m() external view returns (uint) {
-        return _u_m;
-    }
-
-    //Todo: add logic to check n > 1
-    function setU_m(uint new_u_m) external onlyOwner {
-        require(new_u_m <= _rateBase && new_u_m > _u_1, "Invalid");
         _u_m = new_u_m;
-    }
-
-    function j_n() external view returns (uint) {
-        return _j_n;
-    }
-
-    //Todo: add logic to check n > 1
-    function setJ_n(uint new_j_n) external onlyOwner {
         _j_n = new_j_n;
+        _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
     modifier onlyOwner() {

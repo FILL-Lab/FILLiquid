@@ -6,12 +6,17 @@ uint256 constant FACTOR = 10 ** 18;
 uint256 constant ANNUM = 31536000;
 
 contract Calculation {
-    function getInterestRate(uint u, uint u_1, uint u_m, uint r_0, uint r_1, uint r_m, uint rateBase) external pure returns (uint) {
+    function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) external pure returns (uint) {
         require(u < rateBase, "Utilization rate cannot be bigger than 1.");
         if (u <= u_1) return r_0 + ((r_1 - r_0) * u) / u_1;
         UD60x18 base = toUD60x18((rateBase * (rateBase - u_1)) / (rateBase - u), rateBase);
-        UD60x18 exp = (toUD60x18Direct(r_m).log2() - toUD60x18Direct(r_1).log2()) / (toUD60x18Direct(rateBase - u_1).log2() - toUD60x18Direct(rateBase - u_m).log2());
+        UD60x18 exp = ud(n);
         return toUint(base.pow(exp), rateBase) * r_1 / rateBase;
+    }
+
+    function getN(uint u_1, uint u_m, uint r_1, uint r_m, uint rateBase) external pure returns (uint n) {
+        n = ((toUD60x18Direct(r_m).log2() - toUD60x18Direct(r_1).log2()) / (toUD60x18Direct(rateBase - u_1).log2() - toUD60x18Direct(rateBase - u_m).log2())).intoUint256();
+        require(n >= FACTOR, "Invalid N");
     }
 
     function getExchangeRate(uint u, uint u_m, uint j_n, uint rateBase, uint fleLiquidity, uint filLiquidity) external pure returns (uint) {

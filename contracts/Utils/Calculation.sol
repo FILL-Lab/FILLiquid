@@ -38,6 +38,12 @@ contract Calculation {
         return x.exp().intoUint256() * borrowAmount / FACTOR;
     }
 
+    function getMinted(uint current, uint amount, uint n, uint total) external pure returns(uint) {
+        uint a = ud((current + amount) * FACTOR / n).exp2().unwrap();
+        uint b = ud(current * FACTOR / n).exp2().unwrap();
+        return (a - b) * total / (a * b); 
+    }
+
     function pow(uint base, uint exp, uint rateBase) private pure returns (uint) {
         UD60x18 convertedBase = toUD60x18(base, rateBase);
         UD60x18 convertedExp = toUD60x18(exp, rateBase);

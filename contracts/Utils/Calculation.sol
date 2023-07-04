@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 import { UD60x18, ud, intoUint256, convert } from "@prb/math/src/UD60x18.sol";
-import {
-    uEXP2_MAX_INPUT,
-    uUNIT
-} from "@prb/math/src/ud60x18/Constants.sol";
+import {uEXP2_MAX_INPUT, uUNIT} from "@prb/math/src/ud60x18/Constants.sol";
 
 uint256 constant ANNUM = 31536000;
 

@@ -382,11 +382,16 @@ contract FILLiquid is Context, FILLiquidInterface {
         require(_liquidatedTimes[minerId] < _maxLiquidations, "Exceed max liquidation limit");
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         require(borrows.length < _maxExistingBorrows, "Maximum existing borrows");
-        require(!liquidateCondition(minerId).liquidatable, "Miner liquidatable");
+        require(amount <= maxBorrowAllowed(minerId), "Insufficient collateral");
+        // if liquidateCondition(minerId).liquidatable, maxBorrowAllowed == 0, so the requirement above is enough
+        // require(!liquidateCondition(minerId).liquidatable, "Miner liquidatable");
+        
         uint realInterestRate = interestRateBorrow(amount);
         checkRateUpper(expectInterestRate, realInterestRate);
-        require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance is negative");
-        require(amount <= maxBorrowAllowed(minerId), "Insufficient collateral");
+
+        // Put this into the maxBorrowAllowed calculation
+        // require(!_filecoinAPI.getAvailableBalance(minerId).neg, "Available balance is negative");
+
         //todo: check quota and expiration is big enough
         //MinerTypes.BeneficiaryTerm memory term = _filecoinAPI.getBeneficiary(minerId).active.term;
         //require(collateralNeeded + collateralizingInfo.collateralAmount <= term.quota.bigInt2Uint() - term.used_quota.bigInt2Uint(), "Insufficient quota");
@@ -586,8 +591,11 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function availableFIL() public view returns (uint) {
-        return _accumulatedDepositFIL + _accumulatedPaybackFIL + _accumulatedInterestFIL -
-        (_accumulatedRedeemFIL + _accumulatedRedeemFee + _accumulatedBorrowFIL + _accumulatedBorrowFee);
+        // If this is a little bit better: 
+        return address(this).balance;
+        
+        // return _accumulatedDepositFIL + _accumulatedPaybackFIL + _accumulatedInterestFIL -
+        // (_accumulatedRedeemFIL + _accumulatedRedeemFee + _accumulatedBorrowFIL + _accumulatedBorrowFee);
     }
 
     function utilizedLiquidity() public view returns (uint) {
@@ -693,6 +701,8 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint b = 0;
         uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
         for (uint i = 0; i < miners.length; i++) {
+            // This is required since a miner's balance could be negative
+            require(!_filecoinAPI.getAvailableBalance(miner[i]).neg, "Available balance is negative");
             a += FilAddress.toAddress(miners[i]).balance;
             b += getPrincipalAndInterest(miners[i]);
         }
@@ -956,16 +966,21 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function liquidateCondition(uint64 minerId) private view returns (LiquidateConditionInfo memory r) {
-        uint balanceSum = 0;
+        int balanceSum = 0;  // balance could be negative, right? 
         uint principalAndInterestSum = 0;
         uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
         for (uint i = 0; i < miners.length; i++) {
             balanceSum += FilAddress.toAddress(miners[i]).balance;
             principalAndInterestSum += getPrincipalAndInterest(miners[i]);
         }
-        uint rate = principalAndInterestSum * _rateBase / balanceSum;
-        r.alertable = rate >= _alertThreshold;
-        r.liquidatable = rate >= _liquidateThreshold;
+        if (balanceSum <= 0) {
+            r.alertable = true;
+            r.liquidatable = true;
+        } else {
+            uint rate = principalAndInterestSum * _rateBase / balanceSum;
+            r.alertable = rate >= _alertThreshold;
+            r.liquidatable = rate >= _liquidateThreshold;
+        }
     }
 
     function getPrincipalAndInterest(uint64 minerId) private view returns (uint result) {
@@ -1031,7 +1046,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function canMinerExitFamily(uint64 minerId) private view returns (bool) {
-        uint balanceSum = 0;
+        int balanceSum = 0;
         uint principalAndInterestSum = 0;
         uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
         for (uint i = 0; i < miners.length; i++) {
@@ -1039,6 +1054,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             balanceSum += FilAddress.toAddress(miners[i]).balance;
             principalAndInterestSum += getPrincipalAndInterest(miners[i]);
         }
+        if (balanceSum < 0) return false;
         if (_collateralRate * balanceSum < _rateBase * principalAndInterestSum) return false;
         else return true;
     }

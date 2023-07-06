@@ -883,10 +883,10 @@
   "resolved" "https://registry.npmmirror.com/@openzeppelin/contracts/-/contracts-4.8.2.tgz"
   "version" "4.8.2"
 
-"@prb/math@^4.0.0":
-  "integrity" "sha512-zGOMIn3EMSxh2yo64uKly4xtwVvbUvsKAand4JFzDRFAPEzqBWJe1/Qf23o992ZR7xeA502L17rSTcOscfRO2Q=="
-  "resolved" "https://registry.npmmirror.com/@prb/math/-/math-4.0.0.tgz"
-  "version" "4.0.0"
+"@prb/math@^4.0.1":
+  "integrity" "sha512-ANTz2KMV+dMdZ57mWgDTR6jZo5uQzUczQEHCxd7CvJZZ9yafnfPhUUILHvvigIOZ85fZbTPVkC8YoRG1z5Qf7g=="
+  "resolved" "https://registry.npmmirror.com/@prb/math/-/math-4.0.1.tgz"
+  "version" "4.0.1"
 
 "@scure/base@~1.1.0":
   "integrity" "sha512-ZxOhsSyxYwLJj3pLZCefNitxsj093tb2vq90mp2txoYeBqbcjDjqFhyM8eUjq/uFm6zJ+mUuqxlS2FkuSY1MTA=="

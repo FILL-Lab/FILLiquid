@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
-import { UD60x18, ud, intoUint256 } from "@prb/math/src/UD60x18.sol";
+import { UD60x18, ud, intoUint256, convert } from "@prb/math/src/UD60x18.sol";
+import {uEXP2_MAX_INPUT, uUNIT} from "@prb/math/src/ud60x18/Constants.sol";
 
-uint256 constant FACTOR = 10 ** 18;
 uint256 constant ANNUM = 31536000;
 
 contract Calculation {
@@ -16,7 +16,7 @@ contract Calculation {
 
     function getN(uint u_1, uint u_m, uint r_1, uint r_m, uint rateBase) external pure returns (uint n) {
         n = ((toUD60x18Direct(r_m).log2() - toUD60x18Direct(r_1).log2()) / (toUD60x18Direct(rateBase - u_1).log2() - toUD60x18Direct(rateBase - u_m).log2())).intoUint256();
-        require(n >= FACTOR, "Invalid N");
+        require(n >= uUNIT, "Invalid N");
     }
 
     function getExchangeRate(uint u, uint u_m, uint j_n, uint rateBase, uint fleLiquidity, uint filLiquidity) external pure returns (uint) {
@@ -35,7 +35,15 @@ contract Calculation {
     function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) external pure returns (uint) {
         if (borrowPeriod == 0 || borrowAmount == 0) return borrowAmount;
         UD60x18 x = ud(borrowPeriod * annualRate * conventionFactor(rateBase) / ANNUM);
-        return x.exp().intoUint256() * borrowAmount / FACTOR;
+        return x.exp().intoUint256() * borrowAmount / uUNIT;
+    }
+
+    function getMinted(uint current, uint amount, uint n, uint total, uint lastAccumulated) external pure returns(uint, uint) {
+        uint exp = (current + amount) * uUNIT / n;
+        uint currentAccumulated = total;
+        if (exp <= uEXP2_MAX_INPUT) currentAccumulated -= total / convert(ud((current + amount) * uUNIT / n).exp2());
+        if (lastAccumulated < currentAccumulated) return (currentAccumulated - lastAccumulated, currentAccumulated);
+        else return (0, lastAccumulated);
     }
 
     function pow(uint base, uint exp, uint rateBase) private pure returns (uint) {
@@ -53,7 +61,7 @@ contract Calculation {
     }
 
     function toUD60x18Direct(uint input) private pure returns (UD60x18){
-        return ud(input * FACTOR);
+        return ud(input * uUNIT);
     }
 
     function toUint(UD60x18 input, uint rateBase) private pure returns (uint) {
@@ -61,6 +69,6 @@ contract Calculation {
     }
 
     function conventionFactor(uint rateBase) private pure returns (uint) {
-        return FACTOR / rateBase;
+        return uUNIT / rateBase;
     }
 }

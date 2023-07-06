@@ -11,6 +11,7 @@ import "./Utils/Calculation.sol";
 import "./Utils/FilAddress.sol";
 import "./Utils/FilecoinAPI.sol";
 import "./FILTrust.sol";
+import "./FILStake.sol";
 
 interface FILLiquidInterface {
     struct BorrowInfo {
@@ -284,6 +285,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     Validation private _validation;
     Calculation private _calculation;
     FilecoinAPI private _filecoinAPI;
+    FILStake private _filStake;
 
     uint constant DEFAULT_MIN_DEPOSIT = 1 ether;
     uint constant DEFAULT_MIN_BORROW = 10 ether;
@@ -308,11 +310,12 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_REQUIRED_QUOTA = 10 ** 68 - 10 ** 18;
     int64 constant DEFAULT_REQUIRED_EXPIRATION = type(int64).max;
 
-    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPI, address payable foundationAddr) {
+    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address filStakeAddr, address payable foundationAddr) {
         _tokenFILTrust = FILTrust(filTrustAddr);
         _validation = Validation(validationAddr);
         _calculation = Calculation(calculationAddr);
-        _filecoinAPI = FilecoinAPI(filecoinAPI);
+        _filecoinAPI = FilecoinAPI(filecoinAPIAddr);
+        _filStake = FILStake(filStakeAddr);
         _owner = _msgSender();
         _foundation = foundationAddr;
         _rateBase = DEFAULT_RATE_BASE;
@@ -431,6 +434,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             withdrawn = amount - r.amountLeft;
             withdrawBalance(minerIdPayer, withdrawn);
         }
+        _filStake.handleInterest(_msgSender(), r.totalInterest);
 
         emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r.totalPrinciple, r.totalInterest, withdrawn, msg.value - sentBack);
         return (r.totalPrinciple, r.totalInterest);
@@ -439,6 +443,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     function directPayback(uint64 minerId) external isBorrower(minerId) payable returns (uint, uint) {
         PaybackResult memory r = paybackProcess(minerId, msg.value);
         if (r.amountLeft > 0) payable(_msgSender()).transfer(r.amountLeft);
+        _filStake.handleInterest(_msgSender(), r.totalInterest);
         emit Payback(_msgSender(), minerId, minerId, r.totalPrinciple, r.totalInterest, 0, msg.value - r.amountLeft);
         return (r.totalPrinciple, r.totalInterest);
     }

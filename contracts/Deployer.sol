@@ -5,6 +5,8 @@ import "./Utils/Calculation.sol";
 import "./Utils/FilecoinAPI.sol";
 import "./FILTrust.sol";
 import "./FILLiquid.sol";
+import "./FILGovernance.sol";
+import "./FILStake.sol";
 import "./DataFetcher.sol";
 
 contract Deployer {
@@ -12,6 +14,8 @@ contract Deployer {
     Validation private _validation;
     Calculation private _calculation;
     FilecoinAPI private _filecoinAPI;
+    FILGovernance private _filGovernance;
+    FILStake private _filStake;
     FILLiquid private _filLiquid;
     DataFetcher private _dataFetcher;
 
@@ -29,16 +33,28 @@ contract Deployer {
         emit ContractPublishing("Calculation", address(_calculation));
         _filecoinAPI = new FilecoinAPI();
         emit ContractPublishing("FilecoinAPI", address(_filecoinAPI));
+        _filGovernance = new FILGovernance("FILGovernance", "FIG");
+        emit ContractPublishing("FILGovernance", address(_filGovernance));
+        _filStake = new FILStake();
+        emit ContractPublishing("FILStake", address(_filStake));
         _filLiquid = new FILLiquid(
             address(_filTrust),
             address(_validation),
             address(_calculation),
             address(_filecoinAPI),
+            address(_filStake),
             payable(msg.sender)
         );
         emit ContractPublishing("FILLiquid", address(_filLiquid));
+        _filStake.setContactAddrs(
+            address(_filLiquid),
+            address(_filTrust),
+            address(_calculation),
+            address(_filGovernance)
+        );
         _dataFetcher = new DataFetcher(address(_filLiquid));
         emit ContractPublishing("DataFetcher", address(_dataFetcher));
+        
         _filTrust.addManager(address(_filLiquid));
         _filLiquid.deposit{value: msg.value}(msg.value, _filLiquid.rateBase());
         uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
@@ -47,6 +63,8 @@ contract Deployer {
 
         _filTrust.setOwner(msg.sender);
         _filLiquid.setOwner(msg.sender);
+        _filGovernance.setOwner(msg.sender);
+        _filStake.setOwner(msg.sender);
     }
 
     function filTrust() external view returns (address) {
@@ -65,7 +83,15 @@ contract Deployer {
         return address(_filecoinAPI);
     }
 
-    function fill() external view returns (address) {
+    function filGovernance() external view returns (address) {
+        return address(_filGovernance);
+    }
+
+    function filStake() external view returns (address) {
+        return address(_filStake);
+    }
+
+    function filLiquid() external view returns (address) {
         return address(_filLiquid);
     }
 

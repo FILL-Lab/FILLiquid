@@ -307,7 +307,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_LIQUIDATE_THRESHOLD = 850000;
     uint constant DEFAULT_LIQUIDATE_DISCOUNT_RATE = 900000;
     uint constant DEFAULT_LIQUIDATE_FEE_RATE = 70000;
-    uint constant DEFAULT_REQUIRED_QUOTA = 10 ** 68 - 10 ** 18;
+    uint constant DEFAULT_REQUIRED_QUOTA = 1e68 - 1e18;
     int64 constant DEFAULT_REQUIRED_EXPIRATION = type(int64).max;
 
     constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address filStakeAddr, address payable foundationAddr) {

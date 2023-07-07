@@ -5,6 +5,7 @@ import "@zondax/filecoin-solidity/contracts/v0.8/types/CommonTypes.sol";
 import "@zondax/filecoin-solidity/contracts/v0.8/MinerAPI.sol";
 import "@zondax/filecoin-solidity/contracts/v0.8/PrecompilesAPI.sol";
 import "@zondax/filecoin-solidity/contracts/v0.8/SendAPI.sol";
+
 import "./Convertion.sol";
 
 contract FilecoinAPI{

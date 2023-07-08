@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
+
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract FILGovernance is ERC20 {
     address private _owner;
-    mapping(address => bool) private manageAddresses;
+    mapping(address => bool) private _manageAddresses;
 
     //TODO: make sure of total supply
-    uint constant MAX_SUPPLY = 2 * 10 ** 12;
+    uint constant MAX_SUPPLY = 2e12;
+    uint constant MAX_LIQUID = MAX_SUPPLY * 3 / 5;
 
     //TODO: add initial mint
     constructor(string memory name, string memory symbol) ERC20(name, symbol){
         _owner = _msgSender();
         addManager(_owner);
+        _mint(_owner, maxSupply() - maxLiquid());
     }
     
     function mint(address account, uint256 amount) external onlyManager {
@@ -23,20 +26,24 @@ contract FILGovernance is ERC20 {
         _burn(account, amount);
     }
 
-    function maxSupply() external view returns (uint) {
+    function maxSupply() public view returns (uint) {
         return _withDecimal(MAX_SUPPLY);
     }
 
+    function maxLiquid() public view returns (uint) {
+        return _withDecimal(MAX_LIQUID);
+    }
+
     function addManager(address account) public onlyOwner {
-        manageAddresses[account] = true;
+        _manageAddresses[account] = true;
     }
 
     function removeManager(address account) external onlyOwner {
-        delete manageAddresses[account];
+        delete _manageAddresses[account];
     }
 
     function verifyManager(address account) public view returns (bool) {
-        return manageAddresses[account];
+        return _manageAddresses[account];
     }
 
     function owner() external view returns (address) {

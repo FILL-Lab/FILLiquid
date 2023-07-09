@@ -68,10 +68,13 @@ contract Deployer {
         emit ContractPublishing("DataFetcher", address(_dataFetcher));
         
         _filTrust.addManager(address(_filLiquid));
-        _filLiquid.deposit{value: msg.value}(msg.value, _filLiquid.rateBase());
+        (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
+        _filLiquid.deposit{value: msg.value}(msg.value, rateBase);
         uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);
+        _filGovernance.addManager(address(_filStake));
+        _filGovernance.addManager(address(_governance));
 
         _filTrust.setOwner(msg.sender);
         _filLiquid.setOwner(msg.sender);

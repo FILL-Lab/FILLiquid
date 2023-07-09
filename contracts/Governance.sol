@@ -42,7 +42,6 @@ contract Governance is Context {
         uint deadline;
         uint deposited;
         uint discussionIndex;
-        bool withdrawn;
         bool executed;
         string text;
         address proposer;
@@ -84,6 +83,7 @@ contract Governance is Context {
     uint private _maxNoWithVeto;
     uint private _depositThreshold;
     uint private _votingPeriod;
+    uint private _executionPeriod;
     address private _owner;
 
     FILLiquid private _filLiquid;
@@ -96,6 +96,7 @@ contract Governance is Context {
     uint constant DEFAULT_MAX_NO_WITH_VETO = 333333;
     uint constant DEFAULT_DEPOSIT_THRESHOLD = 1e22; // TODO: discuss about the value
     uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days, todo: discuss about the value
+    uint constant DEFAULT_EXECUTION_PERIOD = 40320; // 14 days, todo: discuss about the value
 
     constructor() {
         _owner = _msgSender();
@@ -106,6 +107,7 @@ contract Governance is Context {
         _maxNoWithVeto = DEFAULT_MAX_NO_WITH_VETO;
         _depositThreshold = DEFAULT_DEPOSIT_THRESHOLD;
         _votingPeriod = DEFAULT_VOTING_PERIOD;
+        _executionPeriod = DEFAULT_EXECUTION_PERIOD;
     }
 
     function propose(proposolCategory category, uint discussionIndex, string memory text, uint[] memory values) external {
@@ -116,7 +118,7 @@ contract Governance is Context {
         _proposals.push();
         Proposal storage p = _proposals[_proposals.length - 1];
         p.category = category;
-        p.deadline = block.number + DEFAULT_VOTING_PERIOD;
+        p.deadline = block.number + _votingPeriod;
         p.deposited = _depositThreshold;
         p.discussionIndex = discussionIndex;
         p.text = text;
@@ -126,7 +128,7 @@ contract Governance is Context {
         emit Proposed(p.category, p.deadline, p.deposited, p.discussionIndex, p.text, p.proposer, p.values);
     }
 
-    //Todo: Add change vote?
+    //Todo: Add change or cancel vote?
     function vote(uint proposalId, voteCategory category, uint amount) external validProposalId(proposalId) {
         Proposal storage p = _proposals[proposalId];
         require(p.deadline >= block.number, "Proposal finished");
@@ -147,6 +149,7 @@ contract Governance is Context {
     function execute(uint proposalId) external validProposalId(proposalId) {
         Proposal storage p = _proposals[proposalId];
         require(p.deadline < block.number, "Proposal not finished");
+        require(p.deadline + _executionPeriod >= block.number, "Proposal not finished");
         require(!p.executed, "Already executed");
         p.executed = true;
         VotingStatus storage s = p.status;
@@ -158,9 +161,11 @@ contract Governance is Context {
             else if (p.category == proposolCategory.filStake) _filStake.setFactors(p.values);
             else _setFactors(p.values);
         }
-        //Todo: Burn?
+        //Todo: whether burn or transfer?
         if (s.countNoWithVeto * _rateBase < s.countTotal * _maxNoWithVeto) {
             _tokenFILGovernance.transfer(p.proposer, p.deposited);
+        } else {
+            _tokenFILGovernance.burn(address(this), p.deposited);
         }
 
         emit Executed(proposalId, success);
@@ -190,8 +195,12 @@ contract Governance is Context {
         return _proposals.length;
     } 
 
-    function getFactors() external view returns (uint, uint, uint, uint, uint) {
-        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _depositThreshold);
+    function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint) {
+        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _depositThreshold, _votingPeriod, _executionPeriod);
+    }
+
+    function getContactAddrs() external view returns (address, address, address) {
+        return (address(_filLiquid), address(_filStake), address(_tokenFILGovernance));
     }
 
     function setContactAddrs(
@@ -240,10 +249,11 @@ contract Governance is Context {
         _maxNoWithVeto = params[3];
         _depositThreshold = params[4];
         _votingPeriod = params[5];
+        _executionPeriod = params[6];
     }
 
     function _checkFactors(uint[] memory params) public pure {
-        require(params.length == 6, "Invalid input length");
+        require(params.length == 7, "Invalid input length");
         require(params[1] <= params[0], "Invalid new_minYes");
         require(params[2] <= params[0], "Invalid new_maxNo");
         require(params[3] <= params[0], "Invalid new_maxNoWithVeto");

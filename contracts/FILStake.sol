@@ -46,6 +46,7 @@ contract FILStake is Context{
     address[] private _stakers;
     address private _owner;
     address private _filLiquid;
+    address private _governance;
 
     uint private _accumulatedInterest;
     uint private _accumulatedStake;
@@ -65,13 +66,12 @@ contract FILStake is Context{
     FILGovernance private _tokenFILGovernance;
 
     uint constant DEFAULT_N_INTEREST = 9e23;
-    //TODO: make sure of factor value
     uint constant DEFAULT_N_STAKE = 5.7024e30;
     uint constant DEFAULT_MIN_STAKE_PERIOD = 86400; //30 days
     uint constant DEFAULT_MAX_STAKE_PERIOD = 1036800; //360 days
-    uint constant DEFAULT_RATE_BASE = 1000000;
-    uint constant DEFAULT_INTEREST_SHARE = 300000;
-    uint constant DEFAULT_STAKE_SHARE = 700000;
+    uint constant DEFAULT_RATE_BASE = 10;
+    uint constant DEFAULT_INTEREST_SHARE = 3;
+    uint constant DEFAULT_STAKE_SHARE = 7;
 
     constructor() {
         _owner = _msgSender();
@@ -162,13 +162,20 @@ contract FILStake is Context{
         }
     }
 
-    function setFactors(uint new_n_interest, uint new_n_stake, uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {
+    function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {
         require(new_rateBase == new_interest_share + new_stake_share, "factor invalid");
-        _n_interest = new_n_interest;
-        _n_stake = new_n_stake;
         _rateBase = new_rateBase;
         _interest_share = new_interest_share;
         _stake_share = new_stake_share;
+    }
+
+    function setFactors(uint[] memory params) onlyGovernance external {
+        _n_interest = params[0];
+        _n_stake = params[1];
+    }
+
+    function checkFactors(uint[] memory params) external pure {
+        require(params.length == 2, "Invalid input length");
     }
 
     function getStatus() external view returns (uint, uint, uint, uint) {
@@ -197,17 +204,19 @@ contract FILStake is Context{
         _stake_share = new_stake_share;
     }
 
-    function getContactAddrs() external view returns (address, address, address, address) {
-        return (_filLiquid, address(_tokenFILTrust), address(_calculation), address(_tokenFILGovernance));
+    function getContactAddrs() external view returns (address, address, address, address, address) {
+        return (_filLiquid, _governance, address(_tokenFILTrust), address(_calculation), address(_tokenFILGovernance));
     }
 
     function setContactAddrs(
         address new_filLiquid,
+        address new_governance,
         address new_tokenFILTrust,
         address new_calculation,
         address new_tokenFILGovernance
     ) onlyOwner external {
         _filLiquid = new_filLiquid;
+        _governance = new_governance;
         _tokenFILTrust = FILTrust(new_tokenFILTrust);
         _calculation = Calculation(new_calculation);
         _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
@@ -223,6 +232,11 @@ contract FILStake is Context{
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Only owner allowed");
+        _;
+    }
+
+    modifier onlyGovernance() {
+        require(_msgSender() == _governance, "Only governance allowed");
         _;
     }
 

@@ -145,12 +145,6 @@ interface FILLiquidInterface {
     /// @return info return collateralizing miner info
     function getCollateralizingMinerInfo(uint64 minerId) external view returns (MinerCollateralizingInfo memory);
 
-    /// @dev FILTrust token address
-    function filTrustAddress() external view returns (address);
-
-    /// @dev Validation contract address
-    function validationAddress() external view returns (address);
-
     /// @dev return FIL/FILTrust exchange rate: total amount of FIL liquidity divided by total amount of FILTrust outstanding
     function exchangeRate() external view returns (uint);
 
@@ -247,6 +241,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //administrative factors
     address private _owner;
+    address private _governance;
     address payable private _foundation;
 
     //comprehensive factors
@@ -310,13 +305,14 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_REQUIRED_QUOTA = 1e68 - 1e18;
     int64 constant DEFAULT_REQUIRED_EXPIRATION = type(int64).max;
 
-    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address filStakeAddr, address payable foundationAddr) {
+    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address filStakeAddr, address governanceAddr, address payable foundationAddr) {
         _tokenFILTrust = FILTrust(filTrustAddr);
         _validation = Validation(validationAddr);
         _calculation = Calculation(calculationAddr);
         _filecoinAPI = FilecoinAPI(filecoinAPIAddr);
         _filStake = FILStake(filStakeAddr);
         _owner = _msgSender();
+        _governance = governanceAddr;
         _foundation = foundationAddr;
         _rateBase = DEFAULT_RATE_BASE;
         _redeemFeeRate = DEFAULT_REDEEM_FEE_RATE;
@@ -581,7 +577,7 @@ contract FILLiquid is Context, FILLiquidInterface {
                 exchangeRate: exchangeRate(),
                 interestRate: interestRate(),
                 collateralRate: _collateralRate,
-                rateBase: rateBase()
+                rateBase: _rateBase
             });
     }
 
@@ -714,22 +710,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _liquidatedTimes[minerId];
     }
 
-    function filTrustAddress() external view returns (address) {
-        return address(_tokenFILTrust);
-    }
-
-    function validationAddress() external view returns (address) {
-        return address(_validation);
-    }
-
-    function calculationAddress() external view returns (address) {
-        return address(_calculation);
-    }
-
-    function filecoinAPIAddress() external view returns (address) {
-        return address(_filecoinAPI);
-    }
-
     function owner() external view returns (address) {
         return _owner;
     }
@@ -738,11 +718,30 @@ contract FILLiquid is Context, FILLiquidInterface {
         _owner = new_owner;
     }
 
-    function foundation() external view returns (address payable) {
-        return _foundation;
+    function getAddrs() external view returns (address, address, address, address, address, address payable) {
+        return (
+            address(_tokenFILTrust),
+            address(_validation),
+            address(_calculation),
+            address(_filecoinAPI),
+            _governance,
+            _foundation)
+        ;
     }
 
-    function setFoundation(address payable new_foundation) onlyOwner external {
+    function setAddrs(
+        address new_tokenFILTrust,
+        address new_validation,
+        address new_calculation,
+        address new_filecoinAPI,
+        address new_governance,
+        address payable new_foundation
+    ) onlyOwner external {
+        _tokenFILTrust= FILTrust(new_tokenFILTrust);
+        _validation = Validation(new_validation);
+        _calculation = Calculation(new_calculation);
+        _filecoinAPI = FilecoinAPI(new_filecoinAPI);
+        _governance = new_governance;
         _foundation = new_foundation;
     }
 
@@ -886,17 +885,25 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (_u_1, _r_0, _r_1, _r_m, _u_m, _j_n);
     }
 
-    //Todo: add logic to check n > 1
-    function setCalculationFactors(uint new_u_1, uint new_r_0, uint new_r_1, uint new_r_m, uint new_u_m, uint new_j_n) external onlyOwner {
-        require(new_u_1 <= _rateBase && new_u_1 < new_u_m, "Invalid u_1");
-        require(new_r_0 <= _rateBase && new_r_0 < new_r_1, "Invalid r_0");
-        require(new_r_1 <= _rateBase && new_r_1 < new_r_m, "Invalid r_1");
-        require(new_r_m <= _rateBase, "Invalid r_m");
-        require(new_u_m <= _rateBase, "Invalid u_m");
-        _u_1 = new_u_1;
-        _r_0 = new_r_0;
-        _r_1 = new_r_1;
-        _r_m = new_r_m;
+    function setBorrowPayBackFactors(uint[] memory values) external onlyGovernance {
+        _u_1 = values[0];
+        _r_0 = values[1];
+        _r_1 = values[2];
+        _r_m = values[3];
+        _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
+    }
+
+    function checkBorrowPayBackFactors(uint[] memory values) external view {
+        require(values.length == 4, "Invalid input length");
+        require(values[0] <= _rateBase && values[0] < _u_m, "Invalid u_1");
+        require(values[1] <= _rateBase && values[1] < values[2], "Invalid r_0");
+        require(values[2] <= _rateBase && values[2] < values[3], "Invalid r_1");
+        require(values[3] <= _rateBase, "Invalid r_m");
+        _calculation.getN(values[0], _u_m, values[2], values[3], _rateBase);
+    } 
+
+    function setDepositRedeemFactors(uint new_u_m, uint new_j_n) external onlyOwner {
+        require(_u_1 < new_u_m && new_u_m <= _rateBase, "Invalid u_m");
         _u_m = new_u_m;
         _j_n = new_j_n;
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
@@ -904,6 +911,11 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Only owner allowed");
+        _;
+    }
+
+    modifier onlyGovernance() {
+        require(_msgSender() == _governance, "Only governance allowed");
         _;
     }
 

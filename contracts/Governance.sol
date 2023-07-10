@@ -11,7 +11,8 @@ contract Governance is Context {
     enum proposolCategory {
         filLiquid,
         filStake,
-        governance
+        governance,
+        general
     }
 
     enum voteCategory {
@@ -50,6 +51,7 @@ contract Governance is Context {
     }
 
     event Proposed (
+        uint proposalId,
         proposolCategory category,
         uint deadline,
         uint deposited,
@@ -125,7 +127,7 @@ contract Governance is Context {
         p.proposer = sender;
         p.values = values;
 
-        emit Proposed(p.category, p.deadline, p.deposited, p.discussionIndex, p.text, p.proposer, p.values);
+        emit Proposed(_proposals.length - 1, p.category, p.deadline, p.deposited, p.discussionIndex, p.text, p.proposer, p.values);
     }
 
     //Todo: Add change or cancel vote?
@@ -148,8 +150,8 @@ contract Governance is Context {
 
     function execute(uint proposalId) external validProposalId(proposalId) {
         Proposal storage p = _proposals[proposalId];
-        require(p.deadline < block.number, "Proposal not finished");
-        require(p.deadline + _executionPeriod >= block.number, "Proposal not finished");
+        require(p.deadline < block.number, "Proposal voting in progress");
+        require(p.deadline + _executionPeriod >= block.number, "Proposal expired");
         require(!p.executed, "Already executed");
         p.executed = true;
         VotingStatus storage s = p.status;
@@ -159,7 +161,7 @@ contract Governance is Context {
             success = true;
             if (p.category == proposolCategory.filLiquid) _filLiquid.setBorrowPayBackFactors(p.values);
             else if (p.category == proposolCategory.filStake) _filStake.setFactors(p.values);
-            else _setFactors(p.values);
+            else if (p.category == proposolCategory.governance) _setFactors(p.values);
         }
         //Todo: whether burn or transfer?
         if (s.countNoWithVeto * _rateBase < s.countTotal * _maxNoWithVeto) {
@@ -239,7 +241,9 @@ contract Governance is Context {
         else if (category == proposolCategory.filStake) {
             _filStake.checkFactors(params);
         }
-        else _checkFactors(params);        
+        else if (category == proposolCategory.governance) {
+            _checkFactors(params);
+        }
     }
 
     function _setFactors(uint[] storage params) private {

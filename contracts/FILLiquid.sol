@@ -145,23 +145,8 @@ interface FILLiquidInterface {
     /// @return info return collateralizing miner info
     function getCollateralizingMinerInfo(uint64 minerId) external view returns (MinerCollateralizingInfo memory);
 
-    /// @dev FILTrust token address
-    function filTrustAddress() external view returns (address);
-
-    /// @dev Validation contract address
-    function validationAddress() external view returns (address);
-
     /// @dev return FIL/FILTrust exchange rate: total amount of FIL liquidity divided by total amount of FILTrust outstanding
     function exchangeRate() external view returns (uint);
-
-    /// @dev return transaction redeem fee rate
-    function redeemFeeRate() external view returns (uint);
-
-    /// @dev return transaction borrow fee rate
-    function borrowFeeRate() external view returns (uint);
-
-    /// @dev return transaction borrow fee rate
-    function collateralRate() external view returns (uint);
 
     /// @dev return borrowing interest rate: a mathematical function of utilizatonRate
     function interestRate() external view returns (uint);
@@ -247,7 +232,13 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //administrative factors
     address private _owner;
+    address private _governance;
     address payable private _foundation;
+    FILTrust private _tokenFILTrust;
+    Validation private _validation;
+    Calculation private _calculation;
+    FilecoinAPI private _filecoinAPI;
+    FILStake private _filStake;
 
     //comprehensive factors
     uint private _rateBase;
@@ -279,13 +270,6 @@ contract FILLiquid is Context, FILLiquidInterface {
     //Deposit & Redeem factors
     uint private _u_m;
     uint private _j_n;
-    
-    //todo : add funcs to reset these addresses?
-    FILTrust private _tokenFILTrust;
-    Validation private _validation;
-    Calculation private _calculation;
-    FilecoinAPI private _filecoinAPI;
-    FILStake private _filStake;
 
     uint constant DEFAULT_MIN_DEPOSIT = 1 ether;
     uint constant DEFAULT_MIN_BORROW = 10 ether;
@@ -310,13 +294,14 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_REQUIRED_QUOTA = 1e68 - 1e18;
     int64 constant DEFAULT_REQUIRED_EXPIRATION = type(int64).max;
 
-    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address filStakeAddr, address payable foundationAddr) {
+    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address filStakeAddr, address governanceAddr, address payable foundationAddr) {
         _tokenFILTrust = FILTrust(filTrustAddr);
         _validation = Validation(validationAddr);
         _calculation = Calculation(calculationAddr);
         _filecoinAPI = FilecoinAPI(filecoinAPIAddr);
         _filStake = FILStake(filStakeAddr);
         _owner = _msgSender();
+        _governance = governanceAddr;
         _foundation = foundationAddr;
         _rateBase = DEFAULT_RATE_BASE;
         _redeemFeeRate = DEFAULT_REDEEM_FEE_RATE;
@@ -581,7 +566,7 @@ contract FILLiquid is Context, FILLiquidInterface {
                 exchangeRate: exchangeRate(),
                 interestRate: interestRate(),
                 collateralRate: _collateralRate,
-                rateBase: rateBase()
+                rateBase: _rateBase
             });
     }
 
@@ -714,22 +699,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _liquidatedTimes[minerId];
     }
 
-    function filTrustAddress() external view returns (address) {
-        return address(_tokenFILTrust);
-    }
-
-    function validationAddress() external view returns (address) {
-        return address(_validation);
-    }
-
-    function calculationAddress() external view returns (address) {
-        return address(_calculation);
-    }
-
-    function filecoinAPIAddress() external view returns (address) {
-        return address(_filecoinAPI);
-    }
-
     function owner() external view returns (address) {
         return _owner;
     }
@@ -738,165 +707,146 @@ contract FILLiquid is Context, FILLiquidInterface {
         _owner = new_owner;
     }
 
-    function foundation() external view returns (address payable) {
-        return _foundation;
+    function getAdministrativeFactors() external view returns (address, address, address, address, address, address, address payable) {
+        return (
+            address(_tokenFILTrust),
+            address(_validation),
+            address(_calculation),
+            address(_filecoinAPI),
+            address(_filStake),
+            _governance,
+            _foundation)
+        ;
     }
 
-    function setFoundation(address payable new_foundation) onlyOwner external {
+    function setAdministrativeFactors(
+        address new_tokenFILTrust,
+        address new_validation,
+        address new_calculation,
+        address new_filecoinAPI,
+        address new_filStake,
+        address new_governance,
+        address payable new_foundation
+    ) onlyOwner external {
+        _tokenFILTrust= FILTrust(new_tokenFILTrust);
+        _validation = Validation(new_validation);
+        _calculation = Calculation(new_calculation);
+        _filecoinAPI = FilecoinAPI(new_filecoinAPI);
+        _filStake = FILStake(new_filStake);
+        _governance = new_governance;
         _foundation = new_foundation;
     }
 
-    function rateBase() public view returns (uint) {
-        return _rateBase;
+    function getComprehensiveFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, int64) {
+        return (
+            _rateBase,
+            _redeemFeeRate,
+            _borrowFeeRate,
+            _collateralRate,
+            _minDepositAmount,
+            _minBorrowAmount,
+            _maxExistingBorrows,
+            _maxFamilySize,
+            _requiredQuota,
+            _requiredExpiration
+        );
     }
 
-    function setRateBase(uint new_rateBase) external onlyOwner {
+    function setComprehensiveFactors(
+        uint new_rateBase,
+        uint new_redeemFeeRate,
+        uint new_borrowFeeRate,
+        uint new_collateralRate,
+        uint new_minDepositAmount,
+        uint new_minBorrowAmount,
+        uint new_maxExistingBorrows,
+        uint new_maxFamilySize,
+        uint new_requiredQuota,
+        int64 new_requiredExpiration
+    ) external onlyOwner {
+        require(
+            new_redeemFeeRate <= new_rateBase &&
+            new_borrowFeeRate <= new_rateBase &&
+            new_collateralRate <= new_rateBase &&
+            _alertThreshold <= new_rateBase &&
+            _liquidateThreshold <= new_rateBase &&
+            _liquidateDiscountRate + _liquidateFeeRate <= new_rateBase, "Invalid rates");
         _rateBase = new_rateBase;
+        _redeemFeeRate = new_redeemFeeRate;
+        _borrowFeeRate = new_borrowFeeRate;
+        _collateralRate = new_collateralRate;
+        _minDepositAmount = new_minDepositAmount;
+        _minBorrowAmount = new_minBorrowAmount;
+        _maxExistingBorrows = new_maxExistingBorrows;
+        _maxFamilySize = new_maxFamilySize;
+        _requiredQuota = new_requiredQuota;
+        _requiredExpiration = new_requiredExpiration;
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
-    function redeemFeeRate() external view returns (uint) {
-        return _redeemFeeRate;
+    function getLiquidatingFactors() external view returns (uint, uint, uint, uint, uint, uint) {
+        return (
+            _maxLiquidations,
+            _minLiquidateInterval,
+            _alertThreshold,
+            _liquidateThreshold,
+            _liquidateDiscountRate,
+            _liquidateFeeRate
+        );
     }
 
-    function setRedeemFeeRate(uint new_redeemFeeRate) external onlyOwner {
-        require(new_redeemFeeRate <= _rateBase, "Invalid");
-        _redeemFeeRate = new_redeemFeeRate;
-    }
-
-    function borrowFeeRate() external view returns (uint) {
-        return _borrowFeeRate;
-    }
-
-    function setBorrowFeeRate(uint new_borrowFeeRate) external onlyOwner {
-        require(new_borrowFeeRate <= _rateBase, "Invalid");
-        _borrowFeeRate = new_borrowFeeRate;
-    }
-
-    function collateralRate() external view returns (uint) {
-        return _collateralRate;
-    }
-
-    function setCollateralRate(uint new_collateralRate) external onlyOwner {
-        require(new_collateralRate < _rateBase, "Invalid");
-        _collateralRate = new_collateralRate;
-    }
-
-    function minDepositAmount() external view returns (uint) {
-        return _minDepositAmount;
-    }
-
-    function setMinDepositAmount(uint new_minDepositAmount) external onlyOwner {
-        _minDepositAmount = new_minDepositAmount;
-    }
-
-    function minBorrowAmount() external view returns (uint) {
-        return _minBorrowAmount;
-    }
-
-    function setMinBorrowAmount(uint new_minBorrowAmount) external onlyOwner {
-        _minBorrowAmount = new_minBorrowAmount;
-    }
-
-    function maxExistingBorrows() external view returns (uint) {
-        return _maxExistingBorrows;
-    }
-
-    function setMaxExistingBorrows(uint new_maxExistingBorrows) external onlyOwner {
-        _maxExistingBorrows = new_maxExistingBorrows;
-    }
-
-    function maxFamilySize() external view returns (uint) {
-        return _maxFamilySize;
-    }
-
-    function setMaxFamilySize(uint new_maxFamilySize) external onlyOwner {
-        _maxFamilySize = new_maxFamilySize;
-    }
-
-    function requiredQuota() external view returns (uint) {
-        return _requiredQuota;
-    }
-
-    function setRequiredQuota(uint new_requiredQuota) external onlyOwner {
-        _requiredQuota = new_requiredQuota;
-    }
-
-    function requiredExpiration() external view returns (int64) {
-        return _requiredExpiration;
-    }
-
-    function setRequiredExpiration(int64 new_requiredExpiration) external onlyOwner {
-        _requiredExpiration = new_requiredExpiration;
-    }
-
-    function maxLiquidations() external view returns (uint) {
-        return _maxLiquidations;
-    }
-
-    function setMaxLiquidations(uint new_maxLiquidations) external onlyOwner {
+    function setLiquidatingFactors(
+        uint new_maxLiquidations,
+        uint new_minLiquidateInterval,
+        uint new_alertThreshold,
+        uint new_liquidateThreshold,
+        uint new_liquidateDiscountRate,
+        uint new_liquidateFeeRate
+    ) external onlyOwner {
+        require(
+            new_alertThreshold <= _rateBase &&
+            new_liquidateThreshold <= _rateBase &&
+            new_liquidateDiscountRate + new_liquidateFeeRate <= _rateBase &&
+            new_liquidateDiscountRate != 0, "Invalid rates");
         _maxLiquidations = new_maxLiquidations;
-    }
-
-    function minLiquidateInterval() external view returns (uint) {
-        return _minLiquidateInterval;
-    }
-
-    function setMinLiquidateInterval(uint new_minLiquidateInterval) external onlyOwner {
         _minLiquidateInterval = new_minLiquidateInterval;
-    }
-
-    function alertThreshold() external view returns (uint) {
-        return _alertThreshold;
-    }
-
-    function setAlertThreshold(uint new_alertThreshold) external onlyOwner {
-        require(new_alertThreshold <= _rateBase, "Invalid");
         _alertThreshold = new_alertThreshold;
-    }
-
-    function liquidateThreshold() external view returns (uint) {
-        return _liquidateThreshold;
-    }
-
-    function setLiquidateThreshold(uint new_liquidateThreshold) external onlyOwner {
-        require(new_liquidateThreshold <= _rateBase, "Invalid");
         _liquidateThreshold = new_liquidateThreshold;
+        _liquidateDiscountRate = new_liquidateDiscountRate;
+        _liquidateFeeRate = new_liquidateFeeRate;
     }
 
     function liquidateRewardRate() external view returns (uint) {
         return _rateBase - _liquidateDiscountRate - _liquidateFeeRate;
     }
 
-    function liquidateDiscountRate() external view returns (uint) {
-        return _liquidateDiscountRate;
+    function getBorrowPayBackFactors() external view returns (uint, uint, uint, uint, uint) {
+        return (_u_1, _r_0, _r_1, _r_m, _n);
     }
 
-    function liquidateFeeRate() external view returns (uint) {
-        return _liquidateFeeRate;
+    function setBorrowPayBackFactors(uint[] memory values) external onlyGovernance {
+        _u_1 = values[0];
+        _r_0 = values[1];
+        _r_1 = values[2];
+        _r_m = values[3];
+        _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
-    function setLiquidateRates(uint new_liquidateDiscountRate, uint new_liquidateFeeRate) external onlyOwner {
-        require(new_liquidateDiscountRate + new_liquidateFeeRate <= _rateBase && new_liquidateDiscountRate != 0, "Invalid");
-        _liquidateDiscountRate = new_liquidateDiscountRate;
-        _liquidateFeeRate = new_liquidateFeeRate;
+    function checkBorrowPayBackFactors(uint[] memory values) external view {
+        require(values.length == 4, "Invalid input length");
+        require(values[0] <= _rateBase && values[0] < _u_m, "Invalid u_1");
+        require(values[1] <= _rateBase && values[1] < values[2], "Invalid r_0");
+        require(values[2] <= _rateBase && values[2] < values[3], "Invalid r_1");
+        require(values[3] <= _rateBase, "Invalid r_m");
+        _calculation.getN(values[0], _u_m, values[2], values[3], _rateBase);
     }
 
-    function getCalculationFactors() external view returns (uint, uint, uint, uint, uint, uint) {
-        return (_u_1, _r_0, _r_1, _r_m, _u_m, _j_n);
+    function getDepositRedeemFactors() external view returns (uint, uint) {
+        return (_u_m, _j_n);
     }
 
-    //Todo: add logic to check n > 1
-    function setCalculationFactors(uint new_u_1, uint new_r_0, uint new_r_1, uint new_r_m, uint new_u_m, uint new_j_n) external onlyOwner {
-        require(new_u_1 <= _rateBase && new_u_1 < new_u_m, "Invalid u_1");
-        require(new_r_0 <= _rateBase && new_r_0 < new_r_1, "Invalid r_0");
-        require(new_r_1 <= _rateBase && new_r_1 < new_r_m, "Invalid r_1");
-        require(new_r_m <= _rateBase, "Invalid r_m");
-        require(new_u_m <= _rateBase, "Invalid u_m");
-        _u_1 = new_u_1;
-        _r_0 = new_r_0;
-        _r_1 = new_r_1;
-        _r_m = new_r_m;
+    function setDepositRedeemFactors(uint new_u_m, uint new_j_n) external onlyOwner {
+        require(_u_1 < new_u_m && new_u_m <= _rateBase, "Invalid u_m");
         _u_m = new_u_m;
         _j_n = new_j_n;
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
@@ -904,6 +854,11 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Only owner allowed");
+        _;
+    }
+
+    modifier onlyGovernance() {
+        require(_msgSender() == _governance, "Only governance allowed");
         _;
     }
 

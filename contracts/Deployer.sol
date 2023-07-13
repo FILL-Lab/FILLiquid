@@ -8,6 +8,7 @@ import "./FILTrust.sol";
 import "./FILLiquid.sol";
 import "./FILGovernance.sol";
 import "./FILStake.sol";
+import "./Governance.sol";
 import "./DataFetcher.sol";
 
 contract Deployer {
@@ -17,6 +18,7 @@ contract Deployer {
     FilecoinAPI private _filecoinAPI;
     FILGovernance private _filGovernance;
     FILStake private _filStake;
+    Governance private _governance;
     FILLiquid private _filLiquid;
     DataFetcher private _dataFetcher;
 
@@ -38,34 +40,47 @@ contract Deployer {
         emit ContractPublishing("FILGovernance", address(_filGovernance));
         _filStake = new FILStake();
         emit ContractPublishing("FILStake", address(_filStake));
+        _governance = new Governance();
+        emit ContractPublishing("Governance", address(_governance));
         _filLiquid = new FILLiquid(
             address(_filTrust),
             address(_validation),
             address(_calculation),
             address(_filecoinAPI),
             address(_filStake),
+            address(_governance),
             payable(msg.sender)
         );
         emit ContractPublishing("FILLiquid", address(_filLiquid));
         _filStake.setContactAddrs(
             address(_filLiquid),
+            address(_governance),
             address(_filTrust),
             address(_calculation),
+            address(_filGovernance)
+        );
+        _governance.setContactAddrs(
+            address(_filLiquid),
+            address(_filStake),
             address(_filGovernance)
         );
         _dataFetcher = new DataFetcher(address(_filLiquid));
         emit ContractPublishing("DataFetcher", address(_dataFetcher));
         
         _filTrust.addManager(address(_filLiquid));
-        _filLiquid.deposit{value: msg.value}(msg.value, _filLiquid.rateBase());
+        (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
+        _filLiquid.deposit{value: msg.value}(msg.value, rateBase);
         uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);
+        _filGovernance.addManager(address(_filStake));
+        _filGovernance.addManager(address(_governance));
 
         _filTrust.setOwner(msg.sender);
         _filLiquid.setOwner(msg.sender);
         _filGovernance.setOwner(msg.sender);
         _filStake.setOwner(msg.sender);
+        _governance.setOwner(msg.sender);
     }
 
     function filTrust() external view returns (address) {
@@ -90,6 +105,10 @@ contract Deployer {
 
     function filStake() external view returns (address) {
         return address(_filStake);
+    }
+
+    function governance() external view returns (address) {
+        return address(_governance);
     }
 
     function filLiquid() external view returns (address) {

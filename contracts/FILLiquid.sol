@@ -61,8 +61,6 @@ interface FILLiquidInterface {
         uint utilizationRate;               // o.	Current Utilization Rate n=c/a=(h-i+l)/(d+j-e-k)
         uint exchangeRate;                  // p.	Current FILTrust/FIL Exchange Rate
         uint interestRate;                  // q.	Current Interest Rate
-        uint collateralRate;                // r.   Current Collateral Rate
-        uint rateBase;                      // s.   Rate base
     }
     struct PaybackResult{
         uint amountLeft;
@@ -564,9 +562,7 @@ contract FILLiquid is Context, FILLiquidInterface {
                 accumulatedLiquidateFee: _accumulatedLiquidateFee,
                 utilizationRate: utilizationRate(),
                 exchangeRate: exchangeRate(),
-                interestRate: interestRate(),
-                collateralRate: _collateralRate,
-                rateBase: _rateBase
+                interestRate: interestRate()
             });
     }
 
@@ -644,8 +640,16 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _tokenFILTrust.balanceOf(account);
     }
 
-    function allMiners() external view returns (uint64[] memory) {
-        return _allMiners;
+    function allMinersCount() external view returns (uint) {
+        return _allMiners.length;
+    }
+
+    function allMinersSubset(uint start, uint end) external view returns (uint64[] memory result) {
+        require(start < end && end <= _allMiners.length, "Invalid indexes");
+        result = new uint64[](end - start);
+        for (uint i = start; i < end; i++) {
+            result[i] = _allMiners[i];
+        }
     }
 
     function minerBorrows(uint64 minerId) public view returns (BorrowInterestInfo[] memory result) {
@@ -829,15 +833,17 @@ contract FILLiquid is Context, FILLiquidInterface {
         _r_0 = values[1];
         _r_1 = values[2];
         _r_m = values[3];
+        _collateralRate = values[4];
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
     function checkBorrowPayBackFactors(uint[] memory values) external view {
-        require(values.length == 4, "Invalid input length");
+        require(values.length == 5, "Invalid input length");
         require(values[0] <= _rateBase && values[0] < _u_m, "Invalid u_1");
         require(values[1] <= _rateBase && values[1] < values[2], "Invalid r_0");
         require(values[2] <= _rateBase && values[2] < values[3], "Invalid r_1");
         require(values[3] <= _rateBase, "Invalid r_m");
+        require(values[4] <= _rateBase, "Invalid _collateralRate");
         _calculation.getN(values[0], _u_m, values[2], values[3], _rateBase);
     }
 

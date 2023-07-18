@@ -17,20 +17,26 @@ contract Deployer2 {
     Governance private _governance;
     FILLiquid private _filLiquid;
     DataFetcher private _dataFetcher;
+    Deployer1 private _deployer1;
+    address private _owner;
 
     event ContractPublishing (
         string name,
         address addr
     );
 
-    constructor(address deployer1) payable {
+    constructor(address deployer1) {
+        _deployer1 = Deployer1(deployer1);
         (
             Validation _validation,
             Calculation _calculation,
             FilecoinAPI _filecoinAPI,
             FILTrust _filTrust,
-            FILGovernance _filGovernance
-        ) = Deployer1(deployer1).getAddrs();
+            FILGovernance _filGovernance,
+            address _ownerDeployer1
+        ) = _deployer1.getAddrs();
+        require (msg.sender == _ownerDeployer1, "only owner allowed");
+        _owner = msg.sender;
 
         _filStake = new FILStake();
         emit ContractPublishing("FILStake", address(_filStake));
@@ -61,16 +67,18 @@ contract Deployer2 {
             address(_filStake),
             address(_filGovernance)
         );
-        
-        _filTrust.setOwner(address(this));
+    }
+
+    function setting() external payable {
+        require (msg.sender == _owner, "only owner allowed");
+        (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
         _filTrust.addManager(address(_filLiquid));
         (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
         _filLiquid.deposit{value: msg.value}(msg.value, rateBase);
         uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);
-
-        _filGovernance.setOwner(address(this));
+        
         _filGovernance.addManager(address(_filStake));
         _filGovernance.addManager(address(_governance));
 
@@ -81,12 +89,13 @@ contract Deployer2 {
         _filLiquid.setOwner(msg.sender);
     }
 
-    function getAddrs() external view returns (FILStake, Governance, FILLiquid, DataFetcher) {
+    function getAddrs() external view returns (FILStake, Governance, FILLiquid, DataFetcher, Deployer1) {
         return (
             _filStake,
             _governance,
             _filLiquid,
-            _dataFetcher
+            _dataFetcher,
+            _deployer1
         );
     }
 }

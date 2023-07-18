@@ -13,6 +13,7 @@ contract Deployer1 {
     FilecoinAPI private _filecoinAPI;
     FILTrust private _filTrust;
     FILGovernance private _filGovernance;
+    address private _owner;
 
     event ContractPublishing (
         string name,
@@ -20,6 +21,7 @@ contract Deployer1 {
     );
 
     constructor() {
+        _owner = msg.sender;
         _validation = new Validation();
         emit ContractPublishing("Validation", address(_validation));
         _calculation = new Calculation();
@@ -30,18 +32,22 @@ contract Deployer1 {
         emit ContractPublishing("FILTrust", address(_filTrust));
         _filGovernance = new FILGovernance("FILGovernance", "FIG");
         emit ContractPublishing("FILGovernance", address(_filGovernance));
-
-        _filTrust.setOwner(msg.sender);
-        _filGovernance.setOwner(msg.sender);
     }
 
-    function getAddrs() external view returns (Validation, Calculation, FilecoinAPI, FILTrust, FILGovernance) {
+    function setting(address deployer2) external {
+        require (msg.sender == _owner, "only owner allowed");
+        _filTrust.setOwner(deployer2);
+        _filGovernance.setOwner(deployer2);
+    }
+
+    function getAddrs() external view returns (Validation, Calculation, FilecoinAPI, FILTrust, FILGovernance, address) {
         return (
             _validation,
             _calculation,
             _filecoinAPI,
             _filTrust,
-            _filGovernance
+            _filGovernance,
+            _owner
         );
     }
 }

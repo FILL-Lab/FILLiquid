@@ -21,6 +21,13 @@ contract Governance is Context {
         abstain
     }
 
+    enum voteResult {
+        success,
+        fail,
+        failWithVeto,
+        pending
+    }
+
     struct Voting {
         uint amountTotal;
         uint[4] amounts;
@@ -44,6 +51,18 @@ contract Governance is Context {
         address proposer;
         uint[] values;
         VotingStatus status;
+    }
+
+    struct ProposalInfo {
+        proposolCategory category;
+        uint deadline;
+        uint modificationline;
+        uint deposited;
+        uint discussionIndex;
+        bool executed;
+        string text;
+        address proposer;
+        uint[] values;
     }
 
     event Proposed (
@@ -84,7 +103,8 @@ contract Governance is Context {
 
     event Executed (
         uint proposalId,
-        bool success
+        voteResult result,
+        address executor
     );
 
     mapping(address => uint) private _bondings;
@@ -147,10 +167,11 @@ contract Governance is Context {
         emit Bonded(sender, amount);
     }
 
-    function unbond(uint amount) noVoting external {
+    function unbond(uint amount) external {
         address sender = _msgSender();
         require(_bondings[sender] > 0, "Not bonded");
-        require(amount <= _bondings[sender], "Invalid amount");
+        (, uint maxVote) = votingProposalSum(sender);
+        require(amount <= _bondings[sender] - maxVote, "Invalid amount");
         if (amount == 0) amount = _bondings[sender];
         _bondings[sender] -= amount;
         _totalBondedAmount -= amount;
@@ -179,7 +200,7 @@ contract Governance is Context {
         emit Proposed(_proposals.length - 1, p.category, p.deadline, p.modificationline, p.deposited, p.discussionIndex, p.text, p.proposer, p.values);
     }
 
-    function vote(uint proposalId, voteCategory category, uint amount) external validProposalId(proposalId) {
+    function vote(uint proposalId, voteCategory category, uint amount) validProposalId(proposalId) external {
         Proposal storage p = _proposals[proposalId];
         require(p.deadline >= block.number, "Proposal finished");
         address voter = _msgSender();
@@ -196,7 +217,7 @@ contract Governance is Context {
         emit Voted(proposalId, category, amount, voter);
     }
 
-    function withdraw(uint proposalId, voteCategory category, uint amount) external validProposalId(proposalId) {
+    function withdraw(uint proposalId, voteCategory category, uint amount) validProposalId(proposalId) external {
         Proposal storage p = _proposals[proposalId];
         require(p.modificationline >= block.number, "Proposal finished");
         address voter = _msgSender();
@@ -225,7 +246,7 @@ contract Governance is Context {
         emit Withdrawn(proposalId, category, amount, voter);
     }
 
-    function execute(uint proposalId) external validProposalId(proposalId) {
+    function execute(uint proposalId) validProposalId(proposalId) external {
         Proposal storage p = _proposals[proposalId];
         require(p.deadline < block.number, "Proposal voting in progress");
         require(p.deadline + _executionPeriod >= block.number, "Proposal expired");
@@ -233,26 +254,27 @@ contract Governance is Context {
         _nextProposalId = proposalId + 1;
         p.executed = true;
         VotingStatus storage status = p.status;
-        bool success;
-        if ((status.amounts[uint(voteCategory.no)] + status.amounts[uint(voteCategory.noWithVeto)]) * _rateBase < status.amountTotal * _maxNo && 
-        status.amounts[uint(voteCategory.yes)] * _rateBase >= status.amountTotal * _minYes &&
-        status.amountTotal * _rateBase >= _totalBondedAmount * _quorum) {
-            success = true;
-            if (p.category == proposolCategory.filLiquid) _filLiquid.setBorrowPayBackFactors(p.values);
-            else if (p.category == proposolCategory.filStake) _filStake.setGovernanceFactors(p.values);
-        }
-        if (status.amounts[uint(voteCategory.noWithVeto)] * _rateBase < status.amountTotal * _maxNoWithVeto) {
-            _tokenFILGovernance.transfer(p.proposer, p.deposited);
-        } else {
+        voteResult result = _voteResult(status);
+        if (result == voteResult.failWithVeto) {
             _tokenFILGovernance.burn(address(this), p.deposited);
+        } else {
+            if (result == voteResult.success) {
+                if (p.category == proposolCategory.filLiquid) _filLiquid.setBorrowPayBackFactors(p.values);
+                else if (p.category == proposolCategory.filStake) _filStake.setGovernanceFactors(p.values);
+            }
+            _tokenFILGovernance.transfer(p.proposer, p.deposited);
         }
 
-        emit Executed(proposalId, success);
+        emit Executed(proposalId, result, _msgSender());
     }
 
-    function votingProposalCounts(address bonder) public view returns (uint count) {
+    function votingProposalSum(address bonder) public view returns (uint count, uint maxVote) {
         for (uint i = getFirstVotingProposal(); i < _proposals.length; i++) {
-            if (_proposals[i].status.voterVotings[bonder].amountTotal > 0) count++;
+            uint amount = _proposals[i].status.voterVotings[bonder].amountTotal;
+            if (amount > 0) {
+                if (amount > maxVote) maxVote = amount;
+                count++;
+            }
         }
     }
 
@@ -266,7 +288,7 @@ contract Governance is Context {
         }
     }
 
-    function votedForProposal(address bonder, uint proposalId) external validProposalId(proposalId) view returns (Voting memory) {
+    function votedForProposal(address bonder, uint proposalId) validProposalId(proposalId) external view returns (Voting memory) {
         return _proposals[proposalId].status.voterVotings[bonder];
     }
 
@@ -274,17 +296,40 @@ contract Governance is Context {
         return (_bonders, _totalBondedAmount, _nextProposalId);
     }
 
-    /*function proposals() external view returns (Proposal[] memory) {
-        return _proposals;
+    function getProposalInfo(uint proposalId) validProposalId(proposalId) external view returns (ProposalInfo memory result) {
+        Proposal storage proposal = _proposals[proposalId];
+        result = ProposalInfo(
+            proposal.category,
+            proposal.deadline,
+            proposal.modificationline,
+            proposal.deposited,
+            proposal.discussionIndex,
+            proposal.executed,
+            proposal.text,
+            proposal.proposer,
+            proposal.values
+        );
     }
-
-    function specifiedProposal(uint index) external view returns (Proposal memory) {
-        return _proposals[index];
-    }*/
 
     function proposalCount() external view returns (uint) {
         return _proposals.length;
-    } 
+    }
+
+    function getVoteResult(uint proposalId) validProposalId(proposalId) external view returns (
+        uint amountTotal,
+        uint amountYes,
+        uint amountNo,
+        uint amountNoWithVeto,
+        uint amountAbstain,
+        voteResult result) {
+        VotingStatus storage status = _proposals[proposalId].status;
+        amountTotal = status.amountTotal;
+        amountYes = status.amounts[uint(voteCategory.yes)];
+        amountNo = status.amounts[uint(voteCategory.no)];
+        amountNoWithVeto = status.amounts[uint(voteCategory.noWithVeto)];
+        amountAbstain = status.amounts[uint(voteCategory.abstain)];
+        result = _voteResult(status);
+    }
 
     function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
         return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _quorum, _depositThreshold, _voteThreshold, _votingPeriod, _modifiablePeriod, _executionPeriod, _maxActiveProposal);
@@ -355,11 +400,6 @@ contract Governance is Context {
         _;
     }
 
-    modifier noVoting() {
-        require(votingProposalCounts(_msgSender()) == 0, "With votings");
-        _;
-    }
-
     function _checkParameter(proposolCategory category, uint[] memory params) private view {
         if (category == proposolCategory.filLiquid) {
             _filLiquid.checkBorrowPayBackFactors(params);
@@ -368,6 +408,22 @@ contract Governance is Context {
             _filStake.checkGovernanceFactors(params);
         } else {
             require(params.length == 0, "Invalid input length");
+        }
+    }
+
+    function _voteResult(VotingStatus storage status) private view returns (voteResult result) {
+        uint amountTotal = status.amountTotal;
+        uint amountYes = status.amounts[uint(voteCategory.yes)];
+        uint amountNo = status.amounts[uint(voteCategory.no)];
+        uint amountNoWithVeto = status.amounts[uint(voteCategory.noWithVeto)];
+        if (amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
+            result = voteResult.failWithVeto;
+        } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {
+            result = voteResult.fail;
+        } else if (amountYes * _rateBase >= amountTotal * _minYes && amountTotal * _rateBase >= _totalBondedAmount * _quorum) {
+            result = voteResult.success;
+        } else {
+            result = voteResult.pending;
         }
     }
 }

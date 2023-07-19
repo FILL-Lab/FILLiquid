@@ -15,7 +15,6 @@ import "./FILStake.sol";
 
 interface FILLiquidInterface {
     struct BorrowInfo {
-        uint id; //borrow id
         uint borrowAmount; //borrow amount
         uint liquidatedAmount; //liquidated amount
         uint remainingOriginalAmount; //remaining original amount
@@ -45,22 +44,25 @@ interface FILLiquidInterface {
     }
     struct FILLiquidInfo {
         uint totalFIL;                      // a.   Total FIL Liquidity a=b+c=d+j-e-k
-        uint availableFIL;                  // b.	Available FIL Liquidity b=d+i+j-e-h-k-l
-        uint utilizedLiquidity;             // c.	Current Utilized Liquidity c=h-i+l
-        uint accumulatedDeposit;            // d.	Accumulated Deposited Liquidity
-        uint accumulatedRedeem;             // e.	Accumulated FIL Redemptions
-        uint accumulatedBurntFILTrust;      // f.	Accumulated FILTrust Burnt
-        uint accumulatedMintFILTrust;       // g.	Accumulated FILTrust Mint
-        uint accumulatedBorrow;             // h.	Accumulated Borrowed Liquidity
-        uint accumulatedPayback;            // i.	Accumulated Repayments
-        uint accumulatedInterest;           // j.	Accumulated Interest Payment Received
-        uint accumulatedRedeemFee;          // k.	Total Redeem Fee Received
-        uint accumulatedBorrowFee;          // l.	Total Borrow Fee Received
+        uint availableFIL;                  // b.   Available FIL Liquidity b=d+i+j-e-h-k-l
+        uint utilizedLiquidity;             // c.   Current Utilized Liquidity c=h-i+l
+        uint accumulatedDeposit;            // d.   Accumulated Deposited Liquidity
+        uint accumulatedRedeem;             // e.   Accumulated FIL Redemptions
+        uint accumulatedBurntFILTrust;      // f.   Accumulated FILTrust Burnt
+        uint accumulatedMintFILTrust;       // g.   Accumulated FILTrust Mint
+        uint accumulatedBorrow;             // h.   Accumulated Borrowed Liquidity
+        uint accumulatedPayback;            // i.   Accumulated Repayments
+        uint accumulatedInterest;           // j.   Accumulated Interest Payment Received
+        uint accumulatedRedeemFee;          // k.   Total Redeem Fee Received
+        uint accumulatedBorrowFee;          // l.   Total Borrow Fee Received
         uint accumulatedLiquidateReward;    // m.   Total liquidate reward
         uint accumulatedLiquidateFee;       // n.   Total liquidate fee
-        uint utilizationRate;               // o.	Current Utilization Rate n=c/a=(h-i+l)/(d+j-e-k)
-        uint exchangeRate;                  // p.	Current FILTrust/FIL Exchange Rate
-        uint interestRate;                  // q.	Current Interest Rate
+        uint accumulatedDeposits;           // o.   Accumulated Deposites
+        uint accumulatedBorrows;            // p.   Accumulated Borrows
+        uint utilizationRate;               // q.   Current Utilization Rate q=c/a=(h-i+l)/(d+j-e-k)
+        uint exchangeRate;                  // r.   Current FILTrust/FIL Exchange Rate
+        uint interestRate;                  // s.   Current Interest Rate
+        uint collateralizedMiner;           // t.   Collateralized miners
     }
     struct PaybackResult{
         uint amountLeft;
@@ -175,14 +177,14 @@ interface FILLiquidInterface {
 
     /// @dev Emitted when user `account` borrows `amountFIL` with `minerId`
     event Borrow(
-        uint indexed borrowId,
         address indexed account,
         uint64 indexed minerId,
         uint amountFIL,
         uint fee
     );
     
-    /// @dev Emitted when user `account` repays `principal + interest` FIL for `borrowId` of `minerId`
+    /// @dev Emitted when user `account` repays `principal + interest` FIL for `minerIdPayee`,
+    /// with `withdrawn` withdrawn from `minerIdPayer` and `valueTx` from `account`
     event Payback(
         address account,
         uint64 minerIdPayee,
@@ -193,7 +195,7 @@ interface FILLiquidInterface {
         uint valueTx
     );
 
-    /// @dev Emitted when user `account` liquidate `principal + interest + reward + fee` FIL for `borrowId` of `minerId`
+    /// @dev Emitted when user `account` liquidate `principal + interest + reward + fee` FIL for `minerId`
     event Liquidate(
         address account,
         uint64 minerId,
@@ -214,7 +216,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     mapping(uint64 => uint) private _liquidatedTimes;
     mapping(uint64 => uint) private _lastLiquidate;
     uint64[] private _allMiners;
-    uint private _minerNextBorrowID;
+    uint private _collateralizedMiner;
 
     uint private _accumulatedDepositFIL;
     uint private _accumulatedRedeemFIL;
@@ -227,6 +229,8 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint private _accumulatedBorrowFee;
     uint private _accumulatedLiquidateReward;
     uint private _accumulatedLiquidateFee;
+    uint private _accumulatedDeposits;
+    uint private _accumulatedBorrows;
 
     //administrative factors
     address private _owner;
@@ -335,6 +339,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         
         _accumulatedDepositFIL += amountFIL;
         _accumulatedMintFILTrust += amountFILTrust;
+        _accumulatedDeposits++;
         address sender = _msgSender();
         _tokenFILTrust.mint(sender, amountFILTrust);
         
@@ -375,11 +380,9 @@ contract FILLiquid is Context, FILLiquidInterface {
         //todo: check quota and expiration is big enough
         //MinerTypes.BeneficiaryTerm memory term = _filecoinAPI.getBeneficiary(minerId).active.term;
         //require(collateralNeeded + collateralizingInfo.collateralAmount <= term.quota.bigInt2Uint() - term.used_quota.bigInt2Uint(), "Insufficient quota");
-        
-        uint borrowId = _minerNextBorrowID;
+
         borrows.push(
             BorrowInfo({
-                id: borrowId,
                 borrowAmount: amount,
                 liquidatedAmount: 0,
                 remainingOriginalAmount: amount,
@@ -388,15 +391,15 @@ contract FILLiquid is Context, FILLiquidInterface {
             })
         );
         sortMinerBorrows(minerId);
-        _minerNextBorrowID ++;
         _minerCollateralizing[minerId].borrowAmount += amount;
         uint[2] memory fees = calculateFee(amount, _borrowFeeRate);
         _accumulatedBorrowFIL += fees[0];
         _accumulatedBorrowFee += fees[1];
+        _accumulatedBorrows++;
         _foundation.transfer(fees[1]);
         send(minerId, fees[0]);
 
-        emit Borrow(borrowId, _msgSender(), minerId, fees[0], fees[1]);
+        emit Borrow(_msgSender(), minerId, fees[0], fees[1]);
         return (fees[0], fees[1]);
     }
 
@@ -522,6 +525,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             borrowAmount: 0,
             liquidatedAmount: 0
         });
+        _collateralizedMiner++;
 
         emit CollateralizingMiner(
             minerId,
@@ -539,6 +543,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         CommonTypes.FilAddress memory minerOwner = _filecoinAPI.getOwner(minerId).owner;
         changeBeneficiary(minerId, minerOwner, CommonTypes.BigInt(hex"00", false), CommonTypes.ChainEpoch.wrap(0));
         delete _minerCollateralizing[minerId];
+        _collateralizedMiner--;
 
         emit UncollateralizingMiner(minerId, minerOwner.data, 0, 0);
     }
@@ -560,9 +565,12 @@ contract FILLiquid is Context, FILLiquidInterface {
                 accumulatedBorrowFee: _accumulatedBorrowFee,
                 accumulatedLiquidateReward: _accumulatedLiquidateReward,
                 accumulatedLiquidateFee: _accumulatedLiquidateFee,
+                accumulatedDeposits: _accumulatedDeposits,
+                accumulatedBorrows:_accumulatedBorrows,
                 utilizationRate: utilizationRate(),
                 exchangeRate: exchangeRate(),
-                interestRate: interestRate()
+                interestRate: interestRate(),
+                collateralizedMiner: _collateralizedMiner
             });
     }
 
@@ -702,6 +710,16 @@ contract FILLiquid is Context, FILLiquidInterface {
     function liquidatedTimes(uint64 minerId) external view returns (uint) {
         return _liquidatedTimes[minerId];
     }
+
+    /*function getTotalPendingInterest() external view returns (uint result) {
+        for (uint j = 0; j < _allMiners.length; j++) {
+            BorrowInfo[] storage borrows = _minerBorrows[_allMiners[j]];
+            for (uint i = 0; i < borrows.length; i++) {
+                BorrowInfo storage info = borrows[i];
+                result += paybackAmount(info.borrowAmount, block.timestamp - info.datedDate, info.interestRate) - info.borrowAmount;
+            }
+        }
+    }*/
 
     function owner() external view returns (address) {
         return _owner;

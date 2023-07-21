@@ -946,7 +946,9 @@ contract FILLiquid is Context, FILLiquidInterface {
             balanceSum += FilAddress.toAddress(miners[i]).balance;
             principalAndInterestSum += getPrincipalAndInterest(miners[i]);
         }
-        uint rate = principalAndInterestSum * _rateBase / balanceSum;
+        uint rate;
+        if (balanceSum != 0) rate = principalAndInterestSum * _rateBase / balanceSum;
+        else if (principalAndInterestSum > 0) rate = _rateBase;
         r.alertable = rate >= _alertThreshold;
         r.liquidatable = rate >= _liquidateThreshold;
     }

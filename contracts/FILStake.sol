@@ -85,18 +85,17 @@ contract FILStake is Context{
     }
 
     function handleInterest(address mintee, uint amount) onlyFilLiquid external returns (uint minted) {
-        (minted, _accumulatedInterestMint) = _getMintedFromInterest(amount, _accumulatedInterestMint);
+        (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(amount);
         _accumulatedInterest += amount;
         if (minted > 0) _tokenFILGovernance.mint(mintee, minted);
         emit Interest(mintee, amount, minted);
     }
 
     function stakeFilTrust(uint amount, uint maxStart, uint duration) external returns (uint minted) {
-        require(block.number <= maxStart, "Block height exceeds");
+        require(maxStart == 0 || block.number <= maxStart, "Block height exceeds");
         require(duration >= _minStakePeriod && duration <= _maxStakePeriod, "Duration invalid");
         address sender = _msgSender();
-        require(_tokenFILTrust.allowance(sender, address(this)) >= amount, "Allowance not enough");
-        _tokenFILTrust.transferFrom(sender, address(this), amount);
+        _tokenFILTrust.claim(sender, amount);
         (uint start, uint end) = (block.number, block.number + duration);
         Stake[] storage stakes = _stakerStakes[sender];
         stakes.push(
@@ -174,6 +173,14 @@ contract FILStake is Context{
         }
     }
 
+    function getCurrentMintedFromInterest(uint amount) public view returns (uint, uint) {
+        return _getMintedFromInterest(amount, _accumulatedInterestMint);
+    }
+
+    function getCurrentMintedFromStake(uint stake, uint duration) public view returns (uint, uint) {
+        return _getMintedFromStake(stake, duration, _accumulatedStakeMint);
+    }
+
     function getStatus() external view returns (uint, uint, uint, uint) {
         return (_accumulatedInterest, _accumulatedStake, _accumulatedInterestMint, _accumulatedStakeMint);
     }
@@ -245,7 +252,7 @@ contract FILStake is Context{
     }
 
     function _mintedFromStake(address staker, uint stake, uint duration) private returns (uint minted) {
-        (minted, _accumulatedStakeMint) = _getMintedFromStake(stake, duration, _accumulatedStakeMint);
+        (minted, _accumulatedStakeMint) = getCurrentMintedFromStake(stake, duration);
         _accumulatedStake += stake;
         if (minted > 0) _tokenFILGovernance.mint(staker, minted);
     }

@@ -101,7 +101,8 @@ contract Governance is Context {
     uint private _maxNoWithVeto;
     uint private _quorum;
     uint private _liquidate;
-    uint private _depositThreshold;
+    uint private _depositRatioThreshold;
+    uint private _depositAmountThreshold;
     uint private _voteThreshold;
     uint private _votingPeriod;
     uint private _executionPeriod;
@@ -118,7 +119,8 @@ contract Governance is Context {
     uint constant DEFAULT_MAX_NO_WITH_VETO = 333333;
     uint constant DEFAULT_QUORUM = 400000;
     uint constant DEFAULT_LIQUIDATE = 200000;
-    uint constant DEFAULT_DEPOSIT_THRESHOLD = 5e20;
+    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 100;
+    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e20;
     uint constant DEFAULT_VOTE_THRESHOLD = 1e19;
     uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days
     uint constant DEFAULT_EXECUTION_PERIOD = 20160; // 7 days
@@ -133,7 +135,8 @@ contract Governance is Context {
         _maxNoWithVeto = DEFAULT_MAX_NO_WITH_VETO;
         _quorum = DEFAULT_QUORUM;
         _liquidate = DEFAULT_LIQUIDATE;
-        _depositThreshold = DEFAULT_DEPOSIT_THRESHOLD;
+        _depositRatioThreshold = DEFAULT_DEPOSIT_RATIO_THRESHOLD;
+        _depositAmountThreshold = DEFAULT_DEPOSIT_AMOUNT_THRESHOLD;
         _voteThreshold = DEFAULT_VOTE_THRESHOLD;
         _votingPeriod = DEFAULT_VOTING_PERIOD;
         _executionPeriod = DEFAULT_EXECUTION_PERIOD;
@@ -168,12 +171,13 @@ contract Governance is Context {
         require (_proposals.length - renewFirstVotingProposal() < _maxActiveProposal, "Max active proposals reached");
         _checkParameter(category, values);
         address sender = _msgSender();
-        _tokenFILGovernance.claim(sender, _depositThreshold);
+        uint deposits = getDepositThreshold();
+        _tokenFILGovernance.claim(sender, deposits);
         _proposals.push();
         ProposalInfo storage info = _proposals[_proposals.length - 1].info;
         info.category = category;
         info.deadline = block.number + _votingPeriod;
-        info.deposited = _depositThreshold;
+        info.deposited = deposits;
         info.discussionIndex = discussionIndex;
         info.text = text;
         info.proposer = sender;
@@ -228,7 +232,7 @@ contract Governance is Context {
         } else {
             if (info.deadline + _executionPeriod >= block.number) {
                 if (result == voteResult.success) {
-                    if (info.category == proposolCategory.filLiquid) _filLiquid.setBorrowPayBackFactors(info.values);
+                    if (info.category == proposolCategory.filLiquid) _filLiquid.setGovernanceFactors(info.values);
                     else if (info.category == proposolCategory.filStake) _filStake.setGovernanceFactors(info.values);
                 }
                 _tokenFILGovernance.transfer(info.proposer, info.deposited);
@@ -275,8 +279,13 @@ contract Governance is Context {
         return _proposals[proposalId].info;
     }
 
-    function proposalCount() external view returns (uint) {
+    function getProposalCount() external view returns (uint) {
         return _proposals.length;
+    }
+
+    function getDepositThreshold() public view returns (uint result) {
+        result = _depositRatioThreshold * _tokenFILGovernance.totalSupply() / _rateBase;
+        if (result < _depositAmountThreshold) result = _depositAmountThreshold;
     }
 
     function getVoteResult(uint proposalId) validProposalId(proposalId) external view returns (
@@ -295,8 +304,8 @@ contract Governance is Context {
         result = _voteResult(status);
     }
 
-    function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
-        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _quorum, _liquidate, _depositThreshold, _voteThreshold, _votingPeriod, _executionPeriod, _maxActiveProposal);
+    function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
+        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _quorum, _liquidate, _depositRatioThreshold, _depositAmountThreshold, _voteThreshold, _votingPeriod, _executionPeriod, _maxActiveProposal);
     }
 
     function setFactors(
@@ -306,7 +315,8 @@ contract Governance is Context {
         uint new_maxNoWithVeto,
         uint new_quorum,
         uint new_liquidate,
-        uint new_depositThreshold,
+        uint new_depositRatioThreshold,
+        uint new_depositAmountThreshold,
         uint new_voteThreshold,
         uint new_votingPeriod,
         uint new_executionPeriod,
@@ -324,7 +334,8 @@ contract Governance is Context {
         _maxNoWithVeto = new_maxNoWithVeto;
         _quorum = new_quorum;
         _liquidate = new_liquidate;
-        _depositThreshold = new_depositThreshold;
+        _depositRatioThreshold = new_depositRatioThreshold;
+        _depositAmountThreshold = new_depositAmountThreshold;
         _voteThreshold = new_voteThreshold;
         _votingPeriod = new_votingPeriod;
         _executionPeriod = new_executionPeriod;
@@ -366,7 +377,7 @@ contract Governance is Context {
 
     function _checkParameter(proposolCategory category, uint[] memory params) private view {
         if (category == proposolCategory.filLiquid) {
-            _filLiquid.checkBorrowPayBackFactors(params);
+            _filLiquid.checkGovernanceFactors(params);
         } else if (category == proposolCategory.filStake) {
             _filStake.checkGovernanceFactors(params);
         } else {

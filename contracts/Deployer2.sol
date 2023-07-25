@@ -73,6 +73,7 @@ contract Deployer2 {
         require (msg.sender == _owner, "only owner allowed");
         (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
         _filTrust.addManager(address(_filLiquid));
+        _filTrust.addManager(address(_filStake));
         (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
         _filLiquid.deposit{value: msg.value}(msg.value, rateBase);
         uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
@@ -89,13 +90,14 @@ contract Deployer2 {
         _filLiquid.setOwner(msg.sender);
     }
 
-    function getAddrs() external view returns (FILStake, Governance, FILLiquid, DataFetcher, Deployer1) {
+    function getAddrs() external view returns (FILStake, Governance, FILLiquid, DataFetcher, Deployer1, address) {
         return (
             _filStake,
             _governance,
             _filLiquid,
             _dataFetcher,
-            _deployer1
+            _deployer1,
+            _owner
         );
     }
 }

@@ -11,7 +11,6 @@ contract Governance is Context {
     enum proposolCategory {
         filLiquid,
         filStake,
-        governance,
         general
     }
 
@@ -22,23 +21,26 @@ contract Governance is Context {
         abstain
     }
 
+    enum voteResult {
+        success,
+        fail,
+        failWithVeto,
+        pending
+    }
+
     struct Voting {
-        voteCategory category;
-        uint amount;
-        address voter;
-        bool withdrawn;
+        uint amountTotal;
+        uint[4] amounts;
     }
 
     struct VotingStatus {
-        Voting[] votings;
-        uint countTotal;
-        uint countYes;
-        uint countNo;
-        uint countNoWithVeto;
-        uint countAbstain;
+        address[] voters;
+        mapping(address => Voting) voterVotings;
+        uint amountTotal;
+        uint[4] amounts;
     }
 
-    struct Proposal {
+    struct ProposalInfo {
         proposolCategory category;
         uint deadline;
         uint deposited;
@@ -47,6 +49,10 @@ contract Governance is Context {
         string text;
         address proposer;
         uint[] values;
+    }
+
+    struct Proposal {
+        ProposalInfo info;
         VotingStatus status;
     }
 
@@ -61,6 +67,16 @@ contract Governance is Context {
         uint[] values
     );
 
+    event Bonded (
+        address bonder,
+        uint amount
+    );
+
+    event Unbonded (
+        address bonder,
+        uint amount
+    );
+
     event Voted (
         uint proposalId,
         voteCategory category,
@@ -70,22 +86,27 @@ contract Governance is Context {
 
     event Executed (
         uint proposalId,
-        bool success
+        voteResult result,
+        address executor
     );
 
-    event Withdrawn (
-        uint proposalId,
-        uint votingId
-    );
-
+    mapping(address => uint) private _bondings;
     Proposal[] private _proposals;
+    uint private _bonders;
+    uint private _totalBondedAmount;
+    uint private _nextProposalId;
     uint private _rateBase;
     uint private _minYes;
     uint private _maxNo;
     uint private _maxNoWithVeto;
-    uint private _depositThreshold;
+    uint private _quorum;
+    uint private _liquidate;
+    uint private _depositRatioThreshold;
+    uint private _depositAmountThreshold;
+    uint private _voteThreshold;
     uint private _votingPeriod;
     uint private _executionPeriod;
+    uint private _maxActiveProposal;
     address private _owner;
 
     FILLiquid private _filLiquid;
@@ -96,9 +117,14 @@ contract Governance is Context {
     uint constant DEFAULT_MIN_YES = 500000;
     uint constant DEFAULT_MAX_NO = 333333;
     uint constant DEFAULT_MAX_NO_WITH_VETO = 333333;
-    uint constant DEFAULT_DEPOSIT_THRESHOLD = 1e22; // TODO: discuss about the value
-    uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days, todo: discuss about the value
-    uint constant DEFAULT_EXECUTION_PERIOD = 40320; // 14 days, todo: discuss about the value
+    uint constant DEFAULT_QUORUM = 400000;
+    uint constant DEFAULT_LIQUIDATE = 200000;
+    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 100;
+    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e20;
+    uint constant DEFAULT_VOTE_THRESHOLD = 1e19;
+    uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days
+    uint constant DEFAULT_EXECUTION_PERIOD = 20160; // 7 days
+    uint constant DEFAULT_MAX_ACTIVE_PROPOSAL = 1000;
 
     constructor() {
         _owner = _msgSender();
@@ -107,98 +133,213 @@ contract Governance is Context {
         _minYes = DEFAULT_MIN_YES;
         _maxNo = DEFAULT_MAX_NO;
         _maxNoWithVeto = DEFAULT_MAX_NO_WITH_VETO;
-        _depositThreshold = DEFAULT_DEPOSIT_THRESHOLD;
+        _quorum = DEFAULT_QUORUM;
+        _liquidate = DEFAULT_LIQUIDATE;
+        _depositRatioThreshold = DEFAULT_DEPOSIT_RATIO_THRESHOLD;
+        _depositAmountThreshold = DEFAULT_DEPOSIT_AMOUNT_THRESHOLD;
+        _voteThreshold = DEFAULT_VOTE_THRESHOLD;
         _votingPeriod = DEFAULT_VOTING_PERIOD;
         _executionPeriod = DEFAULT_EXECUTION_PERIOD;
+        _maxActiveProposal = DEFAULT_MAX_ACTIVE_PROPOSAL;
+    }
+
+    function bond(uint amount) external {
+        address sender = _msgSender();
+        _tokenFILGovernance.claim(sender, amount);
+        if (_bondings[sender] == 0) _bonders++;
+        _bondings[sender] += amount;
+        _totalBondedAmount += amount;
+
+        emit Bonded(sender, amount);
+    }
+
+    function unbond(uint amount) external {
+        address sender = _msgSender();
+        require(_bondings[sender] > 0, "Not bonded");
+        (, uint maxVote) = votingProposalSum(sender);
+        require(amount <= _bondings[sender] - maxVote, "Invalid amount");
+        if (amount == 0) amount = _bondings[sender];
+        _bondings[sender] -= amount;
+        _totalBondedAmount -= amount;
+        if (_bondings[sender] == 0) _bonders--;
+        _tokenFILGovernance.transfer(sender, amount);
+
+        emit Unbonded(sender, amount);
     }
 
     function propose(proposolCategory category, uint discussionIndex, string memory text, uint[] memory values) external {
+        require (_proposals.length - renewFirstVotingProposal() < _maxActiveProposal, "Max active proposals reached");
         _checkParameter(category, values);
         address sender = _msgSender();
-        require(_tokenFILGovernance.allowance(sender, address(this)) >= _depositThreshold, "Allowance not enough");
-        _tokenFILGovernance.transferFrom(sender, address(this), _depositThreshold);
+        uint deposits = getDepositThreshold();
+        _tokenFILGovernance.claim(sender, deposits);
         _proposals.push();
-        Proposal storage p = _proposals[_proposals.length - 1];
-        p.category = category;
-        p.deadline = block.number + _votingPeriod;
-        p.deposited = _depositThreshold;
-        p.discussionIndex = discussionIndex;
-        p.text = text;
-        p.proposer = sender;
-        p.values = values;
+        ProposalInfo storage info = _proposals[_proposals.length - 1].info;
+        info.category = category;
+        info.deadline = block.number + _votingPeriod;
+        info.deposited = deposits;
+        info.discussionIndex = discussionIndex;
+        info.text = text;
+        info.proposer = sender;
+        info.values = values;
 
-        emit Proposed(_proposals.length - 1, p.category, p.deadline, p.deposited, p.discussionIndex, p.text, p.proposer, p.values);
+        emit Proposed(
+            _proposals.length - 1,
+            info.category,
+            info.deadline,
+            info.deposited,
+            info.discussionIndex,
+            info.text,
+            info.proposer,
+            info.values
+        );
     }
 
-    //Todo: Add change or cancel vote?
-    function vote(uint proposalId, voteCategory category, uint amount) external validProposalId(proposalId) {
+    function vote(uint proposalId, voteCategory category, uint amount) validProposalId(proposalId) external {
         Proposal storage p = _proposals[proposalId];
-        require(p.deadline >= block.number, "Proposal finished");
+        ProposalInfo storage info = p.info;
+        VotingStatus storage status = p.status;
         address voter = _msgSender();
-        require(_tokenFILGovernance.allowance(voter, address(this)) >= amount, "Allowance not enough");
-        _tokenFILGovernance.transferFrom(voter, address(this), amount);
-        VotingStatus storage s = p.status;
-        s.votings.push(Voting(category, amount, voter, false));
-        s.countTotal += amount;
-        if (category == voteCategory.yes) s.countYes += amount;
-        else if (category == voteCategory.no) s.countNo += amount;
-        else if (category == voteCategory.noWithVeto) s.countNoWithVeto += amount;
-        else s.countAbstain += amount;
+        Voting storage voting = status.voterVotings[voter];
+        require(amount >= _voteThreshold, "Voting amount too low");
+        require(info.deadline >= block.number, "Proposal finished");
+        require(voting.amountTotal + amount <= _bondings[voter], "Invalid amount");
+        if (voting.amountTotal == 0) status.voters.push(voter);
+        status.amountTotal += amount;
+        status.amounts[uint(category)] += amount;
+        voting.amountTotal += amount;
+        voting.amounts[uint(category)] += amount;
 
         emit Voted(proposalId, category, amount, voter);
     }
 
-    function execute(uint proposalId) external validProposalId(proposalId) {
+    function execute(uint proposalId) validProposalId(proposalId) external {
         Proposal storage p = _proposals[proposalId];
-        require(p.deadline < block.number, "Proposal voting in progress");
-        require(p.deadline + _executionPeriod >= block.number, "Proposal expired");
-        require(!p.executed, "Already executed");
-        p.executed = true;
-        VotingStatus storage s = p.status;
-        bool success;
-        if ((s.countNo + s.countNoWithVeto) * _rateBase < s.countTotal * _maxNo && 
-        s.countYes * _rateBase >= s.countTotal * _minYes) {
-            success = true;
-            if (p.category == proposolCategory.filLiquid) _filLiquid.setBorrowPayBackFactors(p.values);
-            else if (p.category == proposolCategory.filStake) _filStake.setFactors(p.values);
-            else if (p.category == proposolCategory.governance) _setFactors(p.values);
+        ProposalInfo storage info = p.info;
+        VotingStatus storage status = p.status;
+        address sender = _msgSender();
+        require(info.deadline < block.number, "Proposal voting in progress");
+        require(!info.executed, "Already executed");
+        info.executed = true;
+        if (_nextProposalId <= proposalId) {
+            _nextProposalId = proposalId + 1;
         }
-        //Todo: whether burn or transfer?
-        if (s.countNoWithVeto * _rateBase < s.countTotal * _maxNoWithVeto) {
-            _tokenFILGovernance.transfer(p.proposer, p.deposited);
+        voteResult result = _voteResult(status);
+        if (result == voteResult.failWithVeto) {
+            (uint liquidate, uint remain) = _liquidateResult(info.deposited);
+            _tokenFILGovernance.transfer(sender, liquidate);
+            _tokenFILGovernance.burn(address(this), remain);
         } else {
-            _tokenFILGovernance.burn(address(this), p.deposited);
+            if (info.deadline + _executionPeriod >= block.number) {
+                if (result == voteResult.success) {
+                    if (info.category == proposolCategory.filLiquid) _filLiquid.setGovernanceFactors(info.values);
+                    else if (info.category == proposolCategory.filStake) _filStake.setGovernanceFactors(info.values);
+                }
+                _tokenFILGovernance.transfer(info.proposer, info.deposited);
+            } else {
+                (uint liquidate, uint remain) = _liquidateResult(info.deposited);
+                _tokenFILGovernance.transfer(sender, liquidate);
+                _tokenFILGovernance.transfer(info.proposer, remain);
+            }
         }
 
-        emit Executed(proposalId, success);
+        emit Executed(proposalId, result, _msgSender());
     }
 
-    function withdraw(uint proposalId, uint votingId) external validProposalId(proposalId) {
-        Proposal storage p = _proposals[proposalId];
-        require(p.deadline < block.number, "Proposal not finished");
-        require(votingId < p.status.votings.length, "Invalid votingId");
-        Voting storage v = p.status.votings[votingId];
-        require(!v.withdrawn, "Already withdrawn");
-        v.withdrawn = true;
-        _tokenFILGovernance.transfer(v.voter, v.amount);
-
-        emit Withdrawn(proposalId, votingId);
+    function votingProposalSum(address bonder) public returns (uint count, uint maxVote) {
+        for (uint i = renewFirstVotingProposal(); i < _proposals.length; i++) {
+            uint amount = _proposals[i].status.voterVotings[bonder].amountTotal;
+            if (amount > 0) {
+                if (amount > maxVote) maxVote = amount;
+                count++;
+            }
+        }
     }
 
-    function proposals() external view returns (Proposal[] memory) {
-        return _proposals;
+    function bondedAmount(address bonder) external view returns (uint) {
+        return _bondings[bonder];
     }
 
-    function specifiedProposal(uint index) external view returns (Proposal memory) {
-        return _proposals[index];
+    function renewFirstVotingProposal() public returns (uint i) {
+        for (i = _nextProposalId; i < _proposals.length; i++) {
+            if (_proposals[i].info.deadline >= block.number) break;
+        }
+        _nextProposalId = i;
     }
 
-    function proposalCount() external view returns (uint) {
+    function votedForProposal(address voter, uint proposalId) validProposalId(proposalId) external view returns (Voting memory) {
+        return _proposals[proposalId].status.voterVotings[voter];
+    }
+
+    function getStatus() external view returns (uint, uint, uint) {
+        return (_bonders, _totalBondedAmount, _nextProposalId);
+    }
+
+    function getProposalInfo(uint proposalId) validProposalId(proposalId) external view returns (ProposalInfo memory) {
+        return _proposals[proposalId].info;
+    }
+
+    function getProposalCount() external view returns (uint) {
         return _proposals.length;
-    } 
+    }
 
-    function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint) {
-        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _depositThreshold, _votingPeriod, _executionPeriod);
+    function getDepositThreshold() public view returns (uint result) {
+        result = _depositRatioThreshold * _tokenFILGovernance.totalSupply() / _rateBase;
+        if (result < _depositAmountThreshold) result = _depositAmountThreshold;
+    }
+
+    function getVoteResult(uint proposalId) validProposalId(proposalId) external view returns (
+        uint amountTotal,
+        uint amountYes,
+        uint amountNo,
+        uint amountNoWithVeto,
+        uint amountAbstain,
+        voteResult result) {
+        VotingStatus storage status = _proposals[proposalId].status;
+        amountTotal = status.amountTotal;
+        amountYes = status.amounts[uint(voteCategory.yes)];
+        amountNo = status.amounts[uint(voteCategory.no)];
+        amountNoWithVeto = status.amounts[uint(voteCategory.noWithVeto)];
+        amountAbstain = status.amounts[uint(voteCategory.abstain)];
+        result = _voteResult(status);
+    }
+
+    function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
+        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _quorum, _liquidate, _depositRatioThreshold, _depositAmountThreshold, _voteThreshold, _votingPeriod, _executionPeriod, _maxActiveProposal);
+    }
+
+    function setFactors(
+        uint new_rateBase,
+        uint new_minYes,
+        uint new_maxNo,
+        uint new_maxNoWithVeto,
+        uint new_quorum,
+        uint new_liquidate,
+        uint new_depositRatioThreshold,
+        uint new_depositAmountThreshold,
+        uint new_voteThreshold,
+        uint new_votingPeriod,
+        uint new_executionPeriod,
+        uint new_maxActiveProposal
+    ) onlyOwner external {
+        require(
+            new_minYes <= new_rateBase &&
+            new_maxNo <= new_rateBase &&
+            new_maxNoWithVeto <= new_rateBase &&
+            new_quorum <= new_rateBase &&
+            new_liquidate <= new_rateBase, "Invalid factor");
+        _rateBase = new_rateBase;
+        _minYes = new_minYes;
+        _maxNo = new_maxNo;
+        _maxNoWithVeto = new_maxNoWithVeto;
+        _quorum = new_quorum;
+        _liquidate = new_liquidate;
+        _depositRatioThreshold = new_depositRatioThreshold;
+        _depositAmountThreshold = new_depositAmountThreshold;
+        _voteThreshold = new_voteThreshold;
+        _votingPeriod = new_votingPeriod;
+        _executionPeriod = new_executionPeriod;
+        _maxActiveProposal = new_maxActiveProposal;
     }
 
     function getContactAddrs() external view returns (address, address, address) {
@@ -236,30 +377,34 @@ contract Governance is Context {
 
     function _checkParameter(proposolCategory category, uint[] memory params) private view {
         if (category == proposolCategory.filLiquid) {
-            _filLiquid.checkBorrowPayBackFactors(params);
-        }
-        else if (category == proposolCategory.filStake) {
-            _filStake.checkFactors(params);
-        }
-        else if (category == proposolCategory.governance) {
-            _checkFactors(params);
+            _filLiquid.checkGovernanceFactors(params);
+        } else if (category == proposolCategory.filStake) {
+            _filStake.checkGovernanceFactors(params);
+        } else {
+            require(params.length == 0, "Invalid input length");
         }
     }
 
-    function _setFactors(uint[] storage params) private {
-        _rateBase = params[0];
-        _minYes = params[1];
-        _maxNo = params[2];
-        _maxNoWithVeto = params[3];
-        _depositThreshold = params[4];
-        _votingPeriod = params[5];
-        _executionPeriod = params[6];
+    function _voteResult(VotingStatus storage status) private view returns (voteResult result) {
+        uint amountTotal = status.amountTotal;
+        uint amountYes = status.amounts[uint(voteCategory.yes)];
+        uint amountNo = status.amounts[uint(voteCategory.no)];
+        uint amountNoWithVeto = status.amounts[uint(voteCategory.noWithVeto)];
+        if (amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
+            result = voteResult.failWithVeto;
+        } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {
+            result = voteResult.fail;
+        } else if (amountYes * _rateBase >= amountTotal * _minYes && amountTotal * _rateBase >= _totalBondedAmount * _quorum) {
+            result = voteResult.success;
+        } else {
+            result = voteResult.pending;
+        }
     }
 
-    function _checkFactors(uint[] memory params) public pure {
-        require(params.length == 7, "Invalid input length");
-        require(params[1] <= params[0], "Invalid new_minYes");
-        require(params[2] <= params[0], "Invalid new_maxNo");
-        require(params[3] <= params[0], "Invalid new_maxNoWithVeto");
+    function _liquidateResult(uint amount) private view returns (uint liquidate, uint remain) {
+        liquidate = amount * _liquidate;
+        if (liquidate % _rateBase == 0) liquidate /= _rateBase;
+        else liquidate = liquidate / _rateBase + 1;
+        remain = amount - liquidate;
     }
 }

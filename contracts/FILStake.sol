@@ -85,18 +85,17 @@ contract FILStake is Context{
     }
 
     function handleInterest(address mintee, uint amount) onlyFilLiquid external returns (uint minted) {
-        (minted, _accumulatedInterestMint) = _getMintedFromInterest(amount, _accumulatedInterestMint);
+        (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(amount);
         _accumulatedInterest += amount;
         if (minted > 0) _tokenFILGovernance.mint(mintee, minted);
         emit Interest(mintee, amount, minted);
     }
 
     function stakeFilTrust(uint amount, uint maxStart, uint duration) external returns (uint minted) {
-        require(block.number <= maxStart, "Block height exceeds");
+        require(maxStart == 0 || block.number <= maxStart, "Block height exceeds");
         require(duration >= _minStakePeriod && duration <= _maxStakePeriod, "Duration invalid");
         address sender = _msgSender();
-        require(_tokenFILTrust.allowance(sender, address(this)) >= amount, "Allowance not enough");
-        _tokenFILTrust.transferFrom(sender, address(this), amount);
+        _tokenFILTrust.claim(sender, amount);
         (uint start, uint end) = (block.number, block.number + duration);
         Stake[] storage stakes = _stakerStakes[sender];
         stakes.push(
@@ -145,6 +144,18 @@ contract FILStake is Context{
         return _stakers;
     }
 
+    function getStakersCount() external view returns (uint) {
+        return _stakers.length;
+    }
+
+    function getStakersSubset(uint start, uint end) external view returns (address[] memory result) {
+        require(start < end && end <= _stakers.length, "Invalid indexes");
+        result = new address[](end - start);
+        for (uint i = start; i < end; i++) {
+            result[i] = _stakers[i];
+        }
+    }
+
     function getAllStakes() external view returns (StakerInfo[] memory result) {
         result = new StakerInfo[](_stakers.length);
         for (uint i = 0; i < result.length; i++) {
@@ -162,6 +173,18 @@ contract FILStake is Context{
         }
     }
 
+    function getCurrentMintedFromInterest(uint amount) public view returns (uint, uint) {
+        return _getMintedFromInterest(amount, _accumulatedInterestMint);
+    }
+
+    function getCurrentMintedFromStake(uint stake, uint duration) public view returns (uint, uint) {
+        return _getMintedFromStake(stake, duration, _accumulatedStakeMint);
+    }
+
+    function getStatus() external view returns (uint, uint, uint, uint) {
+        return (_accumulatedInterest, _accumulatedStake, _accumulatedInterestMint, _accumulatedStakeMint);
+    }
+
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {
         require(new_rateBase == new_interest_share + new_stake_share, "factor invalid");
         _rateBase = new_rateBase;
@@ -169,39 +192,22 @@ contract FILStake is Context{
         _stake_share = new_stake_share;
     }
 
-    function setFactors(uint[] memory params) onlyGovernance external {
+    function setPeriods(uint new_minStakePeriod, uint new_maxStakePeriod) onlyOwner external {
+        _minStakePeriod = new_minStakePeriod;
+        _maxStakePeriod = new_maxStakePeriod;
+    }
+
+    function setGovernanceFactors(uint[] memory params) onlyGovernance external {
         _n_interest = params[0];
         _n_stake = params[1];
     }
 
-    function checkFactors(uint[] memory params) external pure {
+    function checkGovernanceFactors(uint[] memory params) external pure {
         require(params.length == 2, "Invalid input length");
     }
 
-    function getStatus() external view returns (uint, uint, uint, uint) {
-        return (_accumulatedInterest, _accumulatedStake, _accumulatedInterestMint, _accumulatedStakeMint);
-    }
-
-    function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint) {
+    function getAllFactors() external view returns (uint, uint, uint, uint, uint, uint, uint) {
         return (_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _rateBase, _interest_share, _stake_share);
-    }
-
-    function setFactors(
-        uint new_n_interest,
-        uint new_n_stake,
-        uint new_minStakePeriod,
-        uint new_maxStakePeriod,
-        uint new_rateBase,
-        uint new_interest_share,
-        uint new_stake_share
-    ) external {
-        _n_interest = new_n_interest;
-        _n_stake = new_n_stake;
-        _minStakePeriod = new_minStakePeriod;
-        _maxStakePeriod = new_maxStakePeriod;
-        _rateBase = new_rateBase;
-        _interest_share = new_interest_share;
-        _stake_share = new_stake_share;
     }
 
     function getContactAddrs() external view returns (address, address, address, address, address) {
@@ -246,7 +252,7 @@ contract FILStake is Context{
     }
 
     function _mintedFromStake(address staker, uint stake, uint duration) private returns (uint minted) {
-        (minted, _accumulatedStakeMint) = _getMintedFromStake(stake, duration, _accumulatedStakeMint);
+        (minted, _accumulatedStakeMint) = getCurrentMintedFromStake(stake, duration);
         _accumulatedStake += stake;
         if (minted > 0) _tokenFILGovernance.mint(staker, minted);
     }

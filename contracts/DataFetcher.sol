@@ -29,6 +29,16 @@ contract DataFetcher {
         infos = _filliquid.userBorrows(player);
     }
 
+    function getTotalPendingInterest() external view returns (uint result) {
+        uint64[] memory allMiners = _filliquid.allMinersSubset(0, _filliquid.allMinersCount());
+        for (uint j = 0; j < allMiners.length; j++) {
+            FILLiquid.BorrowInterestInfo[] memory info = _filliquid.minerBorrows(allMiners[j]);
+            for (uint i = 0; i < info.length; i++) {
+                result += info[i].interest;
+            }
+        }
+    }
+
     function filliquid() external view returns (address) {
         return address(_filliquid);
     }

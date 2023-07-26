@@ -5,39 +5,39 @@ import "./Utils/Validation.sol";
 import "./Utils/Calculation.sol";
 import "./Utils/FilecoinAPI.sol";
 import "./FILTrust.sol";
-import "./FILLiquid.sol";
 import "./FILGovernance.sol";
+import "./Deployer1.sol";
 import "./FILStake.sol";
 import "./Governance.sol";
+import "./FILLiquid.sol";
 import "./DataFetcher.sol";
 
-contract Deployer {
-    FILTrust private _filTrust;
-    Validation private _validation;
-    Calculation private _calculation;
-    FilecoinAPI private _filecoinAPI;
-    FILGovernance private _filGovernance;
+contract Deployer2 {
     FILStake private _filStake;
     Governance private _governance;
     FILLiquid private _filLiquid;
     DataFetcher private _dataFetcher;
+    Deployer1 private _deployer1;
+    address private _owner;
 
     event ContractPublishing (
         string name,
         address addr
     );
 
-    constructor() payable {
-        _filTrust = new FILTrust("FILTrust", "FIT");
-        emit ContractPublishing("FILTrust", address(_filTrust));
-        _validation = new Validation();
-        emit ContractPublishing("Validation", address(_validation));
-        _calculation = new Calculation();
-        emit ContractPublishing("Calculation", address(_calculation));
-        _filecoinAPI = new FilecoinAPI();
-        emit ContractPublishing("FilecoinAPI", address(_filecoinAPI));
-        _filGovernance = new FILGovernance("FILGovernance", "FIG");
-        emit ContractPublishing("FILGovernance", address(_filGovernance));
+    constructor(address deployer1) {
+        _deployer1 = Deployer1(deployer1);
+        (
+            Validation _validation,
+            Calculation _calculation,
+            FilecoinAPI _filecoinAPI,
+            FILTrust _filTrust,
+            FILGovernance _filGovernance,
+            address _ownerDeployer1
+        ) = _deployer1.getAddrs();
+        require (msg.sender == _ownerDeployer1, "only owner allowed");
+        _owner = msg.sender;
+
         _filStake = new FILStake();
         emit ContractPublishing("FILStake", address(_filStake));
         _governance = new Governance();
@@ -52,6 +52,9 @@ contract Deployer {
             payable(msg.sender)
         );
         emit ContractPublishing("FILLiquid", address(_filLiquid));
+        _dataFetcher = new DataFetcher(address(_filLiquid));
+        emit ContractPublishing("DataFetcher", address(_dataFetcher));
+
         _filStake.setContactAddrs(
             address(_filLiquid),
             address(_governance),
@@ -64,58 +67,37 @@ contract Deployer {
             address(_filStake),
             address(_filGovernance)
         );
-        _dataFetcher = new DataFetcher(address(_filLiquid));
-        emit ContractPublishing("DataFetcher", address(_dataFetcher));
-        
+    }
+
+    function setting() external payable {
+        require (msg.sender == _owner, "only owner allowed");
+        (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
         _filTrust.addManager(address(_filLiquid));
+        _filTrust.addManager(address(_filStake));
         (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
         _filLiquid.deposit{value: msg.value}(msg.value, rateBase);
         uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);
+        
         _filGovernance.addManager(address(_filStake));
         _filGovernance.addManager(address(_governance));
 
         _filTrust.setOwner(msg.sender);
-        _filLiquid.setOwner(msg.sender);
         _filGovernance.setOwner(msg.sender);
         _filStake.setOwner(msg.sender);
         _governance.setOwner(msg.sender);
+        _filLiquid.setOwner(msg.sender);
     }
 
-    function filTrust() external view returns (address) {
-        return address(_filTrust);
-    }
-
-    function validation() external view returns (address) {
-        return address(_validation);
-    }
-
-    function calculation() external view returns (address) {
-        return address(_calculation);
-    }
-
-    function filecoinAPI() external view returns (address) {
-        return address(_filecoinAPI);
-    }
-
-    function filGovernance() external view returns (address) {
-        return address(_filGovernance);
-    }
-
-    function filStake() external view returns (address) {
-        return address(_filStake);
-    }
-
-    function governance() external view returns (address) {
-        return address(_governance);
-    }
-
-    function filLiquid() external view returns (address) {
-        return address(_filLiquid);
-    }
-
-    function dataFetcher() external view returns (address) {
-        return address(_dataFetcher);
+    function getAddrs() external view returns (FILStake, Governance, FILLiquid, DataFetcher, Deployer1, address) {
+        return (
+            _filStake,
+            _governance,
+            _filLiquid,
+            _dataFetcher,
+            _deployer1,
+            _owner
+        );
     }
 }

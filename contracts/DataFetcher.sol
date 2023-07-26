@@ -30,11 +30,13 @@ contract DataFetcher {
     }
 
     function getTotalPendingInterest() external view returns (uint result) {
-        uint64[] memory allMiners = _filliquid.allMinersSubset(0, _filliquid.allMinersCount());
+        FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(0, _filliquid.allMinersCount());
         for (uint j = 0; j < allMiners.length; j++) {
-            FILLiquid.BorrowInterestInfo[] memory info = _filliquid.minerBorrows(allMiners[j]);
-            for (uint i = 0; i < info.length; i++) {
-                result += info[i].interest;
+            FILLiquid.BindStatusInfo memory info = allMiners[j];
+            if (!info.status.stillBound) continue;
+            FILLiquid.BorrowInterestInfo[] memory infos = _filliquid.minerBorrows(info.minerId);
+            for (uint i = 0; i < infos.length; i++) {
+                result += infos[i].interest;
             }
         }
     }

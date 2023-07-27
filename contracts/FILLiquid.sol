@@ -27,6 +27,7 @@ interface FILLiquidInterface {
         uint interest;
     }
     struct LiquidateConditionInfo{
+        uint rate;
         bool alertable;
         bool liquidatable;
     }
@@ -60,11 +61,12 @@ interface FILLiquidInterface {
         uint accumulatedLiquidateFee;       // n.   Total liquidate fee
         uint accumulatedDeposits;           // o.   Accumulated Deposites
         uint accumulatedBorrows;            // p.   Accumulated Borrows
-        uint utilizationRate;               // q.   Current Utilization Rate q=c/a=(h-i+l)/(d+j-e-k)
-        uint exchangeRate;                  // r.   Current FILTrust/FIL Exchange Rate
-        uint interestRate;                  // s.   Current Interest Rate
-        uint collateralizedMiner;           // t.   Collateralized miners
-        uint minerWithBorrows;              // u.   Miner with Borrows
+        uint accumulatedPaybackFILPeriod;   // q.   Accumulated Borrows
+        uint utilizationRate;               // r.   Current Utilization Rate q=c/a=(h-i+l)/(d+j-e-k)
+        uint exchangeRate;                  // s.   Current FILTrust/FIL Exchange Rate
+        uint interestRate;                  // t.   Current Interest Rate
+        uint collateralizedMiner;           // u.   Collateralized miners
+        uint minerWithBorrows;              // v.   Miner with Borrows
     }
     struct PaybackResult{
         uint amountLeft;
@@ -131,15 +133,38 @@ interface FILLiquidInterface {
     /// @param minerId miner id
     function uncollateralizingMiner(uint64 minerId) external;
 
+    /// @dev return fill contract infos
+    function filliquidInfo() external view returns (FILLiquidInfo memory);
+
     /// @dev FILTrust balance of a user
     /// @param account user account
     /// @return balance user’s FILTrust account balance
     function filTrustBalanceOf(address account) external view returns (uint balance);
 
+    /// @dev All once bound miners' count
+    /// @return count all once bound miners' count
+    function allMinersCount() external view returns (uint count);
+
+    /// @dev Once bound miners' subset
+    /// @param start start index
+    /// @param end end index
+    /// @return Once bound miners' subset from `start` to `end` index
+    function allMinersSubset(uint start, uint end) external view returns (BindStatusInfo[] memory);
+
+    /// @dev Status of a specified miner
+    /// @param minerId miner's actor id
+    /// @return Status of a miner with actor id `minerId`
+    function minerStatus(uint64 minerId) external view returns (BindStatus memory);
+
     /// @dev user’s borrowing information
     /// @param account user’s account address
     /// @return infos user’s borrowing informations
     function userBorrows(address account) external view returns (MinerBorrowInfo[] memory infos);
+
+    /// @dev user’s bound miners
+    /// @param account user’s account address
+    /// @return user’s bound miners
+    function userMiners(address account) external view returns (uint64[] memory);
 
     /// @dev get collateralizing miner info : minerId,quota,borrowCount,paybackCount,expiration
     /// @param minerId miner id
@@ -154,9 +179,6 @@ interface FILLiquidInterface {
 
     /// @dev return liquidity pool utilization: the amount of FIL being utilized divided by the total liquidity provided (the amount of FIL deposited and the interest repaid)
     function utilizationRate() external view returns (uint);
-
-    /// @dev return fill contract infos
-    function filliquidInfo() external view returns (FILLiquidInfo memory);
 
     /// @dev Emitted when `account` deposits `amountFIL` and mints `amountFILTrust`
     event Deposit(address indexed account, uint amountFIL, uint amountFILTrust);
@@ -230,6 +252,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint private _accumulatedLiquidateFee;
     uint private _accumulatedDeposits;
     uint private _accumulatedBorrows;
+    uint private _accumulatedPaybackFILPeriod;
 
     //administrative factors
     address private _owner;
@@ -531,7 +554,8 @@ contract FILLiquid is Context, FILLiquidInterface {
                 accumulatedLiquidateReward: _accumulatedLiquidateReward,
                 accumulatedLiquidateFee: _accumulatedLiquidateFee,
                 accumulatedDeposits: _accumulatedDeposits,
-                accumulatedBorrows:_accumulatedBorrows,
+                accumulatedBorrows: _accumulatedBorrows,
+                accumulatedPaybackFILPeriod: _accumulatedPaybackFILPeriod,
                 utilizationRate: utilizationRate(),
                 exchangeRate: exchangeRate(),
                 interestRate: interestRate(),
@@ -682,16 +706,6 @@ contract FILLiquid is Context, FILLiquidInterface {
     function liquidatedTimes(uint64 minerId) external view returns (uint) {
         return _liquidatedTimes[minerId];
     }
-
-    /*function getTotalPendingInterest() external view returns (uint result) {
-        for (uint j = 0; j < _allMiners.length; j++) {
-            BorrowInfo[] storage borrows = _minerBorrows[_allMiners[j]];
-            for (uint i = 0; i < borrows.length; i++) {
-                BorrowInfo storage info = borrows[i];
-                result += paybackAmount(info.borrowAmount, block.timestamp - info.datedDate, info.interestRate) - info.borrowAmount;
-            }
-        }
-    }*/
 
     function owner() external view returns (address) {
         return _owner;
@@ -962,11 +976,10 @@ contract FILLiquid is Context, FILLiquidInterface {
             balanceSum += FilAddress.toAddress(miners[i]).balance;
             principalAndInterestSum += getPrincipalAndInterest(miners[i]);
         }
-        uint rate;
-        if (balanceSum != 0) rate = principalAndInterestSum * _rateBase / balanceSum;
-        else if (principalAndInterestSum > 0) rate = _rateBase;
-        r.alertable = rate >= _alertThreshold;
-        r.liquidatable = rate >= _liquidateThreshold;
+        if (balanceSum != 0) r.rate = principalAndInterestSum * _rateBase / balanceSum;
+        else if (principalAndInterestSum > 0) r.rate = _rateBase;
+        r.alertable = r.rate >= _alertThreshold;
+        r.liquidatable = r.rate >= _liquidateThreshold;
     }
 
     function getPrincipalAndInterest(uint64 minerId) private view returns (uint result) {
@@ -981,7 +994,8 @@ contract FILLiquid is Context, FILLiquidInterface {
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         for (uint i = borrows.length; i > 0; i--) {
             BorrowInfo storage info = borrows[i - 1];
-            uint principalAndInterest = paybackAmount(info.borrowAmount, block.timestamp - info.datedDate, info.interestRate);
+            uint time = block.timestamp - info.datedDate;
+            uint principalAndInterest = paybackAmount(info.borrowAmount, time, info.interestRate);
             uint payBackTotal;
             if (r.amountLeft > principalAndInterest) {
                 payBackTotal = principalAndInterest;
@@ -1001,6 +1015,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             }
             r.totalInterest += payBackInterest;
             r.totalPrinciple += paybackPrincipal;
+            _accumulatedPaybackFILPeriod += paybackPrincipal * time;
             if (principalAndInterest > payBackTotal){
                 info.borrowAmount = principalAndInterest - payBackTotal;
                 info.datedDate = block.timestamp;

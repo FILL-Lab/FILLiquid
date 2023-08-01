@@ -134,12 +134,7 @@ interface FILLiquidInterface {
     function uncollateralizingMiner(uint64 minerId) external;
 
     /// @dev return fill contract infos
-    function filliquidInfo() external view returns (FILLiquidInfo memory);
-
-    /// @dev FILTrust balance of a user
-    /// @param account user account
-    /// @return balance user’s FILTrust account balance
-    function filTrustBalanceOf(address account) external view returns (uint balance);
+    function getStatus() external view returns (FILLiquidInfo memory);
 
     /// @dev All once bound miners' count
     /// @return count all once bound miners' count
@@ -536,7 +531,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         emit UncollateralizingMiner(minerId, _msgSender(), minerOwner.data, 0, 0);
     }
 
-    function filliquidInfo() external view returns (FILLiquidInfo memory) {
+    function getStatus() external view returns (FILLiquidInfo memory) {
         return
             FILLiquidInfo({
                 totalFIL: totalFILLiquidity(),
@@ -634,26 +629,22 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _calculation.getPaybackAmount(borrowAmount, borrowPeriod, annualRate, _rateBase);
     }
 
-    function filTrustBalanceOf(address account) external view returns (uint) {
-        return _tokenFILTrust.balanceOf(account);
-    }
-
     function allMinersCount() external view returns (uint) {
         return _allMiners.length;
+    }
+
+    function minerStatus(uint64 minerId) external view returns (BindStatus memory) {
+        return _binds[minerId];
     }
 
     function allMinersSubset(uint start, uint end) external view returns (BindStatusInfo[] memory result) {
         require(start < end && end <= _allMiners.length, "Invalid indexes");
         result = new BindStatusInfo[](end - start);
-        for (uint i = start; i < end; i++) {
-            uint64 minerId = _allMiners[i];
+        for (uint i = 0; i < end - start; i++) {
+            uint64 minerId = _allMiners[i + start];
             result[i].minerId = minerId;
             result[i].status = _binds[minerId];
         }
-    }
-
-    function minerStatus(uint64 minerId) external view returns (BindStatus memory) {
-        return _binds[minerId];
     }
 
     function minerBorrows(uint64 minerId) public view returns (BorrowInterestInfo[] memory result) {
@@ -685,18 +676,24 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _minerCollateralizing[minerId];
     }
 
-    function maxBorrowAllowed(uint64 minerId) public view returns (uint256) {
-        uint a = 0;
-        uint b = 0;
-        uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
-        for (uint i = 0; i < miners.length; i++) {
-            a += FilAddress.toAddress(miners[i]).balance;
-            b += getPrincipalAndInterest(miners[i]);
-        }
+    function maxBorrowAllowed(uint64 minerId) public view returns (uint) {
+        return maxBorrowAllowedFamily(_minerBindsMap[minerId]);
+    }
+
+    function maxBorrowAllowedFamily(address account) public view returns (uint) {
+        (uint a, uint b) = getFamilyStatus(account);
         a *= _collateralRate;
         b *= _rateBase;
         if (a <= b) return 0;
         else return (a - b) / (_rateBase - _collateralRate);
+    }
+
+    function getFamilyStatus(address account) public view returns (uint balanceSum, uint principalAndInterestSum) {
+        uint64[] storage miners = _userMinerPairs[account];
+        for (uint i = 0; i < miners.length; i++) {
+            balanceSum += FilAddress.toAddress(miners[i]).balance;
+            principalAndInterestSum += getPrincipalAndInterest(miners[i]);
+        }
     }
 
     function lastLiquidate(uint64 minerId) external view returns (uint) {
@@ -969,13 +966,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function liquidateCondition(uint64 minerId) private view returns (LiquidateConditionInfo memory r) {
-        uint balanceSum = 0;
-        uint principalAndInterestSum = 0;
-        uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
-        for (uint i = 0; i < miners.length; i++) {
-            balanceSum += FilAddress.toAddress(miners[i]).balance;
-            principalAndInterestSum += getPrincipalAndInterest(miners[i]);
-        }
+        (uint balanceSum, uint principalAndInterestSum) = getFamilyStatus(_minerBindsMap[minerId]);
         if (balanceSum != 0) r.rate = principalAndInterestSum * _rateBase / balanceSum;
         else if (principalAndInterestSum > 0) r.rate = _rateBase;
         r.alertable = r.rate >= _alertThreshold;

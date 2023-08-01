@@ -2,21 +2,42 @@
 pragma solidity ^0.8.19;
 
 import "./FILLiquid.sol";
+import "./FILTrust.sol";
+import "./FILStake.sol";
+import "./FILGovernance.sol";
+import "./Governance.sol";
 
 contract DataFetcher {
     FILLiquid private _filliquid;
+    FILTrust private _filTrust;
+    FILStake private _filStake;
+    FILGovernance private _filGovernance;
+    Governance private _governance;
 
-    constructor(address fillAddr) {
-        _filliquid = FILLiquid(fillAddr);
+    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FILStake filStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr) {
+        _filliquid = filLiquidAddr;
+        _filTrust = filTrustAddr;
+        _filStake = filStakeAddr;
+        _filGovernance = filGovernanceAddr;
+        _governance = governanceAddr;
     }
 
     function fetchData() external view returns (
         uint blockHeight,
         uint blockTimeStamp,
-        FILLiquid.FILLiquidInfo memory info) {
+        uint fitTotalSupply,
+        uint figTotalSupply,
+        FILLiquid.FILLiquidInfo memory filLiquidInfo,
+        FILStake.FILStakeInfo memory filStakeInfo,
+        Governance.GovernanceInfo memory governanceInfo
+    ) {
         blockHeight = block.number;
         blockTimeStamp = block.timestamp;
-        info = _filliquid.filliquidInfo();
+        fitTotalSupply = _filTrust.totalSupply();
+        figTotalSupply = _filGovernance.totalSupply();
+        filLiquidInfo = _filliquid.getStatus();
+        filStakeInfo = _filStake.getStatus();
+        governanceInfo = _governance.getStatus();
     }
 
     function fetchPersonalData(address player) external view returns (
@@ -24,9 +45,20 @@ contract DataFetcher {
         uint filBalance,
         FILLiquid.MinerBorrowInfo[] memory infos
     ) {
-        filTrustBalance = _filliquid.filTrustBalanceOf(player);
+        filTrustBalance = _filTrust.balanceOf(player);
         filBalance = player.balance;
         infos = _filliquid.userBorrows(player);
+    }
+
+    function fetchStakerData(address staker) external view returns (
+        uint filTrustBalance,
+        uint filTrustFixed,
+        uint filTrustVariable,
+        uint filGovernanceBalance
+    ) {
+        filTrustBalance = _filTrust.balanceOf(staker);
+        (filTrustFixed, filTrustVariable) = _filStake.getStakerTerms(staker);
+        filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 
     function getTotalPendingInterest() external view returns (uint result) {

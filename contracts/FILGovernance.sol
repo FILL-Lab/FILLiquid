@@ -18,7 +18,7 @@ contract FILGovernance is ERC20 {
         _mint(_owner, maxSupply() - maxLiquid());
     }
 
-    function claim(address account, uint256 amount) external onlyManager {
+    function withdraw(address account, uint256 amount) external onlyManager {
         _transfer(account, _msgSender(), amount);
     }
     

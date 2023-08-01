@@ -13,33 +13,31 @@ contract Governance is Context {
         filStake,
         general
     }
-
     enum voteCategory {
         yes,
         no,
         noWithVeto,
         abstain
     }
-
     enum voteResult {
         success,
         fail,
         failWithVeto,
         pending
     }
-
     struct Voting {
         uint amountTotal;
         uint[4] amounts;
     }
-
-    struct VotingStatus {
+    struct VotingStatusInfo {
         address[] voters;
-        mapping(address => Voting) voterVotings;
         uint amountTotal;
         uint[4] amounts;
     }
-
+    struct VotingStatus {
+        VotingStatusInfo info;
+        mapping(address => Voting) voterVotings;
+    }
     struct ProposalInfo {
         proposolCategory category;
         uint deadline;
@@ -50,12 +48,15 @@ contract Governance is Context {
         address proposer;
         uint[] values;
     }
-
     struct Proposal {
         ProposalInfo info;
         VotingStatus status;
     }
-
+    struct GovernanceInfo {
+        uint bonders;
+        uint totalBondedAmount;
+        uint nextProposalId;
+    }
     event Proposed (
         uint proposalId,
         proposolCategory category,
@@ -66,24 +67,20 @@ contract Governance is Context {
         address proposer,
         uint[] values
     );
-
     event Bonded (
         address bonder,
         uint amount
     );
-
     event Unbonded (
         address bonder,
         uint amount
     );
-
     event Voted (
         uint proposalId,
         voteCategory category,
         uint amount,
         address voter
     );
-
     event Executed (
         uint proposalId,
         voteResult result,
@@ -145,7 +142,7 @@ contract Governance is Context {
 
     function bond(uint amount) external {
         address sender = _msgSender();
-        _tokenFILGovernance.claim(sender, amount);
+        _tokenFILGovernance.withdraw(sender, amount);
         if (_bondings[sender] == 0) _bonders++;
         _bondings[sender] += amount;
         _totalBondedAmount += amount;
@@ -172,7 +169,7 @@ contract Governance is Context {
         _checkParameter(category, values);
         address sender = _msgSender();
         uint deposits = getDepositThreshold();
-        _tokenFILGovernance.claim(sender, deposits);
+        _tokenFILGovernance.withdraw(sender, deposits);
         _proposals.push();
         ProposalInfo storage info = _proposals[_proposals.length - 1].info;
         info.category = category;
@@ -204,9 +201,10 @@ contract Governance is Context {
         require(amount >= _voteThreshold, "Voting amount too low");
         require(info.deadline >= block.number, "Proposal finished");
         require(voting.amountTotal + amount <= _bondings[voter], "Invalid amount");
-        if (voting.amountTotal == 0) status.voters.push(voter);
-        status.amountTotal += amount;
-        status.amounts[uint(category)] += amount;
+        VotingStatusInfo storage vInfo = status.info;
+        if (voting.amountTotal == 0) vInfo.voters.push(voter);
+        vInfo.amountTotal += amount;
+        vInfo.amounts[uint(category)] += amount;
         voting.amountTotal += amount;
         voting.amounts[uint(category)] += amount;
 
@@ -216,7 +214,6 @@ contract Governance is Context {
     function execute(uint proposalId) validProposalId(proposalId) external {
         Proposal storage p = _proposals[proposalId];
         ProposalInfo storage info = p.info;
-        VotingStatus storage status = p.status;
         address sender = _msgSender();
         require(info.deadline < block.number, "Proposal voting in progress");
         require(!info.executed, "Already executed");
@@ -224,7 +221,7 @@ contract Governance is Context {
         if (_nextProposalId <= proposalId) {
             _nextProposalId = proposalId + 1;
         }
-        voteResult result = _voteResult(status);
+        voteResult result = _voteResult(p.status.info);
         if (result == voteResult.failWithVeto) {
             (uint liquidate, uint remain) = _liquidateResult(info.deposited);
             _tokenFILGovernance.transfer(sender, liquidate);
@@ -271,8 +268,8 @@ contract Governance is Context {
         return _proposals[proposalId].status.voterVotings[voter];
     }
 
-    function getStatus() external view returns (uint, uint, uint) {
-        return (_bonders, _totalBondedAmount, _nextProposalId);
+    function getStatus() external view returns (GovernanceInfo memory) {
+        return GovernanceInfo(_bonders, _totalBondedAmount, _nextProposalId);
     }
 
     function getProposalInfo(uint proposalId) validProposalId(proposalId) external view returns (ProposalInfo memory) {
@@ -295,13 +292,17 @@ contract Governance is Context {
         uint amountNoWithVeto,
         uint amountAbstain,
         voteResult result) {
-        VotingStatus storage status = _proposals[proposalId].status;
-        amountTotal = status.amountTotal;
-        amountYes = status.amounts[uint(voteCategory.yes)];
-        amountNo = status.amounts[uint(voteCategory.no)];
-        amountNoWithVeto = status.amounts[uint(voteCategory.noWithVeto)];
-        amountAbstain = status.amounts[uint(voteCategory.abstain)];
-        result = _voteResult(status);
+        VotingStatusInfo storage info = _proposals[proposalId].status.info;
+        amountTotal = info.amountTotal;
+        amountYes = info.amounts[uint(voteCategory.yes)];
+        amountNo = info.amounts[uint(voteCategory.no)];
+        amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
+        amountAbstain = info.amounts[uint(voteCategory.abstain)];
+        result = _voteResult(info);
+    }
+
+    function getVoteStatus(uint proposalId) validProposalId(proposalId) external view returns (VotingStatusInfo memory) {
+        return _proposals[proposalId].status.info;
     }
 
     function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
@@ -385,11 +386,11 @@ contract Governance is Context {
         }
     }
 
-    function _voteResult(VotingStatus storage status) private view returns (voteResult result) {
-        uint amountTotal = status.amountTotal;
-        uint amountYes = status.amounts[uint(voteCategory.yes)];
-        uint amountNo = status.amounts[uint(voteCategory.no)];
-        uint amountNoWithVeto = status.amounts[uint(voteCategory.noWithVeto)];
+    function _voteResult(VotingStatusInfo storage info) private view returns (voteResult result) {
+        uint amountTotal = info.amountTotal;
+        uint amountYes = info.amounts[uint(voteCategory.yes)];
+        uint amountNo = info.amounts[uint(voteCategory.no)];
+        uint amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
         if (amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
             result = voteResult.failWithVeto;
         } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {

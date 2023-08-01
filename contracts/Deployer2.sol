@@ -52,8 +52,6 @@ contract Deployer2 {
             payable(msg.sender)
         );
         emit ContractPublishing("FILLiquid", address(_filLiquid));
-        _dataFetcher = new DataFetcher(address(_filLiquid));
-        emit ContractPublishing("DataFetcher", address(_dataFetcher));
 
         _filStake.setContactAddrs(
             address(_filLiquid),
@@ -67,6 +65,9 @@ contract Deployer2 {
             address(_filStake),
             address(_filGovernance)
         );
+
+        _dataFetcher = new DataFetcher(_filLiquid, _filTrust, _filStake, _filGovernance, _governance);
+        emit ContractPublishing("DataFetcher", address(_dataFetcher));
     }
 
     function setting() external payable {
@@ -76,7 +77,7 @@ contract Deployer2 {
         _filTrust.addManager(address(_filStake));
         (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
         _filLiquid.deposit{value: msg.value}(rateBase);
-        uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
+        uint filTrustBalance = _filTrust.balanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);
         

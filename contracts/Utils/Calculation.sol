@@ -42,7 +42,7 @@ contract Calculation {
     function getMinted(uint current, uint amount, uint n, uint total, uint lastAccumulated) external pure returns(uint, uint) {
         uint exp = (current + amount) * uUNIT / n;
         uint currentAccumulated = total;
-        if (exp <= uEXP2_MAX_INPUT) currentAccumulated -= total / convert(ud((current + amount) * uUNIT / n).exp2());
+        if (exp <= uEXP2_MAX_INPUT) currentAccumulated -= total * uUNIT / ud(exp).exp2().intoUint256();
         if (lastAccumulated < currentAccumulated) return (currentAccumulated - lastAccumulated, currentAccumulated);
         else return (0, lastAccumulated);
     }

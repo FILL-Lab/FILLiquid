@@ -16,7 +16,6 @@ contract Deployer2 {
     FILStake private _filStake;
     Governance private _governance;
     FILLiquid private _filLiquid;
-    DataFetcher private _dataFetcher;
     Deployer1 private _deployer1;
     address private _owner;
 
@@ -65,9 +64,6 @@ contract Deployer2 {
             address(_filStake),
             address(_filGovernance)
         );
-
-        _dataFetcher = new DataFetcher(_filLiquid, _filTrust, _filStake, _filGovernance, _governance);
-        emit ContractPublishing("DataFetcher", address(_dataFetcher));
     }
 
     function setting() external payable {
@@ -91,12 +87,11 @@ contract Deployer2 {
         _filLiquid.setOwner(msg.sender);
     }
 
-    function getAddrs() external view returns (FILStake, Governance, FILLiquid, DataFetcher, Deployer1, address) {
+    function getAddrs() external view returns (FILStake, Governance, FILLiquid, Deployer1, address) {
         return (
             _filStake,
             _governance,
             _filLiquid,
-            _dataFetcher,
             _deployer1,
             _owner
         );

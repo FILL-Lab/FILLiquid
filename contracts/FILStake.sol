@@ -34,6 +34,7 @@ contract FILStake is Context{
         uint accumulatedInterestMint;
         uint accumulatedStakeMint;
         uint accumulatedWithdrawn;
+        uint nextStakeID;
     }
     event Interest(
         address mintee,
@@ -50,6 +51,7 @@ contract FILStake is Context{
     );
     event Unstaked(
         address staker,
+        uint id,
         uint amount,
         uint start,
         uint end,
@@ -59,6 +61,7 @@ contract FILStake is Context{
 
     mapping(address => StakerStatus) private _stakerStakes;
     mapping(address => bool) private _onceStaked;
+    mapping(uint => address) private _idStaker;
     address[] private _stakers;
     address private _owner;
     address private _filLiquid;
@@ -119,7 +122,7 @@ contract FILStake is Context{
     function stakeFilTrust(uint amount, uint maxStart, uint duration) external returns (uint minted) {
         require(amount >= _minStake, "Amount too small");
         require(maxStart == 0 || block.number <= maxStart, "Block height exceeds");
-        require(duration >= _minStakePeriod && duration <= _maxStakePeriod, "Duration invalid");
+        require(duration >= _minStakePeriod && duration <= _maxStakePeriod, "Invalid duration");
         address staker = _msgSender();
         _tokenFILTrust.withdraw(staker, amount);
         (uint start, uint end) = (block.number, block.number + duration);
@@ -127,6 +130,7 @@ contract FILStake is Context{
         Stake[] storage stakes = status.stakes;
         require(stakes.length < _maxStakes, "Exceed max stakes");
         status.stakeSum += amount;
+        _idStaker[_nextStakeID] = staker;
         stakes.push(
             Stake({
                 id: _nextStakeID++,
@@ -144,16 +148,17 @@ contract FILStake is Context{
     function unStakeFilTrust(uint stakeId) external returns (uint minted) {
         address staker = _msgSender();
         Stake[] storage stakes = _stakerStakes[staker].stakes;
-        Stake storage stake = stakes[_getStakePos(staker, stakeId)];
+        uint pos = _getStakePos(staker, stakeId);
+        Stake storage stake = stakes[pos];
         uint realEnd = block.number;
         require(realEnd >= stake.end, "Stake not withdrawable");
         if (realEnd > stake.end) minted = _mintedFromStake(staker, stake.amount, realEnd - stake.end);
         _stakerStakes[staker].stakeSum -= stake.amount;
         _tokenFILTrust.transfer(staker, stake.amount);
         _accumulatedWithdrawn += stake.amount;
-        emit Unstaked(staker, stake.amount, stake.start, stake.end, realEnd, minted);
+        emit Unstaked(staker, stake.id, stake.amount, stake.start, stake.end, realEnd, minted);
 
-        if (stakeId != stakes.length - 1) {
+        if (pos != stakes.length - 1) {
             stake = stakes[stakes.length - 1];
         }
         stakes.pop();
@@ -203,7 +208,15 @@ contract FILStake is Context{
         result.canWithdraw = block.number >= stakes[pos].end;
     }*/
 
-    function getStakeInfoById(address staker, uint stakeId) external view returns (StakeInfo memory result) {
+    function getStakerById(uint stakeId) external view returns (address) {
+        return _idStaker[stakeId];
+    }
+
+    function getStakeInfoById(uint stakeId) external view returns (StakeInfo memory) {
+        return getStakeInfoByStakerAndId(_idStaker[stakeId], stakeId);
+    }
+
+    function getStakeInfoByStakerAndId(address staker, uint stakeId) public view returns (StakeInfo memory result) {
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         uint pos = _getStakePos(staker, stakeId);
         result.stake = stakes[pos];
@@ -223,7 +236,7 @@ contract FILStake is Context{
     }
 
     function getStatus() external view returns (FILStakeInfo memory) {
-        return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn);
+        return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID);
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {

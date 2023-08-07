@@ -1010,7 +1010,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             }
             r.totalInterest += payBackInterest;
             r.totalPrinciple += paybackPrincipal;
-            _accumulatedPaybackFILPeriod += paybackPrincipal * time;
+            _accumulatedPaybackFILPeriod += paybackPrincipal * (block.timestamp - info.initialTime);
             if (principalAndInterest > payBackTotal){
                 info.borrowAmount = principalAndInterest - payBackTotal;
                 info.datedTime = block.timestamp;

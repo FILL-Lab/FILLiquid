@@ -65,6 +65,7 @@ contract DataFetcher {
         uint blockHeight,
         uint blockTimeStamp,
         uint totalPendingInterest,
+        uint totalFIL,
         uint borrowing,
         uint borrowingAndPeriod,
         uint accumulatedPayback,
@@ -87,6 +88,7 @@ contract DataFetcher {
                 }
             }
         }
+        totalFIL = filLiquidInfo.totalFIL;
         borrowing = filLiquidInfo.utilizedLiquidity;
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
         accumulatedPaybackFILPeriod = filLiquidInfo.accumulatedPaybackFILPeriod;

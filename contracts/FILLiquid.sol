@@ -20,7 +20,8 @@ interface FILLiquidInterface {
         uint liquidatedAmount; //liquidated amount
         uint remainingOriginalAmount; //remaining original amount
         uint interestRate; //interest rate
-        uint datedDate; //borrow start time
+        uint datedTime; //borrow start time
+        uint initialTime; //borrow initial time
     }
     struct BorrowInterestInfo {
         BorrowInfo borrow;
@@ -61,12 +62,13 @@ interface FILLiquidInterface {
         uint accumulatedLiquidateFee;       // n.   Total liquidate fee
         uint accumulatedDeposits;           // o.   Accumulated Deposites
         uint accumulatedBorrows;            // p.   Accumulated Borrows
-        uint accumulatedPaybackFILPeriod;   // q.   Accumulated Borrows
-        uint utilizationRate;               // r.   Current Utilization Rate q=c/a=(h-i+l)/(d+j-e-k)
+        uint accumulatedPaybackFILPeriod;   // q.   Accumulated Multiple of Payback and Period
+        uint utilizationRate;               // r.   Current Utilization Rate r=c/a=(h-i+l)/(d+j-e-k)
         uint exchangeRate;                  // s.   Current FILTrust/FIL Exchange Rate
         uint interestRate;                  // t.   Current Interest Rate
         uint collateralizedMiner;           // u.   Collateralized miners
         uint minerWithBorrows;              // v.   Miner with Borrows
+        uint rateBase;                      // w.   Rate base
     }
     struct PaybackResult{
         uint amountLeft;
@@ -406,7 +408,8 @@ contract FILLiquid is Context, FILLiquidInterface {
                 liquidatedAmount: 0,
                 remainingOriginalAmount: amount,
                 interestRate: realInterestRate,
-                datedDate: block.timestamp
+                datedTime: block.timestamp,
+                initialTime: block.timestamp
             })
         );
         sortMinerBorrows(minerId);
@@ -555,7 +558,8 @@ contract FILLiquid is Context, FILLiquidInterface {
                 exchangeRate: exchangeRate(),
                 interestRate: interestRate(),
                 collateralizedMiner: _collateralizedMiner,
-                minerWithBorrows: _minerWithBorrows
+                minerWithBorrows: _minerWithBorrows,
+                rateBase: _rateBase
             });
     }
 
@@ -653,7 +657,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         for (uint i = 0; i < result.length; i++) {
             BorrowInfo storage info = borrows[i];
             result[i].borrow = info;
-            result[i].interest = paybackAmount(info.borrowAmount, block.timestamp - info.datedDate, info.interestRate) - info.borrowAmount;
+            result[i].interest = paybackAmount(info.borrowAmount, block.timestamp - info.datedTime, info.interestRate) - info.borrowAmount;
         }
     }
 
@@ -985,7 +989,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         for (uint i = borrows.length; i > 0; i--) {
             BorrowInfo storage info = borrows[i - 1];
-            uint time = block.timestamp - info.datedDate;
+            uint time = block.timestamp - info.datedTime;
             uint principalAndInterest = paybackAmount(info.borrowAmount, time, info.interestRate);
             uint payBackTotal;
             if (r.amountLeft > principalAndInterest) {
@@ -1009,7 +1013,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             _accumulatedPaybackFILPeriod += paybackPrincipal * time;
             if (principalAndInterest > payBackTotal){
                 info.borrowAmount = principalAndInterest - payBackTotal;
-                info.datedDate = block.timestamp;
+                info.datedTime = block.timestamp;
                 info.remainingOriginalAmount -= paybackPrincipal;
             } else borrows.pop(); 
 

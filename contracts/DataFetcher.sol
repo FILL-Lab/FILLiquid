@@ -61,19 +61,36 @@ contract DataFetcher {
         filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 
-    function getTotalPendingInterest() external view returns (uint result) {
+    function getTotalPendingInterest() public view returns (
+        uint blockHeight,
+        uint blockTimeStamp,
+        uint totalPendingInterest,
+        uint borrowing,
+        uint borrowingAndPeriod,
+        uint accumulatedPayback,
+        uint accumulatedPaybackFILPeriod
+    ) {
+        blockHeight = block.number;
+        blockTimeStamp = block.timestamp;
         uint start = 0;
         uint end = _filliquid.allMinersCount();
-        if (start == end) return 0;
-        FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
-        for (uint j = 0; j < allMiners.length; j++) {
-            FILLiquid.BindStatusInfo memory info = allMiners[j];
-            if (!info.status.stillBound) continue;
-            FILLiquid.BorrowInterestInfo[] memory infos = _filliquid.minerBorrows(info.minerId);
-            for (uint i = 0; i < infos.length; i++) {
-                result += infos[i].interest;
+        FILLiquid.FILLiquidInfo memory filLiquidInfo = _filliquid.getStatus();
+        if (start != end) {
+            FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
+            for (uint j = 0; j < allMiners.length; j++) {
+                FILLiquid.BindStatusInfo memory info = allMiners[j];
+                if (!info.status.stillBound) continue;
+                FILLiquid.BorrowInterestInfo[] memory infos = _filliquid.minerBorrows(info.minerId);
+                for (uint i = 0; i < infos.length; i++) {
+                    totalPendingInterest += infos[i].interest;
+                    borrowingAndPeriod += infos[i].borrow.remainingOriginalAmount * (block.number - infos[i].borrow.initialTime);
+                }
             }
         }
+        borrowing = filLiquidInfo.utilizedLiquidity;
+        accumulatedPayback = filLiquidInfo.accumulatedPayback;
+        accumulatedPaybackFILPeriod = filLiquidInfo.accumulatedPaybackFILPeriod;
+
     }
 
     function filliquid() external view returns (address) {

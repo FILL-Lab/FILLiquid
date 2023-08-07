@@ -159,7 +159,7 @@ contract FILStake is Context{
         emit Unstaked(staker, stake.id, stake.amount, stake.start, stake.end, realEnd, minted);
 
         if (pos != stakes.length - 1) {
-            stake = stakes[stakes.length - 1];
+            stakes[pos] = stakes[stakes.length - 1];
         }
         stakes.pop();
     }

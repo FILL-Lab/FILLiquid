@@ -43,11 +43,11 @@ contract DataFetcher {
     function fetchPersonalData(address player) external view returns (
         uint filTrustBalance,
         uint filBalance,
-        FILLiquid.MinerBorrowInfo[] memory infos
+        FILLiquid.UserInfo memory userInfo
     ) {
         filTrustBalance = _filTrust.balanceOf(player);
         filBalance = player.balance;
-        infos = _filliquid.userBorrows(player);
+        userInfo = _filliquid.userBorrows(player);
     }
 
     function fetchStakerData(address staker) external view returns (
@@ -81,10 +81,10 @@ contract DataFetcher {
             for (uint j = 0; j < allMiners.length; j++) {
                 FILLiquid.BindStatusInfo memory info = allMiners[j];
                 if (!info.status.stillBound) continue;
-                FILLiquid.BorrowInterestInfo[] memory infos = _filliquid.minerBorrows(info.minerId);
-                for (uint i = 0; i < infos.length; i++) {
-                    totalPendingInterest += infos[i].interest;
-                    borrowingAndPeriod += infos[i].borrow.remainingOriginalAmount * (block.number - infos[i].borrow.initialTime);
+                FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
+                for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
+                    totalPendingInterest += minerBorrowInfo.borrows[i].interest;
+                    borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.number - minerBorrowInfo.borrows[i].borrow.initialTime);
                 }
             }
         }

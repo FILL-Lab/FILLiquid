@@ -40,7 +40,7 @@ contract DataFetcher {
         governanceInfo = _governance.getStatus();
     }
 
-    function fetchPersonalData(address player) external view returns (
+    function fetchPersonalData(address player) external returns (
         uint filTrustBalance,
         uint filBalance,
         FILLiquid.UserInfo memory userInfo
@@ -61,7 +61,7 @@ contract DataFetcher {
         filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 
-    function getTotalPendingInterest() public view returns (
+    function getTotalPendingInterest() external view returns (
         uint blockHeight,
         uint blockTimeStamp,
         uint totalPendingInterest,
@@ -92,7 +92,20 @@ contract DataFetcher {
         borrowing = filLiquidInfo.utilizedLiquidity;
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
         accumulatedPaybackFILPeriod = filLiquidInfo.accumulatedPaybackFILPeriod;
+    }
 
+    function getMaximumBorrowable(uint64 minerId) external returns (uint result) {
+        (bool borrowable,) = _filliquid.getBorrowable(minerId);
+        if (!borrowable) return 0;
+        result = _filliquid.maxBorrowAllowed(minerId);
+        if (result == 0) return 0;
+        (uint rateBase,,,,,uint minBorrowAmount,,,,) = _filliquid.getComprehensiveFactors();
+        if (result < minBorrowAmount) return 0;
+        (uint u_m,) = _filliquid.getDepositRedeemFactors();
+        uint a = _filliquid.totalFILLiquidity() * u_m / rateBase;
+        if (a <= 1) return 0;
+        a--;
+        if (result > a) return a;
     }
 
     function filliquid() external view returns (address) {

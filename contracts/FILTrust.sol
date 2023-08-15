@@ -12,7 +12,7 @@ contract FILTrust is ERC20 {
         addManager(_owner);
     }
 
-    function claim(address account, uint256 amount) external onlyManager {
+    function withdraw(address account, uint256 amount) external onlyManager {
         _transfer(account, _msgSender(), amount);
     }
     

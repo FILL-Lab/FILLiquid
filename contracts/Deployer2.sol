@@ -16,7 +16,6 @@ contract Deployer2 {
     FILStake private _filStake;
     Governance private _governance;
     FILLiquid private _filLiquid;
-    DataFetcher private _dataFetcher;
     Deployer1 private _deployer1;
     address private _owner;
 
@@ -52,8 +51,6 @@ contract Deployer2 {
             payable(msg.sender)
         );
         emit ContractPublishing("FILLiquid", address(_filLiquid));
-        _dataFetcher = new DataFetcher(address(_filLiquid));
-        emit ContractPublishing("DataFetcher", address(_dataFetcher));
 
         _filStake.setContactAddrs(
             address(_filLiquid),
@@ -76,7 +73,7 @@ contract Deployer2 {
         _filTrust.addManager(address(_filStake));
         (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
         _filLiquid.deposit{value: msg.value}(rateBase);
-        uint filTrustBalance = _filLiquid.filTrustBalanceOf(address(this));
+        uint filTrustBalance = _filTrust.balanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);
         
@@ -90,12 +87,11 @@ contract Deployer2 {
         _filLiquid.setOwner(msg.sender);
     }
 
-    function getAddrs() external view returns (FILStake, Governance, FILLiquid, DataFetcher, Deployer1, address) {
+    function getAddrs() external view returns (FILStake, Governance, FILLiquid, Deployer1, address) {
         return (
             _filStake,
             _governance,
             _filLiquid,
-            _dataFetcher,
             _deployer1,
             _owner
         );

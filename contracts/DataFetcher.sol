@@ -2,46 +2,110 @@
 pragma solidity ^0.8.19;
 
 import "./FILLiquid.sol";
+import "./FILTrust.sol";
+import "./FILStake.sol";
+import "./FILGovernance.sol";
+import "./Governance.sol";
 
 contract DataFetcher {
     FILLiquid private _filliquid;
+    FILTrust private _filTrust;
+    FILStake private _filStake;
+    FILGovernance private _filGovernance;
+    Governance private _governance;
 
-    constructor(address fillAddr) {
-        _filliquid = FILLiquid(fillAddr);
+    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FILStake filStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr) {
+        _filliquid = filLiquidAddr;
+        _filTrust = filTrustAddr;
+        _filStake = filStakeAddr;
+        _filGovernance = filGovernanceAddr;
+        _governance = governanceAddr;
     }
 
     function fetchData() external view returns (
         uint blockHeight,
         uint blockTimeStamp,
-        FILLiquid.FILLiquidInfo memory info) {
+        uint fitTotalSupply,
+        uint figTotalSupply,
+        FILLiquid.FILLiquidInfo memory filLiquidInfo,
+        FILStake.FILStakeInfo memory filStakeInfo,
+        Governance.GovernanceInfo memory governanceInfo
+    ) {
         blockHeight = block.number;
         blockTimeStamp = block.timestamp;
-        info = _filliquid.filliquidInfo();
+        fitTotalSupply = _filTrust.totalSupply();
+        figTotalSupply = _filGovernance.totalSupply();
+        filLiquidInfo = _filliquid.getStatus();
+        filStakeInfo = _filStake.getStatus();
+        governanceInfo = _governance.getStatus();
     }
 
-    function fetchPersonalData(address player) external view returns (
+    function fetchPersonalData(address player) external returns (
         uint filTrustBalance,
         uint filBalance,
-        FILLiquid.MinerBorrowInfo[] memory infos
+        FILLiquid.UserInfo memory userInfo
     ) {
-        filTrustBalance = _filliquid.filTrustBalanceOf(player);
+        filTrustBalance = _filTrust.balanceOf(player);
         filBalance = player.balance;
-        infos = _filliquid.userBorrows(player);
+        userInfo = _filliquid.userBorrows(player);
     }
 
-    function getTotalPendingInterest() external view returns (uint result) {
+    function fetchStakerData(address staker) external view returns (
+        uint filTrustBalance,
+        uint filTrustFixed,
+        uint filTrustVariable,
+        uint filGovernanceBalance
+    ) {
+        filTrustBalance = _filTrust.balanceOf(staker);
+        (filTrustFixed, filTrustVariable) = _filStake.getStakerTerms(staker);
+        filGovernanceBalance = _filGovernance.balanceOf(staker);
+    }
+
+    function getTotalPendingInterest() external view returns (
+        uint blockHeight,
+        uint blockTimeStamp,
+        uint totalPendingInterest,
+        uint totalFIL,
+        uint borrowing,
+        uint borrowingAndPeriod,
+        uint accumulatedPayback,
+        uint accumulatedPaybackFILPeriod
+    ) {
+        blockHeight = block.number;
+        blockTimeStamp = block.timestamp;
         uint start = 0;
         uint end = _filliquid.allMinersCount();
-        if (start == end) return 0;
-        FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
-        for (uint j = 0; j < allMiners.length; j++) {
-            FILLiquid.BindStatusInfo memory info = allMiners[j];
-            if (!info.status.stillBound) continue;
-            FILLiquid.BorrowInterestInfo[] memory infos = _filliquid.minerBorrows(info.minerId);
-            for (uint i = 0; i < infos.length; i++) {
-                result += infos[i].interest;
+        FILLiquid.FILLiquidInfo memory filLiquidInfo = _filliquid.getStatus();
+        if (start != end) {
+            FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
+            for (uint j = 0; j < allMiners.length; j++) {
+                FILLiquid.BindStatusInfo memory info = allMiners[j];
+                if (!info.status.stillBound) continue;
+                FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
+                for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
+                    totalPendingInterest += minerBorrowInfo.borrows[i].interest;
+                    borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.number - minerBorrowInfo.borrows[i].borrow.initialTime);
+                }
             }
         }
+        totalFIL = filLiquidInfo.totalFIL;
+        borrowing = filLiquidInfo.utilizedLiquidity;
+        accumulatedPayback = filLiquidInfo.accumulatedPayback;
+        accumulatedPaybackFILPeriod = filLiquidInfo.accumulatedPaybackFILPeriod;
+    }
+
+    function getMaximumBorrowable(uint64 minerId) external returns (uint result) {
+        (bool borrowable,) = _filliquid.getBorrowable(minerId);
+        if (!borrowable) return 0;
+        result = _filliquid.maxBorrowAllowed(minerId);
+        if (result == 0) return 0;
+        (uint rateBase,,,,,uint minBorrowAmount,,,,) = _filliquid.getComprehensiveFactors();
+        if (result < minBorrowAmount) return 0;
+        (uint u_m,) = _filliquid.getDepositRedeemFactors();
+        uint a = _filliquid.totalFILLiquidity() * u_m / rateBase;
+        if (a <= 1) return 0;
+        a--;
+        if (result > a) return a;
     }
 
     function filliquid() external view returns (address) {

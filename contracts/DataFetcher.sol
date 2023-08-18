@@ -8,6 +8,28 @@ import "./FILGovernance.sol";
 import "./Governance.sol";
 
 contract DataFetcher {
+    struct FilComprehensiveFactors {
+        uint rateBase;
+        uint redeemFeeRate;
+        uint borrowFeeRate;
+        uint collateralRate;
+        uint minDepositAmount;
+        uint minBorrowAmount;
+        uint maxExistingBorrows;
+        uint maxFamilySize;
+        uint requiredQuota;
+        int64 requiredExpiration;
+    }
+
+    struct FilLiquidatingFactors {
+        uint maxLiquidations;
+        uint minLiquidateInterval;
+        uint alertThreshold;
+        uint liquidateThreshold;
+        uint liquidateDiscountRate;
+        uint liquidateFeeRate;
+    }
+
     FILLiquid private _filliquid;
     FILTrust private _filTrust;
     FILStake private _filStake;
@@ -61,7 +83,37 @@ contract DataFetcher {
         filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 
-    function getTotalPendingInterest() external view returns (
+    function maxBorrowAllowed(uint64 minerId) external returns (uint amount) {
+        amount = _filliquid.maxBorrowAllowedByUtilization();
+        uint amountByMinerId = _filliquid.maxBorrowAllowed(minerId);
+        if (amount > amountByMinerId) amount = amountByMinerId;
+    }
+
+    function getBorrowExpecting(uint amount) external view returns (
+        uint expectedInterestRate,
+        uint sixMonthInterest
+    ){
+        expectedInterestRate = _filliquid.interestRateBorrow(amount);
+        sixMonthInterest = _filliquid.paybackAmount(amount, 518400, expectedInterestRate) - amount;
+    }
+
+    function getDepositExpecting(uint amountFIL) external view returns (
+        uint expectedExchangeRate,
+        uint expectedAmountFILTrust
+    ){
+        expectedExchangeRate = _filliquid.exchangeRateDeposit(amountFIL);
+        expectedAmountFILTrust = amountFIL * expectedExchangeRate / _filliquid.getStatus().rateBase;
+    }
+
+    function getRedeemExpecting(uint amountFILTrust) external view returns (
+        uint expectedExchangeRate,
+        uint expectedAmountFIL
+    ){
+        expectedExchangeRate = _filliquid.exchangeRateRedeem(amountFILTrust);
+        expectedAmountFIL = amountFILTrust * _filliquid.getStatus().rateBase / expectedExchangeRate;
+    }
+
+    function getTotalPendingInterest() external returns (
         uint blockHeight,
         uint blockTimeStamp,
         uint totalPendingInterest,

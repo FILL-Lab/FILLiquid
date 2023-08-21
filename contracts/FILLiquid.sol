@@ -204,7 +204,8 @@ interface FILLiquidInterface {
         uint64 indexed minerId,
         uint amountFIL,
         uint fee,
-        uint interestRate
+        uint interestRate,
+        uint initialTime
     );
     
     /// @dev Emitted when user `account` repays `principal + interest` FIL for `minerIdPayee`,
@@ -232,7 +233,7 @@ interface FILLiquidInterface {
 
     /// @dev Emitted when Borrow with `id` is updated
     event BorrowUpdated(
-        uint indexed id,
+        uint indexed borrowId,
         uint borrowAmount,
         uint remainingOriginalAmount,
         uint datedTime
@@ -444,7 +445,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _foundation.transfer(fees[1]);
         send(minerId, fees[0]);
 
-        emit Borrow(borrowId, _msgSender(), minerId, fees[0], fees[1], realInterestRate);
+        emit Borrow(borrowId, _msgSender(), minerId, fees[0], fees[1], realInterestRate, block.timestamp);
         return (fees[0], fees[1]);
     }
 

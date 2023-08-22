@@ -716,6 +716,10 @@ contract FILLiquid is Context, FILLiquidInterface {
         return _userMinerPairs[account];
     }
 
+    function minerUser(uint64 minerId) external view returns (address) {
+        return _minerBindsMap[minerId];
+    }
+
     function getCollateralizingMinerInfo(uint64 minerId) external view returns (MinerCollateralizingInfo memory) {
         return _minerCollateralizing[minerId];
     }

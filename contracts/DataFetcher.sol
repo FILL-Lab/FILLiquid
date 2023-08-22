@@ -113,6 +113,17 @@ contract DataFetcher {
         expectedAmountFIL = amountFILTrust * _filliquid.getStatus().rateBase / expectedExchangeRate;
     }
 
+    function getBatchedUserBorrows(address[] memory accounts) external returns (FILLiquid.UserInfo[] memory infos) {
+        infos = new FILLiquid.UserInfo[](accounts.length);
+        for (uint i = 0; i < infos.length; i++) {
+            infos[i] = _filliquid.userBorrows(accounts[i]);
+        }
+    }
+
+    function getUserBorrowsByMiner(uint64 minerId) external returns (FILLiquid.UserInfo memory infos) {
+        return _filliquid.userBorrows(_filliquid.minerUser(minerId));
+    }
+
     function getTotalPendingInterest() external returns (
         uint blockHeight,
         uint blockTimeStamp,

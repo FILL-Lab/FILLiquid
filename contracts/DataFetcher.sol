@@ -84,9 +84,13 @@ contract DataFetcher {
     }
 
     function maxBorrowAllowed(uint64 minerId) external returns (uint amount) {
+        (bool borrowable,) = _filliquid.getBorrowable(minerId);
+        if (!borrowable) return 0;
         amount = _filliquid.maxBorrowAllowedByUtilization();
         uint amountByMinerId = _filliquid.maxBorrowAllowed(minerId);
         if (amount > amountByMinerId) amount = amountByMinerId;
+        (,,,,,uint minBorrowAmount,,,,) = _filliquid.getComprehensiveFactors();
+        if (amount < minBorrowAmount) amount = 0;
     }
 
     function getBorrowExpecting(uint amount) external view returns (
@@ -155,20 +159,6 @@ contract DataFetcher {
         borrowing = filLiquidInfo.utilizedLiquidity;
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
         accumulatedPaybackFILPeriod = filLiquidInfo.accumulatedPaybackFILPeriod;
-    }
-
-    function getMaximumBorrowable(uint64 minerId) external returns (uint result) {
-        (bool borrowable,) = _filliquid.getBorrowable(minerId);
-        if (!borrowable) return 0;
-        result = _filliquid.maxBorrowAllowed(minerId);
-        if (result == 0) return 0;
-        (uint rateBase,,,,,uint minBorrowAmount,,,,) = _filliquid.getComprehensiveFactors();
-        if (result < minBorrowAmount) return 0;
-        (uint u_m,) = _filliquid.getDepositRedeemFactors();
-        uint a = _filliquid.totalFILLiquidity() * u_m / rateBase;
-        if (a <= 1) return 0;
-        a--;
-        if (result > a) return a;
     }
 
     function filliquid() external view returns (address) {

@@ -20,9 +20,9 @@ contract Governance is Context {
         abstain
     }
     enum voteResult {
-        success,
-        fail,
-        failWithVeto,
+        approved,
+        rejected,
+        rejectedWithVeto,
         pending
     }
     struct Voting {
@@ -89,9 +89,9 @@ contract Governance is Context {
 
     mapping(address => uint) private _bondings;
     Proposal[] private _proposals;
-    uint private _bonders;
+    uint private _numberOfBonders;
     uint private _totalBondedAmount;
-    uint private _nextProposalId;
+    uint private _1stActiveProposalId;  // the oldest proposal still in voting phase
     uint private _rateBase;
     uint private _minYes;
     uint private _maxNo;
@@ -143,7 +143,7 @@ contract Governance is Context {
     function bond(uint amount) external {
         address sender = _msgSender();
         _tokenFILGovernance.withdraw(sender, amount);
-        if (_bondings[sender] == 0) _bonders++;
+        if (_bondings[sender] == 0) _numberOfBonders++;
         _bondings[sender] += amount;
         _totalBondedAmount += amount;
 
@@ -158,14 +158,14 @@ contract Governance is Context {
         if (amount == 0) amount = _bondings[sender];
         _bondings[sender] -= amount;
         _totalBondedAmount -= amount;
-        if (_bondings[sender] == 0) _bonders--;
+        if (_bondings[sender] == 0) _numberOfBonders--;
         _tokenFILGovernance.transfer(sender, amount);
 
         emit Unbonded(sender, amount);
     }
 
     function propose(proposolCategory category, uint discussionIndex, string memory text, uint[] memory values) external {
-        require (_proposals.length - renewFirstVotingProposal() < _maxActiveProposal, "Max active proposals reached");
+        require (_proposals.length - renew1stActiveProposal() < _maxActiveProposal, "Max active proposals reached");
         _checkParameter(category, values);
         address sender = _msgSender();
         uint deposits = getDepositThreshold();
@@ -218,17 +218,17 @@ contract Governance is Context {
         require(info.deadline < block.number, "Proposal voting in progress");
         require(!info.executed, "Already executed");
         info.executed = true;
-        if (_nextProposalId <= proposalId) {
-            _nextProposalId = proposalId + 1;
+        if (_1stActiveProposalId <= proposalId) {
+            _1stActiveProposalId = proposalId + 1;
         }
         voteResult result = _voteResult(p.status.info);
-        if (result == voteResult.failWithVeto) {
+        if (result == voteResult.rejectedWithVeto) {
             (uint liquidate, uint remain) = _liquidateResult(info.deposited);
             _tokenFILGovernance.transfer(sender, liquidate);
             _tokenFILGovernance.burn(address(this), remain);
         } else {
             if (info.deadline + _executionPeriod >= block.number) {
-                if (result == voteResult.success) {
+                if (result == voteResult.approved) {
                     if (info.category == proposolCategory.filLiquid) _filLiquid.setGovernanceFactors(info.values);
                     else if (info.category == proposolCategory.filStake) _filStake.setGovernanceFactors(info.values);
                 }
@@ -244,7 +244,7 @@ contract Governance is Context {
     }
 
     function votingProposalSum(address bonder) public returns (uint count, uint maxVote) {
-        for (uint i = renewFirstVotingProposal(); i < _proposals.length; i++) {
+        for (uint i = renew1stActiveProposal(); i < _proposals.length; i++) {
             uint amount = _proposals[i].status.voterVotings[bonder].amountTotal;
             if (amount > 0) {
                 if (amount > maxVote) maxVote = amount;
@@ -257,11 +257,11 @@ contract Governance is Context {
         return _bondings[bonder];
     }
 
-    function renewFirstVotingProposal() public returns (uint i) {
-        for (i = _nextProposalId; i < _proposals.length; i++) {
+    function renew1stActiveProposal() public returns (uint i) {
+        for (i = _1stActiveProposalId; i < _proposals.length; i++) {
             if (_proposals[i].info.deadline >= block.number) break;
         }
-        _nextProposalId = i;
+        _1stActiveProposalId = i;
     }
 
     function votedForProposal(address voter, uint proposalId) validProposalId(proposalId) external view returns (Voting memory) {
@@ -269,7 +269,7 @@ contract Governance is Context {
     }
 
     function getStatus() external view returns (GovernanceInfo memory) {
-        return GovernanceInfo(_bonders, _totalBondedAmount, _nextProposalId);
+        return GovernanceInfo(_numberOfBonders, _totalBondedAmount, _1stActiveProposalId);
     }
 
     function getProposalInfo(uint proposalId) validProposalId(proposalId) external view returns (ProposalInfo memory) {
@@ -392,11 +392,11 @@ contract Governance is Context {
         uint amountNo = info.amounts[uint(voteCategory.no)];
         uint amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
         if (amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
-            result = voteResult.failWithVeto;
+            result = voteResult.rejectedWithVeto;
         } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {
-            result = voteResult.fail;
+            result = voteResult.rejected;
         } else if (amountYes * _rateBase >= amountTotal * _minYes && amountTotal * _rateBase >= _totalBondedAmount * _quorum) {
-            result = voteResult.success;
+            result = voteResult.approved;
         } else {
             result = voteResult.pending;
         }

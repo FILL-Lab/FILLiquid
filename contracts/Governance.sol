@@ -203,8 +203,8 @@ contract Governance is Context {
         address voter = _msgSender();
         Voting storage voting = status.voterVotings[voter];
         require(amount >= _voteThreshold, "Voting amount too low");
-        require(info.deadline >= block.number, "Proposal finished");
-        require(voting.amountTotal + amount <= _bondings[voter], "Invalid amount");
+        require(info.deadline >= block.number, "Proposal voting finished");
+        require(voting.amountTotal + amount <= _bondings[voter], "Bonded FIG not enough");
         VotingStatusInfo storage vInfo = status.info;
         if (voting.amountTotal == 0) vInfo.voters.push(voter);
         vInfo.amountTotal += amount;

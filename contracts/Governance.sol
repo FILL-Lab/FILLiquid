@@ -150,12 +150,16 @@ contract Governance is Context {
         emit Bonded(sender, amount);
     }
 
+    // Unbond is to withdraw FIG from the governance contract
+    // Only _bondings[sender] - maxVote can be unbonded
+    // If amount = 0, or amount > _bondings[sender] - maxVote, unbond the maximum possible amount
     function unbond(uint amount) external {
         address sender = _msgSender();
         require(_bondings[sender] > 0, "Not bonded");
         (, uint maxVote) = votingProposalSum(sender);
-        require(amount <= _bondings[sender] - maxVote, "Invalid amount");
-        if (amount == 0) amount = _bondings[sender];
+        require(_bondings[sender] > maxVote, "all bond is on held for voting");
+        if (amount == 0 || amount > _bonding[sender] - maxVote)  
+            amount = _bondings[sender] - maxVote;
         _bondings[sender] -= amount;
         _totalBondedAmount -= amount;
         if (_bondings[sender] == 0) _bonders--;

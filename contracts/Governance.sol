@@ -158,7 +158,7 @@ contract Governance is Context {
         require(_bondings[sender] > 0, "Not bonded");
         (, uint maxVote) = votingProposalSum(sender);
         require(_bondings[sender] > maxVote, "all bond is on held for voting");
-        if (amount == 0 || amount > _bonding[sender] - maxVote)  
+        if (amount == 0 || amount > _bondings[sender] - maxVote)
             amount = _bondings[sender] - maxVote;
         _bondings[sender] -= amount;
         _totalBondedAmount -= amount;

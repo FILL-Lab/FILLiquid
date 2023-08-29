@@ -116,8 +116,8 @@ contract Governance is Context {
     uint constant DEFAULT_MAX_NO_WITH_VETO = 333333;
     uint constant DEFAULT_QUORUM = 400000;
     uint constant DEFAULT_LIQUIDATE = 200000;
-    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 100;
-    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e20;
+    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 100;    // 0.01% (100/1000000)
+    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e20;  // 500FIG 
     uint constant DEFAULT_VOTE_THRESHOLD = 1e19;
     uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days
     uint constant DEFAULT_EXECUTION_PERIOD = 20160; // 7 days
@@ -203,8 +203,8 @@ contract Governance is Context {
         address voter = _msgSender();
         Voting storage voting = status.voterVotings[voter];
         require(amount >= _voteThreshold, "Voting amount too low");
-        require(info.deadline >= block.number, "Proposal finished");
-        require(voting.amountTotal + amount <= _bondings[voter], "Invalid amount");
+        require(info.deadline >= block.number, "Proposal voting finished");
+        require(voting.amountTotal + amount <= _bondings[voter], "Bonded FIG not enough");
         VotingStatusInfo storage vInfo = status.info;
         if (voting.amountTotal == 0) vInfo.voters.push(voter);
         vInfo.amountTotal += amount;
@@ -231,11 +231,15 @@ contract Governance is Context {
             _tokenFILGovernance.transfer(sender, liquidate);
             _tokenFILGovernance.burn(address(this), remain);
         } else {
-            if (info.deadline + _executionPeriod >= block.number) {
-                if (result == voteResult.approved) {
-                    if (info.category == proposolCategory.filLiquid) _filLiquid.setGovernanceFactors(info.values);
-                    else if (info.category == proposolCategory.filStake) _filStake.setGovernanceFactors(info.values);
+            if (result == voteResult.approved) {
+                // according to the white paper, the execution can be done anytime after the voting process.
+                if (info.category == proposolCategory.filLiquid) {
+                    _filLiquid.setGovernanceFactors(info.values);
+                } else if (info.category == proposolCategory.filStake) {
+                    _filStake.setGovernanceFactors(info.values);
                 }
+            }
+            if (info.deadline + _executionPeriod >= block.number) {
                 _tokenFILGovernance.transfer(info.proposer, info.deposited);
             } else {
                 (uint liquidate, uint remain) = _liquidateResult(info.deposited);
@@ -284,6 +288,11 @@ contract Governance is Context {
         return _proposals.length;
     }
 
+    /// getDepositThreshold is to get the required amount of FIG tokens for a proposal to deposit
+    /// From the white paper: 
+    ///     To prevent spam, proposals must be accompanied by a deposit of FIG tokens from the proposer.
+    ///     Proposals that have been deposited with at least the higher of 0.01% of FIG circulating supply or 
+    ///     500 FIG, will proceed to voting stage.      
     function getDepositThreshold() public view returns (uint result) {
         result = _depositRatioThreshold * _tokenFILGovernance.totalSupply() / _rateBase;
         if (result < _depositAmountThreshold) result = _depositAmountThreshold;
@@ -302,7 +311,12 @@ contract Governance is Context {
         amountNo = info.amounts[uint(voteCategory.no)];
         amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
         amountAbstain = info.amounts[uint(voteCategory.abstain)];
-        result = _voteResult(info);
+
+        if (renew1stActiveProposal() > proposalId) {
+            result = _voteResult(info);
+        } else { // The voting is still in progress
+            result = voteResult.pending;
+        }
     }
 
     function getVoteStatus(uint proposalId) validProposalId(proposalId) external view returns (VotingStatusInfo memory) {
@@ -390,6 +404,8 @@ contract Governance is Context {
         }
     }
 
+    // _voteResult is to calculate the vote result
+    // The invoker needs to make sure the voting period is end to call this function
     function _voteResult(VotingStatusInfo storage info) private view returns (voteResult result) {
         uint amountTotal = info.amountTotal;
         uint amountYes = info.amounts[uint(voteCategory.yes)];
@@ -402,7 +418,7 @@ contract Governance is Context {
         } else if (amountYes * _rateBase >= amountTotal * _minYes && amountTotal * _rateBase >= _totalBondedAmount * _quorum) {
             result = voteResult.approved;
         } else {
-            result = voteResult.pending;
+            result = voteResult.rejected;
         }
     }
 

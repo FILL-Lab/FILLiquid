@@ -298,7 +298,7 @@ contract Governance is Context {
         if (result < _depositAmountThreshold) result = _depositAmountThreshold;
     }
 
-    function getVoteResult(uint proposalId) validProposalId(proposalId) external view returns (
+    function getVoteResult(uint proposalId) validProposalId(proposalId) external returns (
         uint amountTotal,
         uint amountYes,
         uint amountNo,

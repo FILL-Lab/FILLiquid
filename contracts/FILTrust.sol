@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract FILTrust is ERC20 {
     address private _owner;
-    mapping(address => bool) private manageAddresses;
+    mapping(address => bool) private _manageAddresses;
 
     constructor(string memory name, string memory symbol) ERC20(name, symbol){
         _owner = _msgSender();
@@ -25,15 +25,15 @@ contract FILTrust is ERC20 {
     }
 
     function addManager(address account) public onlyOwner {
-        manageAddresses[account] = true;
+        _manageAddresses[account] = true;
     }
 
     function removeManager(address account) external onlyOwner {
-        delete manageAddresses[account];
+        delete _manageAddresses[account];
     }
 
     function verifyManager(address account) public view returns (bool) {
-        return manageAddresses[account];
+        return _manageAddresses[account];
     }
 
     function owner() external view returns (address) {

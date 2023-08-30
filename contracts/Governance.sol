@@ -58,33 +58,33 @@ contract Governance is Context {
         uint nextProposalId;
     }
     event Proposed (
-        uint proposalId,
+        address indexed proposer,
+        uint indexed proposalId,
+        uint indexed discussionIndex,
         proposolCategory category,
         uint deadline,
         uint deposited,
-        uint discussionIndex,
         string text,
-        address proposer,
         uint[] values
     );
     event Bonded (
-        address bonder,
+        address indexed bonder,
         uint amount
     );
     event Unbonded (
-        address bonder,
+        address indexed bonder,
         uint amount
     );
     event Voted (
-        uint proposalId,
+        address indexed voter,
+        uint indexed proposalId,
         voteCategory category,
-        uint amount,
-        address voter
+        uint amount
     );
     event Executed (
-        uint proposalId,
-        voteResult result,
-        address executor
+        address indexed executor,
+        uint indexed proposalId,
+        voteResult result
     );
 
     mapping(address => uint) private _bondings;
@@ -185,13 +185,13 @@ contract Governance is Context {
         info.values = values;
 
         emit Proposed(
+            info.proposer,
             _proposals.length - 1,
+            info.discussionIndex,
             info.category,
             info.deadline,
             info.deposited,
-            info.discussionIndex,
             info.text,
-            info.proposer,
             info.values
         );
     }
@@ -212,7 +212,7 @@ contract Governance is Context {
         voting.amountTotal += amount;
         voting.amounts[uint(category)] += amount;
 
-        emit Voted(proposalId, category, amount, voter);
+        emit Voted(voter, proposalId, category, amount);
     }
 
     function execute(uint proposalId) validProposalId(proposalId) external {
@@ -248,7 +248,7 @@ contract Governance is Context {
             }
         }
 
-        emit Executed(proposalId, result, _msgSender());
+        emit Executed(_msgSender(), proposalId, result);
     }
 
     function votingProposalSum(address bonder) public returns (uint count, uint maxVote) {

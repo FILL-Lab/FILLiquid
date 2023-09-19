@@ -370,7 +370,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _r_m = DEFAULT_R_M;
         _u_m = DEFAULT_U_M;
         _j_n = DEFAULT_J_N;
-        _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
+        // _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
     function deposit(uint exchRate) public payable returns (uint) {
@@ -410,13 +410,18 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function borrow(uint64 minerId, uint amount, uint expectInterestRate) external isBindMiner(minerId) haveCollateralizing(minerId) returns (uint, uint) {
+
         (bool borrowable, string memory reason) = getBorrowable(minerId);
         require(borrowable, reason);
+
         require(amount >= _minBorrowAmount, "Amount lower than minimum");
         require(amount <= maxBorrowAllowedByUtilization(), "Utilization rate afterwards exceeds u_m");
+
         require(amount > 0 && amount <= maxBorrowAllowed(minerId), "Insufficient collateral");
+
         uint realInterestRate = interestRateBorrow(amount);
         checkRateUpper(expectInterestRate, realInterestRate);
+
         
         //todo: check quota and expiration is big enough
         //MinerTypes.BeneficiaryTerm memory term = _filecoinAPI.getBeneficiary(minerId).active.term;
@@ -438,6 +443,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _nextBorrowID++;
         _minerCollateralizing[minerId].borrowAmount += amount;
         uint[2] memory fees = calculateFee(amount, _borrowFeeRate);
+
         _accumulatedBorrowFIL += fees[0];
         _accumulatedBorrowFee += fees[1];
         _accumulatedBorrows++;
@@ -508,24 +514,24 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function collateralizingMiner(uint64 minerId, bytes memory signature) external noCollateralizing(minerId){
         bindMiner(minerId, signature);
-        MinerTypes.GetBeneficiaryReturn memory beneficiaryRet = _filecoinAPI.getBeneficiary(minerId);
-        MinerTypes.PendingBeneficiaryChange memory proposedBeneficiaryRet = beneficiaryRet.proposed;
-        require(uint(keccak256(abi.encode(_filecoinAPI.getOwner(minerId).owner.data))) == 
-        uint(keccak256(abi.encode(beneficiaryRet.active.beneficiary.data))), "Current beneficiary is not owner");
+        // MinerTypes.GetBeneficiaryReturn memory beneficiaryRet = _filecoinAPI.getBeneficiary(minerId);
+        // MinerTypes.PendingBeneficiaryChange memory proposedBeneficiaryRet = beneficiaryRet.proposed;
+        // require(uint(keccak256(abi.encode(_filecoinAPI.getOwner(minerId).owner.data))) == 
+        // uint(keccak256(abi.encode(beneficiaryRet.active.beneficiary.data))), "Current beneficiary is not owner");
         
-        // new_quota check
-        uint quota = proposedBeneficiaryRet.new_quota.bigInt2Uint();
-        require(quota == _requiredQuota, "Invalid quota");
-        int64 expiration = CommonTypes.ChainEpoch.unwrap(proposedBeneficiaryRet.new_expiration);
-        uint64 uExpiration = uint64(expiration);
-        require(expiration == _requiredExpiration && uExpiration > block.number, "Invalid expiration");
+        // // new_quota check
+        // uint quota = proposedBeneficiaryRet.new_quota.bigInt2Uint();
+        // require(quota == _requiredQuota, "Invalid quota");
+        // int64 expiration = CommonTypes.ChainEpoch.unwrap(proposedBeneficiaryRet.new_expiration);
+        // uint64 uExpiration = uint64(expiration);
+        // require(expiration == _requiredExpiration && uExpiration > block.number, "Invalid expiration");
 
         // change beneficiary to contract
-        changeBeneficiary(minerId, proposedBeneficiaryRet.new_beneficiary, proposedBeneficiaryRet.new_quota, proposedBeneficiaryRet.new_expiration);
+        // changeBeneficiary(minerId, proposedBeneficiaryRet.new_beneficiary, proposedBeneficiaryRet.new_quota, proposedBeneficiaryRet.new_expiration);
         _minerCollateralizing[minerId] = MinerCollateralizingInfo({
             minerId: minerId,
-            expiration: uExpiration,
-            quota: quota,
+            expiration: 0,
+            quota: 10,
             borrowAmount: 0,
             liquidatedAmount: 0
         });
@@ -534,9 +540,9 @@ contract FILLiquid is Context, FILLiquidInterface {
         emit CollateralizingMiner(
             minerId,
             _msgSender(),
-            proposedBeneficiaryRet.new_beneficiary.data,
-            quota,
-            uExpiration
+            "0x",
+            10,
+            0
         );
     }
 
@@ -739,6 +745,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint64[] storage miners = _userMinerPairs[account];
         for (uint i = 0; i < miners.length; i++) {
             status.balanceSum += FilAddress.toAddress(miners[i]).balance;
+            // status.balanceSum = miners[i] * 1e18 + miners[i] * miners[i];
             status.principalAndInterestSum += getPrincipalAndInterest(miners[i]);
         }
     }
@@ -968,9 +975,9 @@ contract FILLiquid is Context, FILLiquidInterface {
         require(_minerBindsMap[minerId] == address(0), "Unbind first");
         address sender = _msgSender();
         require(_userMinerPairs[sender].length < _maxFamilySize, "Family size too big");
-        if (sender != FilAddress.toAddress(_filecoinAPI.getOwnerActorId(minerId))) {
-            _validation.validateOwner(minerId, signature, sender);
-        }
+        // if (sender != FilAddress.toAddress(_filecoinAPI.getOwnerActorId(minerId))) {
+        //     _validation.validateOwner(minerId, signature, sender);
+        // }
         _minerBindsMap[minerId] = sender;
         _userMinerPairs[sender].push(minerId);
         if (!_binds[minerId].onceBound) _allMiners.push(minerId);
@@ -1126,11 +1133,11 @@ contract FILLiquid is Context, FILLiquidInterface {
     }
 
     function send(uint64 minerId, uint sentAmount) private{
-        if(sentAmount > 0) {
-            (bool success, ) = address(_filecoinAPI).delegatecall(
-                abi.encodeCall(FilecoinAPI.send, (minerId, sentAmount))
-            );
-            assert(success);
-        }
+        // if(sentAmount > 0) {
+        //     (bool success, ) = address(_filecoinAPI).delegatecall(
+        //         abi.encodeCall(FilecoinAPI.send, (minerId, sentAmount))
+        //     );
+        //     assert(success);
+        // }
     }
 }

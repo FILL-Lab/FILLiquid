@@ -74,7 +74,7 @@ contract FILStake is Context{
     uint private _accumulatedStakeMint;
     uint private _accumulatedWithdrawn;
 
-    uint private _n_interest;
+    uint private _n_interest; // 曲线参数
     uint private _n_stake;
     uint private _minStakePeriod;
     uint private _maxStakePeriod;
@@ -237,6 +237,7 @@ contract FILStake is Context{
 
     function getStatus() external view returns (FILStakeInfo memory) {
         return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID);
+        // 6949147218225114,8100000000000000000,699840000000000000000000,2568950286891029975338,61249002803585745053567,0,4
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {

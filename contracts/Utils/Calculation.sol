@@ -9,7 +9,7 @@ uint256 constant ANNUM = 31536000;
 contract Calculation {
     function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) external pure returns (uint) {
         require(u < rateBase, "Utilization rate cannot be bigger than 1.");
-        if (u <= u_1) return r_0 + ((r_1 - r_0) * u) / u_1;
+        if (u <= u_1) return     r_0 + ((r_1 - r_0) * u) / u_1;
         UD60x18 base = toUD60x18((rateBase * (rateBase - u_1)) / (rateBase - u), rateBase);
         UD60x18 exp = ud(n);
         return toUint(base.pow(exp), rateBase) * r_1 / rateBase;

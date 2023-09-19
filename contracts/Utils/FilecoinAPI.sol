@@ -12,7 +12,9 @@ contract FilecoinAPI{
     using Convertion for *;
 
     function getAvailableBalance(uint64 actorId) external returns (CommonTypes.BigInt memory){
-        return MinerAPI.getAvailableBalance(wrapId(actorId));
+        uint balance = uint(actorId) * 1e18 / 2;
+        return balance.uint2BigInt();
+        // return MinerAPI.getAvailableBalance(wrapId(actorId));
     }
 
     function getBeneficiary(uint64 minerId) external returns (MinerTypes.GetBeneficiaryReturn memory){

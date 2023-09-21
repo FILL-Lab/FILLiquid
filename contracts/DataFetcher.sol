@@ -106,7 +106,7 @@ contract DataFetcher {
         uint expectedAmountFILTrust
     ){
         expectedExchangeRate = _filliquid.exchangeRateDeposit(amountFIL);
-        expectedAmountFILTrust = amountFIL * expectedExchangeRate / _filliquid.getStatus().rateBase;
+        expectedAmountFILTrust = amountFIL * _filliquid.getStatus().rateBase / expectedExchangeRate;
     }
 
     function getRedeemExpecting(uint amountFILTrust) external view returns (
@@ -114,7 +114,7 @@ contract DataFetcher {
         uint expectedAmountFIL
     ){
         expectedExchangeRate = _filliquid.exchangeRateRedeem(amountFILTrust);
-        expectedAmountFIL = amountFILTrust * _filliquid.getStatus().rateBase / expectedExchangeRate;
+        expectedAmountFIL = amountFILTrust * expectedExchangeRate / _filliquid.getStatus().rateBase;
     }
 
     function getBatchedUserBorrows(address[] memory accounts) external returns (FILLiquid.UserInfo[] memory infos) {

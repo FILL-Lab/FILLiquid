@@ -151,7 +151,7 @@ contract DataFetcher {
                 FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
                 for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
                     totalPendingInterest += minerBorrowInfo.borrows[i].interest;
-                    borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.number - minerBorrowInfo.borrows[i].borrow.initialTime);
+                    borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.timestamp - minerBorrowInfo.borrows[i].borrow.initialTime);
                 }
             }
         }

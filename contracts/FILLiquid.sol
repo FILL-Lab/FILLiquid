@@ -75,7 +75,7 @@ interface FILLiquidInterface {
         uint accumulatedBorrows;            // p.   Accumulated Borrows
         uint accumulatedPaybackFILPeriod;   // q.   Accumulated Multiple of Payback and Period
         uint utilizationRate;               // r.   Current Utilization Rate r=c/a=(h-i+l)/(d+j-e-k)
-        uint exchangeRate;                  // s.   Current FILTrust/FIL Exchange Rate
+        uint exchangeRate;                  // s.   Current FIL/FILTrust Exchange Rate
         uint interestRate;                  // t.   Current Interest Rate
         uint collateralizedMiner;           // u.   Collateralized miners
         uint minerWithBorrows;              // v.   Miner with Borrows
@@ -256,7 +256,6 @@ contract FILLiquid is Context, FILLiquidInterface {
     mapping(uint64 => uint) private _lastLiquidate;
     mapping(uint64 => BindStatus) private _binds;
     uint64[] private _allMiners;
-    uint private _nextBorrowID;
     uint private _collateralizedMiner;
     uint private _minerWithBorrows;
 
@@ -377,8 +376,8 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint amountFIL = msg.value;
         require(msg.value >= _minDepositAmount, "Value too small");
         uint realTimeExchRate = exchangeRateDeposit(amountFIL);
-        checkRateLower(exchRate, realTimeExchRate);
-        uint amountFILTrust = amountFIL * realTimeExchRate / _rateBase;
+        checkRateUpper(exchRate, realTimeExchRate);
+        uint amountFILTrust = amountFIL * _rateBase / realTimeExchRate;
         
         _accumulatedDepositFIL += amountFIL;
         _accumulatedMintFILTrust += amountFILTrust;
@@ -392,8 +391,8 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function redeem(uint amountFILTrust, uint expectExchRate) external returns (uint, uint) {
         uint realTimeExchRate = exchangeRateRedeem(amountFILTrust);
-        checkRateUpper(expectExchRate, realTimeExchRate);
-        uint amountFIL = (amountFILTrust * _rateBase) / realTimeExchRate;
+        checkRateLower(expectExchRate, realTimeExchRate);
+        uint amountFIL = amountFILTrust * realTimeExchRate / _rateBase;
         require(amountFIL < availableFIL(), "Insufficient available FIL");
 
         _accumulatedBurntFILTrust += amountFILTrust;
@@ -422,7 +421,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         //MinerTypes.BeneficiaryTerm memory term = _filecoinAPI.getBeneficiary(minerId).active.term;
         //require(collateralNeeded + collateralizingInfo.collateralAmount <= term.quota.bigInt2Uint() - term.used_quota.bigInt2Uint(), "Insufficient quota");
 
-        uint borrowId = _nextBorrowID;
+        uint borrowId = _accumulatedBorrows;
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
         borrows.push(
             BorrowInfo({
@@ -435,7 +434,6 @@ contract FILLiquid is Context, FILLiquidInterface {
             })
         );
         sortMinerBorrows(minerId);
-        _nextBorrowID++;
         _minerCollateralizing[minerId].borrowAmount += amount;
         uint[2] memory fees = calculateFee(amount, _borrowFeeRate);
         _accumulatedBorrowFIL += fees[0];
@@ -623,7 +621,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint totalLiquidity = totalFILLiquidity();
         uint approxFIL = 0;
         if (utilized != totalLiquidity) {
-            approxFIL = amount * (totalLiquidity - utilized) * _rateBase / (exchangeRate() * totalLiquidity);
+            approxFIL = amount * (totalLiquidity - utilized) * exchangeRate() / (_rateBase * totalLiquidity);
         }
         require(totalLiquidity > approxFIL, "Approximate redeem exceeds total liquidity");
         return utilized * _rateBase / (totalLiquidity - approxFIL);

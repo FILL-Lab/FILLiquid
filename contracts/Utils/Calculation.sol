@@ -20,17 +20,17 @@ contract Calculation {
         require(n >= uUNIT, "Invalid N");
     }
 
-    function getExchangeRate(uint u, uint u_m, uint j_n, uint rateBase, uint fleLiquidity, uint filLiquidity) external pure returns (uint) {
+    function getExchangeRate(uint u, uint u_m, uint j_n, uint rateBase, uint fitLiquidity, uint filLiquidity) external pure returns (uint) {
         require(u < rateBase, "Utilization rate cannot be bigger than 1.");
-        uint fleFil = rateBase;
-        if (fleLiquidity != 0 && fleLiquidity != filLiquidity) {
-            fleFil = fleLiquidity * rateBase / filLiquidity;
+        uint filFit = rateBase;
+        if (fitLiquidity != 0 && fitLiquidity != filLiquidity) {
+            filFit = filLiquidity * rateBase / fitLiquidity;
         }
-        if (u <= u_m) return fleFil;
+        if (u <= u_m) return filFit;
         uint base = (rateBase * (rateBase - u_m)) / (rateBase - u);
         uint exp = (u - u_m) * j_n / rateBase;
         uint m_u = pow(base, exp, rateBase);
-        return m_u * fleFil / rateBase;
+        return filFit * rateBase / m_u;
     }
 
     function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) external pure returns (uint) {

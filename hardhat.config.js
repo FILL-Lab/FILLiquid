@@ -12,20 +12,20 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 2000,
+        runs: 10,
       },
     },
   },
-  defaultNetwork: "hyperspace",
+  defaultNetwork: "calibration",
   networks: {
     wallaby: {
       chainId: 31415,
       url: "https://calibration.filfox.info/rpc/v0",
       accounts: [PRIVATE_KEY],
     },
-    hyperspace: {
-      chainId: 3141,
-      url: "https://filecoin-hyperspace.chainup.net/rpc/v1",
+    calibration: {
+      chainId: 314159,
+      url: "https://api.calibration.node.glif.io/rpc/v1",
       accounts: [PRIVATE_KEY],
     },
   },

@@ -106,7 +106,7 @@ contract DataFetcher {
         uint expectedAmountFILTrust
     ){
         expectedExchangeRate = _filliquid.exchangeRateDeposit(amountFIL);
-        expectedAmountFILTrust = amountFIL * expectedExchangeRate / _filliquid.getStatus().rateBase;
+        expectedAmountFILTrust = amountFIL * _filliquid.getStatus().rateBase / expectedExchangeRate;
     }
 
     function getRedeemExpecting(uint amountFILTrust) external view returns (
@@ -114,7 +114,7 @@ contract DataFetcher {
         uint expectedAmountFIL
     ){
         expectedExchangeRate = _filliquid.exchangeRateRedeem(amountFILTrust);
-        expectedAmountFIL = amountFILTrust * _filliquid.getStatus().rateBase / expectedExchangeRate;
+        expectedAmountFIL = amountFILTrust * expectedExchangeRate / _filliquid.getStatus().rateBase;
     }
 
     function getBatchedUserBorrows(address[] memory accounts) external returns (FILLiquid.UserInfo[] memory infos) {
@@ -151,7 +151,7 @@ contract DataFetcher {
                 FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
                 for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
                     totalPendingInterest += minerBorrowInfo.borrows[i].interest;
-                    borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.number - minerBorrowInfo.borrows[i].borrow.initialTime);
+                    borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.timestamp - minerBorrowInfo.borrows[i].borrow.initialTime);
                 }
             }
         }

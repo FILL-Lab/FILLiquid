@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { UD60x18, ud, intoUint256, convert, ln } from "@prb/math/src/UD60x18.sol";
+import { UD60x18, ud, intoUint256, convert } from "@prb/math/src/UD60x18.sol";
 import { uEXP2_MAX_INPUT, uUNIT } from "@prb/math/src/ud60x18/Constants.sol";
 
 uint256 constant ANNUM = 31536000;
@@ -88,19 +88,6 @@ contract Calculation {
         if (lastAccumulated < currentAccumulated) return (currentAccumulated - lastAccumulated, currentAccumulated);
         else return (0, lastAccumulated);
     }
-
-    /*function getLn(uint input, uint rateBase) private pure returns (uint value, bool isNeg) {
-        if (input < rateBase) {
-            return (toUint(toUD60x18(rateBase * rateBase / input, rateBase).ln(), rateBase), true);
-        }
-        return (toUint(toUD60x18(input, rateBase).ln(), rateBase), false);
-    }
-
-    function pow(uint base, uint exp, uint rateBase) private pure returns (uint) {
-        UD60x18 convertedBase = toUD60x18(base, rateBase);
-        UD60x18 convertedExp = toUD60x18(exp, rateBase);
-        return toUint(convertedBase.pow(convertedExp), rateBase);
-    }*/
 
     function toUD60x18(uint input, uint rateBase) private pure returns (UD60x18){
         return ud(input * convertionFactor(rateBase));

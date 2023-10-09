@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract FILGovernance is ERC20 {
     address private _owner;
+    address private _burner;
     mapping(address => bool) private _manageAddresses;
 
     //TODO: make sure of total supply
@@ -14,6 +15,7 @@ contract FILGovernance is ERC20 {
     //TODO: add initial mint
     constructor(string memory name, string memory symbol) ERC20(name, symbol){
         _owner = _msgSender();
+        _burner = _msgSender();
         addManager(_owner);
         _mint(_owner, maxSupply() - maxLiquid());
     }
@@ -26,7 +28,7 @@ contract FILGovernance is ERC20 {
         _mint(account, amount);
     }
 
-    function burn(uint256 amount) external onlyManager {
+    function burn(uint256 amount) external onlyManagerOrBurner {
         _burn(_msgSender(), amount);
     }
 
@@ -59,6 +61,15 @@ contract FILGovernance is ERC20 {
         return _owner;
     }
 
+    function burner() external view returns (address) {
+        return _burner;
+    }
+
+    function setBurner(address new_burner) onlyOwner external returns (address) {
+        _burner = new_burner;
+        return _burner;
+    }
+
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Only owner allowed");
         _;
@@ -66,6 +77,13 @@ contract FILGovernance is ERC20 {
 
     modifier onlyManager() {
         require(verifyManager(_msgSender()), "Only manager allowed");
+        _;
+    }
+
+    modifier onlyManagerOrBurner() {
+        if (_msgSender() != _burner) {
+            require(verifyManager(_msgSender()), "Only manager or burner allowed");
+        }
         _;
     }
 

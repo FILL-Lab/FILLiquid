@@ -71,7 +71,7 @@ contract Calculation {
             }
         }
         uint theta = amountFitLeft * rateBase / (fitTotalSupply - amountFit + amountFitLeft);
-        amountFil += theta * (2 * rateBase - theta) * utilizedLiquidity / (rateBase * rateBase);
+        amountFil += theta * (2 * rateBase - theta) * (filLiquidity - amountFil - utilizedLiquidity) / (rateBase * rateBase);
         return amountFil;
     }
 

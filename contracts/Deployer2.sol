@@ -58,7 +58,7 @@ contract Deployer2 {
             address(_calculation),
             address(_filGovernance)
         );
-        _governance.setContactAddrs(
+        _governance.setContractAddrs(
             address(_filLiquid),
             address(_filStake),
             address(_filGovernance)

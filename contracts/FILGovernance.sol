@@ -26,8 +26,8 @@ contract FILGovernance is ERC20 {
         _mint(account, amount);
     }
 
-    function burn(address account, uint256 amount) external onlyManager {
-        _burn(account, amount);
+    function burn(uint256 amount) external onlyManager {
+        _burn(_msgSender(), amount);
     }
 
     function maxSupply() public view returns (uint) {

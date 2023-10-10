@@ -39,6 +39,11 @@ contract Calculation {
         return x.exp().intoUint256() * borrowAmount / uUNIT;
     }
 
+    function getExp(uint num) external pure returns (uint) {
+        UD60x18 x = ud(num);
+        return x.exp().intoUint256();
+    }
+
     function getMinted(uint current, uint amount, uint n, uint total, uint lastAccumulated) external pure returns(uint, uint) {
         uint exp = (current + amount) * uUNIT / n;
         uint currentAccumulated = total;

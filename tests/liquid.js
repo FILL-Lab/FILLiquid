@@ -14,6 +14,8 @@ const {
   } = require('@openzeppelin/test-helpers')
   const { Contract, utils, ZERO_ADDRESS } = require('ethers')
 const { assert } = require("console")
+const { transaction } = require("@openzeppelin/test-helpers/src/send")
+const { duration } = require("@openzeppelin/test-helpers/src/time")
 
   const parseEther = utils.parseEther
   
@@ -72,15 +74,16 @@ const { assert } = require("console")
       await governance.setContactAddrs(liquid.address, stake.address, fILGovernance.address)
       await stake.setContactAddrs(liquid.address, governance.address, filTrust.address, calculation.address, fILGovernance.address)
 
-      filTrust.addManager(liquid.address)
+      await fILGovernance.addManager(liquid.address)
+      await fILGovernance.addManager(stake.address)
+      await filTrust.addManager(liquid.address)
+
       return { liquid, filTrust, validation, calculation, filcoinAPI, stake, governance, owner, otherAccount }
     }
-  // function getRangeNumber(min, max) {
-  //   min = BigInt(min)
-  //   max = BigInt(max)
-  //   num = Math.floor(BigInt(Math.random()) * (max - min + 1n)) + min;
-  //   return BigInt(num)
-  // }
+  function getRangeNumber2(min, max) {
+    num = Math.floor(Math.random() * (max - min + 1)) + min;
+    return num
+  }
 
   function getRangeNumber(min, max) { // returns BigInt 0 to (range non inclusive)
     min = BigInt(min)
@@ -107,6 +110,8 @@ const { assert } = require("console")
   // })
 
   async function checkParams(liquid, filTrust, params) {
+    console.log("enter function checkParams")
+
       for (let address in params.addresses_users_map) {
           balance = await filTrust.balanceOf(address)
           balance_fit = params.addresses_users_map[address].balance_fit
@@ -134,117 +139,354 @@ const { assert } = require("console")
   }
 
   async function deposit(liquid, params) {
+    console.log("enter function deposit")
+
     minDepositAmount = BigInt(1e18)
+
     // new_deposit_fil = BigInt(1e18)
 
     // userIndex = getRangeNumber(0, Object.keys(params.addresses_users_map).length)
     // address = Object.keys(params.addresses_users_map)[userIndex]
     // signer = params.addresses_users_map[address].signer
-    signer = getRandomUser(params).signer
+    user = getRandomUser(params)
+    signer = user.signer
 
-    signerBalance = (await signer.provider.getBalance(signer.address)).toBigInt()
+    signerBalance = (await ethers.provider.getBalance(signer.address)).toBigInt()
     if (signerBalance <= minDepositAmount) {
       return
     }
     new_deposit_fil = getRangeNumber(minDepositAmount, signerBalance)
 
-    await liquid.connect(signer).deposit(1000000, {value: new_deposit_fil})
+    tx = await liquid.connect(signer).deposit(0, {value: new_deposit_fil})
+    result = await tx.wait()
+    user.balance_fil -= result.cumulativeGasUsed.toBigInt() * result.effectiveGasPrice.toBigInt()
+
+    exchangeRateDeposit = (await liquid.exchangeRateDeposit(new_deposit_fil)).toBigInt()
+    console.log("exchangeRateDeposit: ", exchangeRateDeposit)
+
+    
+    mu = Math.pow((1 - 0.9) / (1 - u), (u - 0.9) * 2.5)
+
     params.cumulative_deposit_fil += new_deposit_fil
-    params.liquidity_fil += new_deposit_fil
-    params.fil_fit_conversion_rate = params
     params.current_balance_fil += new_deposit_fil
     if (params.supply_fit == 0n) {
-      params.fil_fit_conversion_rate = 1n
+      params.fil_fit_conversion_rate = params.rate_base
     }else{
-      params.fil_fit_conversion_rate = params.cumulative_liquid_fil * params.rate_base / params.supply_fit
+      params.fil_fit_conversion_rate = params.liquidity_fil * params.rate_base / params.supply_fit
     }
+    mintFit = new_deposit_fil * params.rate_base / params.fil_fit_conversion_rate
+    params.addresses_users_map[signer.address].balance_fit += mintFit
 
-    params.addresses_users_map[signer.address].balance_fit += new_deposit_fil
-
+    console.log("deposit signer.address: ", signer.address, "value: ", new_deposit_fil, "params.fil_fit_conversion_rate: ", params.fil_fit_conversion_rate, "params.liquidity_fil: ", params.liquidity_fil, "params.supply_fit: ", params.supply_fit, "mintFit: ", mintFit)
+    params.liquidity_fil += new_deposit_fil
+    params.supply_fit += mintFit
   }
+
+
   async function collateralizingMiner(liquid, params) {
+    console.log("enter function collateralizingMiner")
     minerId = getRangeNumber(100, 10000000)
-    signer = getRandomUser(params).signer
-    await liquid.connect(signer).collateralizingMiner(minerId, "0x12")
+    user = getRandomUser(params)
+    signer = user.signer
+    if (params.address_miner_id_list_map[signer.address] && params.address_miner_id_list_map[signer.address].length >=5 ) {
+      return
+    }
+    // console.log("signer: ", signer, "minerId: ", minerId)
+    // beforeBalance = (await ethers.provider.getBalance(signer.address)).toBigInt()
+    tx = await liquid.connect(signer).collateralizingMiner(minerId, "0x12")
+    console.log("liquid.connect(signer).collateralizingMiner", "signer.address: ", signer.address, "minerId: ", minerId)
+    // afterBalance = (await ethers.provider.getBalance(signer.address)).toBigInt()
+    result = await tx.wait()
+    user.balance_fil -= result.cumulativeGasUsed.toBigInt() * result.effectiveGasPrice.toBigInt()
+
+    // console.log("gasUsed: ", result.gasUsed.toBigInt(), "cumulativeGasUsed: ", result.cumulativeGasUsed.toBigInt(), "effectiveGasPrice: ", result.effectiveGasPrice.toBigInt(), "beforeBalance: ", beforeBalance, "afterBalance: ", afterBalance)
+
     params.id_miners_map[minerId] = {
-      total_balance: minerId * BigInt(3e18) + (minerId * minerId),
+      minerId: minerId,
+      total_balance_fil: minerId * BigInt(3e18) + (minerId * minerId),
       signer: signer,
+      user: user,
       borrowed_amount: 0n
     }
+    // if (params.address_miner_number_map[signer.address] == undefined) {
+    //   params.address_miner_number_map[signer.address] = 0
+    // }
+
+    if (params.address_miner_id_list_map[signer.address] == undefined) {
+      params.address_miner_id_list_map[signer.address] = []
+    }
+    // params.address_miner_number_map[signer.address] += 1
+    params.address_miner_id_list_map[signer.address].push(minerId)
   }
+
   async function borrow(liquid, params) {
+    console.log("enter function borrow")
+    // console.log("params: ", params)
     // signer = getRandomUser(params).signer
-    miner = getRandomMiner(params)
-    availableBorrowAmount = miner.total_balance - miner.borrowed_amount
-    minBorrowAmount = 10n * BigInt(1e18)
-    if(availableBorrowAmount < minBorrowAmount){
+    if (Object.keys(params.id_miners_map).length == 0) {
       return
     }
+    miner = getRandomMiner(params)
+    // if (params.miner_id_borrow_info_map[miner.minerId]) {
+    //   console.log("params.miner_id_borrow_info_map[miner.minerId].length: ", params.miner_id_borrow_info_map[miner.minerId].length)
+    // }
+    if (params.miner_id_borrow_info_map[miner.minerId] && params.miner_id_borrow_info_map[miner.minerId].length >= 3) {
+      return
+    }
+    if (params.miner_id_borrow_info_map[miner.minerId] && params.miner_id_borrow_info_map[miner.minerId].length == 0) {
+      return
+    }
+
+    block = await ethers.provider.getBlock()
+
+    principalInterectList = []
+    principalInterectSum = 0n
+    familyBalanceSum = 0n
+
+    for (let familyMinerId of params.address_miner_id_list_map[params.id_miners_map[miner.minerId].signer.address]){
+      console.log("familyMinerId: ", familyMinerId, "params.id_miners_map[familyMinerId].balance_fil: ", params.id_miners_map[familyMinerId].balance_fil, "params.id_miners_map[familyMinerId]: ", params.id_miners_map[familyMinerId])
+      familyBalanceSum += params.id_miners_map[familyMinerId].total_balance_fil
+      if (!params.miner_id_borrow_info_map[familyMinerId]) {
+        continue
+      }
+      // console.log("params.miner_id_borrow_info_map[familyMinerId]: ", params.miner_id_borrow_info_map[familyMinerId])
+      for (let borrowInfo of params.miner_id_borrow_info_map[familyMinerId]) {
+        durationTime = block.timestamp - borrowInfo.block.timestamp
+        // principalInterect = calculatePrincipalInterect(borrowInfo.amount, durationTime, borrowInfo.interestRate, params.rate_base)
+
+        // console.log("await ethers.provider.getBlock().timestamp: ", (await ethers.provider.getBlock()).timestamp)
+        // await ethers.provider.send("evm_setNextBlockTimestamp", [block.timestamp]);
+        // principalInterect = (await liquid.callStatic.paybackAmount(borrowInfo.amount, durationTime, borrowInfo.interestRate)).toBigInt()
+
+        principalInterect = (await liquid.paybackAmount(borrowInfo.amount, durationTime, borrowInfo.interestRate)).toBigInt()
+
+        principalInterectList.push(principalInterect)
+        principalInterectSum += principalInterect
+      }
+    }
+    minBorrowAmount = 10n * BigInt(1e18)
+
+    console.log("familyBalanceSum: ", familyBalanceSum, "principalInterectSum: ", principalInterectSum, "principalInterectList: ", principalInterectList)
+
+    availableBorrowAmount = familyBalanceSum - (principalInterectSum * 2n)
+    if (availableBorrowAmount < minBorrowAmount) {
+      return
+    }
+
+
+    // availableBorrowAmount = miner.total_balance_fil - miner.borrowed_amount
 
     maxBorrowAmount = availableBorrowAmount
-    if (maxBorrowAmount > params.current_balance_fil * 900000n / 1000000n) {
-      maxBorrowAmount = params.current_balance_fil * 900000n / 1000000n
+
+
+
+    utilizationMaxAmount = params.liquidity_fil / 10n * 9n
+    // utilizationMaxAmount - params.current_balance_fil
+
+    utilizationAmount = params.liquidity_fil - params.current_balance_fil
+
+    liquidMaxBorrowAmount = utilizationMaxAmount - utilizationAmount
+
+    if (maxBorrowAmount > liquidMaxBorrowAmount) {
+      maxBorrowAmount = liquidMaxBorrowAmount
     }
 
-    if (minBorrowAmount >= maxBorrowAmount) {
+    if(maxBorrowAmount < minBorrowAmount){
       return
     }
 
-    // console.log("maxBorrowAmount: ", maxBorrowAmount)
-    // console.log("availableBorrowAmount: ", availableBorrowAmount)
-    // console.log("params.current_balance_fil: ", params.current_balance_fil)
+    console.log("utilizationMaxAmount: ", utilizationMaxAmount, "utilizationAmount: ", utilizationAmount, "liquidMaxBorrowAmount: ", liquidMaxBorrowAmount, "params.current_balance_fil: ", params.current_balance_fil,  "params.liquidity_fil: ", params.liquidity_fil)
+
+
+    tx = await liquid.callStatic.maxBorrowAllowed(miner.minerId)
+    
+    // await tx.wait()
+    console.log("maxBorrowAllowed: ", tx.toBigInt())
+
+    tx = await liquid.callStatic.getFamilyStatus(params.id_miners_map[miner.minerId].signer.address)
+    console.log("getFamilyStatus: ", tx)
+
+    // tx = await liquid.callStatic.maxBorrowAllowedByFamilyStatus(tx)
+    // console.log("maxBorrowAllowedByFamilyStatus: ", tx)
+
+    // tx = await liquid.callStatic.minerBorrows(miner.minerId)
+    // console.log("minerBorrows: ", tx)
+
+    getMinerBorrowsLength = await liquid.getMinerBorrowsLength(miner.minerId)
+    console.log("getMinerBorrowsLength: ", getMinerBorrowsLength)
 
     amount = getRangeNumber(minBorrowAmount, maxBorrowAmount)
-    await liquid.connect(miner.signer).borrow(minerId, amount, 600000)
+    console.log("signer: ", miner.signer.address, "miner.minerId: ", miner.minerId, "amount: ", amount)
+
+    length = await liquid.getMinerBorrowsLength(miner.minerId)
+    console.log("length: ", length)
+
+
+    // console.log("await ethers.provider.getBlock().timestamp: ", (await ethers.provider.getBlock()).timestamp)
+    // await ethers.provider.send("evm_setNextBlockTimestamp", [block.timestamp]);
+    tx = await liquid.connect(miner.signer).borrow(miner.minerId, amount, 600000)
+    result = await tx.wait()
+
+    // console.log("await ethers.provider.getBlock().timestamp: ", (await ethers.provider.getBlock()).timestamp)
+    miner.user.balance_fil -= result.cumulativeGasUsed.toBigInt() * result.effectiveGasPrice.toBigInt()
+
+    console.log("borrow: ", miner.minerId, amount, 600000)
+
+    // actualAmount, feeAmount = calculateFee(amount, 10000n)
     miner.borrowed_amount += amount
     params.current_balance_fil -= amount
+
+    u = (params.liquidity_fil - params.current_balance_fil) * params.rate_base / params.liquidity_fil
+    console.log("u: ", u, "amount: ", amount, "params.current_balance_fil: ", params.current_balance_fil,  "params.liquidity_fil: ", params.liquidity_fil)
+    interestRate = (10000n + 180000n) * u / params.rate_base
+    if (u > (params.rate_base / 2n)) {
+      uFloat = Number(u) / Number(params.rate_base)
+      base = (1 - 0.5) / (1 - 0.9)
+      number = (0.6 / 0.1)
+      n = Math.log(number) / Math.log(base)
+      r = 0.1 * Math.pow((1 - 0.5) / (1 - uFloat), n)
+      interestRate = BigInt(Math.floor(r * Number(params.rate_base)))
+    }
+
+    console.log("u: ", u, "interestRate: ", interestRate)
+
+    block = await ethers.provider.getBlock()
+
+    borrowInfo = {
+      minerId: miner.minerId,
+      amount: amount,
+      interestRate: interestRate,
+      block: block
+    }
+    // if (!Object.keys(params.miner_id_borrow_info_map).includes(miner.minerId)) {
+    //   params.miner_id_borrow_info_map[miner.minerId] = []
+    // }
+    if (params.miner_id_borrow_info_map[miner.minerId] == undefined) {
+      params.miner_id_borrow_info_map[miner.minerId] = []
+    }
+    params.miner_id_borrow_info_map[miner.minerId].push(borrowInfo)
+    params.miner_id_borrow_info_map[miner.minerId].sort((a, b) => a.interestRate < b.interestRate ? 1 : -1)
+
+
   }
-  // describe("Deposit", function () {
-  //   it("Shold set the right foundation", async function () {
-  //     const { liquid, filTrust, validation, calculation, filcoinAPI, stake, governance, owner, otherAccount } = await loadFixture(deployLiquid)
-  //     // let { liquid, owner, otherAccount } = await deployLiquid()
-  //     const minerId = 1234
-  //     await liquid.collateralizingMiner(minerId, "0x")
-  //     await liquid.deposit(1000000, {value: parseEther("20.32")})
-  //     var result =  await liquid.borrow(minerId, BigInt(15e18), 100000)
-  //     await liquid.redeem(parseEther("2"), 1000000)
 
+  async function hardhatMine() {
+    // num = getRangeNumber2(0, 28800000)
+    num = getRangeNumber2(0, 100)
+    const hexadecimalNumber = num.toString(16);
+    const hexStr = `0x${hexadecimalNumber}`
+    await hre.network.provider.send("hardhat_mine", [hexStr, "0x1e"]);
 
-  //     const balance = await filTrust.balanceOf(owner.address)
-  //     console.log("balance: ", balance.toBigInt())
-      
-  //     last_cumulative_deposit_fil = 0n
-  //     new_deposit_fil = BigInt(20e18)
-  //     cumulative_deposit_fil = last_cumulative_deposit_fil += new_deposit_fil
+  }
 
-  //     last_cumulative_borrow_fil = 0n
-  //     new_borrow_fil = BigInt(20e18)
-  //     cumulative_borrow_fil = last_cumulative_borrow_fil += new_borrow_fil
+  function calculatePrincipalInterect(principal, duration, annualRate, baseRate) {
+    annualRateFloat = Number(annualRate) / Number(baseRate)
+    exponent = Number(duration) * Number(annualRateFloat) / 31536000
+    console.log("exponent: ", exponent)
+    console.log(principal, duration, annualRate, baseRate)
+    return BigInt(Math.floor(Math.exp(exponent) * Number(principal)))
+    // exponent = duration * annualRate * (BigInt(1e18) / baseRate) / 31536000n
+    // BigInt(Math.floor(Math.exp(Number(exponent)))) * principal / BigInt(1e18)
+  }
 
-  //     last_cumulative_redeem_fil = 0n
-  //     new_redeem_fil = 100000n
-  //     cumulative_redeem_fil = last_cumulative_redeem_fil + new_redeem_fil
+  async function directPayback(liquid, params) {
+    console.log("enter function directPayback")
 
-  //     liquidity_fil = 0n
+    if(Object.keys(params.miner_id_borrow_info_map).length == 0){
+      console.log("directPayback return")
+      return
+    }
+    index = getRangeNumber(0, Object.keys(params.miner_id_borrow_info_map).length-1)
+    minerId = Object.keys(params.miner_id_borrow_info_map)[index]
+    borrowInfoList = params.miner_id_borrow_info_map[minerId]
+    console.log("borrowInfoList: ", borrowInfoList)
 
-  //     supply_fit = 0n
-      
-  //     const rate_base = 1000000n
-  //     fil_fit_conversion_rate = 1
-  //     if (supply_fit != 0) {
-  //       fil_fit_conversion_rate = cumulative_liquid_fil * rate_base / supply_fit
-  //     }
+    if (params.miner_id_borrow_info_map[minerId] == 0) {
+      console.log("miner_id_borrow_info_map[minerId] == 0 return")
+      return
+    }
 
-      
-      
+    sumOfprincipal = borrowInfoList.reduce((acc, obj) => acc + obj.amount, 0n)
+    console.log("sumOfprincipal: ", sumOfprincipal)
 
-  //     // await liquid.getBorrowable(minerId)
+    block = await ethers.provider.getBlock()
 
-  //   // console.log("spex: ", spex)
-  //   // console.log("owner: ", owner)
-  //   // console.log("otherAccount: ", otherAccount)
-  //   })
-  // })
+    principalInterectList = []
+    principalInterectSum = 0n
+
+    for (let borrowInfo of borrowInfoList) {
+      durationTime = block.timestamp - borrowInfo.block.timestamp
+      console.log("block.timstamp: ", block.timestamp, "borrowInfo.block.timestamp: ", borrowInfo.block.timestamp)
+      // principalInterect = calculatePrincipalInterect(borrowInfo.amount, durationTime, borrowInfo.interestRate, params.rate_base)
+      // principalInterect = liquid.callStatic.paybackAmount(borrowInfo.amount, durationTime, borrowInfo.interestRate)
+
+      principalInterect = (await liquid.paybackAmount(borrowInfo.amount, durationTime, borrowInfo.interestRate)).toBigInt()
+
+      principalInterectList.push(principalInterect)
+      principalInterectSum += principalInterect
+
+      paybackAmount = await liquid.paybackAmount(borrowInfo.amount, durationTime, borrowInfo.interestRate)
+      console.log("paybackAmount: ", paybackAmount)
+    }
+    
+
+    miner = params.id_miners_map[minerId]
+
+    minerSignerBalance = (await liquid.provider.getBalance(miner.signer.address)).toBigInt()
+    max = minerSignerBalance
+    
+    // max = max > principalInterectSum ? max : principalInterectSum
+
+    tx = await liquid.callStatic.minerBorrows(miner.minerId)
+    console.log("minerBorrows: ", tx)
+
+    paybackAmount = getRangeNumber(1n, max)
+    console.log("minerId: ", minerId)
+
+    getMinerBorrowsLength = await liquid.getMinerBorrowsLength(miner.minerId)
+    console.log("getMinerBorrowsLength: ", getMinerBorrowsLength)
+
+    console.log("await ethers.provider.getBlock().timestamp: ", (await ethers.provider.getBlock()).timestamp)
+
+    tx = await liquid.connect(miner.signer).directPayback(minerId, {value: paybackAmount})
+    console.log("directPayback", "miner.signer.address: ", miner.signer.address, "minerId: ", minerId, "paybackAmount: ", paybackAmount)
+    result = await tx.wait()
+    miner.user.balance_fil -= result.cumulativeGasUsed.toBigInt() * result.effectiveGasPrice.toBigInt()
+
+    remainingAmount = paybackAmount
+    interestSum = 0n
+    for (let i=borrowInfoList.length-1; i>=0; i--) {
+      borrowInfo = borrowInfoList[i]
+      interest = principalInterectList[i] - borrowInfo.amount
+      interestSum += interest
+      if (principalInterectList[i] < remainingAmount) {
+        console.log("pop", "i: ", i)
+        borrowInfoList.pop()
+        remainingAmount -= principalInterectList[i]
+      }else{
+        borrowInfo.amount -= remainingAmount
+        borrowInfo.block = block
+        remainingAmount = 0n
+        break
+      }
+    }
+    console.log("remainingAmount: ", remainingAmount, "principalInterectList: ", principalInterectList)
+    actualRepayAmount = (paybackAmount - remainingAmount)
+    miner.user.balance_fil -= actualRepayAmount
+    params.current_balance_fil += actualRepayAmount
+    params.liquidity_fil += interestSum
+  }
+
+  function calculateFee(amount , rate_base) {
+    commisionFee = amount * 10000n / rate_base
+    if ((amount * 10000n) % rate_base != 0) {
+      commisionFee += 1
+    }
+    if (commisionFee > amount) {
+      throw("commisionFee > amount")
+    }
+    return (amount - commisionFee, commisionFee)
+  }
 
   describe("Test flow", function () {
     it("Test all", async function () {
@@ -266,41 +508,108 @@ const { assert } = require("console")
         fil_fit_conversion_rate: 1n,
         addresses_users_map: {},
         id_miners_map: {},
-        current_balance_fil: 0n
+        current_balance_fil: 0n,
+        miner_id_borrow_info_map: {},
+        address_miner_id_list_map: {}
       }
 
       signer_list = await ethers.getSigners()
       
       for (let signer of signer_list) {
         params.addresses_users_map[signer.address] = {
-          balance_fil: (await signer.provider.getBalance(signer.address)).toBigInt(),
+          balance_fil: (await ethers.provider.getBalance(signer.address)).toBigInt(),
           signer,
           balance_fit: 0n
         }
       }
-      blockNumber = await ethers.provider.getBlockNumber();
-      console.log("blockNumber: ", blockNumber)
-      await collateralizingMiner(liquid, params)
-      blockNumber = await ethers.provider.getBlockNumber();
-      console.log("blockNumber: ", blockNumber)
-      await deposit(liquid, params)
-      blockNumber = await ethers.provider.getBlockNumber();
-      console.log("blockNumber: ", blockNumber)
-      await borrow(liquid, params)
-      blockNumber = await ethers.provider.getBlockNumber();
-      block = await ethers.provider.getBlock();
-      console.log("blockNumber: ", block.number)
-      console.log("blockTimestamp: ", block.timestamp)
-      await checkParams(liquid, filTrust, params)
-      await hre.network.provider.send("hardhat_mine", ["0x3e8", "0x1e"]);
-      block = await ethers.provider.getBlock()
-      console.log("blockNumber: ", block.number)
-      console.log("blockTimestamp: ", block.timestamp)
 
-      await hre.network.provider.send("hardhat_mine", ["0x5dc", "0x1e"]);
-      block = await ethers.provider.getBlock()
-      console.log("blockNumber: ", block.number)
-      console.log("blockTimestamp: ", block.timestamp) 
+      sender = signer_list[0]
+
+      for (let i=0; i<100; i++) {
+        wallet = ethers.Wallet.createRandom()
+        signer = wallet.connect(ethers.provider)
+        min = BigInt(10e18)
+        max = (await ethers.provider.getBalance(sender.address)).toBigInt()
+        max -= BigInt(1e18)
+        if (max <= min) {
+          break
+        }
+        amount = getRangeNumber(min, max)
+        // console.log("transaction: ", transaction)
+        // console.log("to: ", to)
+        // console.log("value: ", value)
+        sendTransaction = {
+          to: signer.address,
+          value: amount
+        }
+
+        await sender.sendTransaction(sendTransaction)
+
+        params.addresses_users_map[signer.address] = {
+          balance_fil: (await ethers.provider.getBalance(signer.address)).toBigInt(),
+          signer,
+          balance_fit: 0n
+        }
+      }
+
+      // _owner = await liquid._owner()
+      // console.log("_owner: ", _owner)
+      // return
+
+      functionList = [collateralizingMiner, deposit, borrow, directPayback]
+      // await deposit(liquid, params)
+      for (let i=0; i<100; i++) {
+        // await directPayback(liquid, params)
+
+
+        functionIndex = getRangeNumber2(0, functionList.length - 1)
+
+        const blockNumber = await liquid.provider.getBlockNumber();
+        console.log("i: ", i, "blockNumber: ", blockNumber, "functionName: ", functionList[functionIndex].name, "----------------------------------------")
+
+
+        // promise = functionList[functionIndex](liquid, params)
+        // await promise
+
+        // await hardhatMine()
+
+        try{
+          // functionList[functionIndex](liquid, params)
+          // const blockNumber = await liquid.provider.getBlockNumber();
+          // console.log("i: ", i, "blockNumber: ", blockNumber, "functionName: ", functionList[functionIndex].name)
+          // await collateralizingMiner(liquid, params)
+          // await deposit(liquid, params)
+          // await borrow(liquid, params)
+
+          if (functionIndex == 0) {
+            await collateralizingMiner(liquid, params)
+            console.log("end collateralizingMiner")
+          }else if (functionIndex == 1) {
+            await deposit(liquid, params)
+            console.log("end deposit")
+          }else if (functionIndex == 2) {
+            await borrow(liquid, params)
+            console.log("end borrow")
+          }else if (functionIndex == 3) {
+            await directPayback(liquid, params)
+            console.log("end directPayback")
+          }else {
+            throw("Unknown functionIndex")
+          }
+          // await checkParams(liquid, filTrust, params)
+          await checkParams(liquid, filTrust, params)
+          console.log("end checkParams")
+          await hardhatMine()
+        }catch(error){
+          console.log("params: ", params)
+          console.log("error: ", error)
+          // console.log("totalFILLiquidity: ", await liquid.totalFILLiquidity())
+          // console.log("maxBorrowAllowedByUtilization: ", await liquid.maxBorrowAllowedByUtilization())
+          break
+        }
+      }
+      // console.log("params: ", params)
+      // console.log("totalFILLiquidity: ", await liquid.totalFILLiquidity())
     })
   })
 })

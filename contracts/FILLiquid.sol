@@ -248,73 +248,73 @@ interface FILLiquidInterface {
 contract FILLiquid is Context, FILLiquidInterface {
     using Convertion for *;
 
-    mapping(uint64 => BorrowInfo[]) private _minerBorrows;
-    mapping(address => uint64[]) private _userMinerPairs;
-    mapping(uint64 => address) private _minerBindsMap;
-    mapping(uint64 => MinerCollateralizingInfo) private _minerCollateralizing;
-    mapping(uint64 => uint) private _liquidatedTimes;
-    mapping(uint64 => uint) private _lastLiquidate;
-    mapping(uint64 => BindStatus) private _binds;
-    uint64[] private _allMiners;
-    uint private _nextBorrowID;
-    uint private _collateralizedMiner;
-    uint private _minerWithBorrows;
+    mapping(uint64 => BorrowInfo[]) public _minerBorrows;
+    mapping(address => uint64[]) public _userMinerPairs;
+    mapping(uint64 => address) public _minerBindsMap;
+    mapping(uint64 => MinerCollateralizingInfo) public _minerCollateralizing;
+    mapping(uint64 => uint) public _liquidatedTimes;
+    mapping(uint64 => uint) public _lastLiquidate;
+    mapping(uint64 => BindStatus) public _binds;
+    uint64[] public _allMiners;
+    uint public _nextBorrowID;
+    uint public _collateralizedMiner;
+    uint public _minerWithBorrows;
 
-    uint private _accumulatedDepositFIL;
-    uint private _accumulatedRedeemFIL;
-    uint private _accumulatedBurntFILTrust;
-    uint private _accumulatedMintFILTrust;
-    uint private _accumulatedBorrowFIL;
-    uint private _accumulatedPaybackFIL;
-    uint private _accumulatedInterestFIL;
-    uint private _accumulatedRedeemFee;
-    uint private _accumulatedBorrowFee;
-    uint private _accumulatedLiquidateReward;
-    uint private _accumulatedLiquidateFee;
-    uint private _accumulatedDeposits;
-    uint private _accumulatedBorrows;
-    uint private _accumulatedPaybackFILPeriod;
+    uint public _accumulatedDepositFIL;
+    uint public _accumulatedRedeemFIL;
+    uint public _accumulatedBurntFILTrust;
+    uint public _accumulatedMintFILTrust;
+    uint public _accumulatedBorrowFIL;
+    uint public _accumulatedPaybackFIL;
+    uint public _accumulatedInterestFIL;
+    uint public _accumulatedRedeemFee;
+    uint public _accumulatedBorrowFee;
+    uint public _accumulatedLiquidateReward;
+    uint public _accumulatedLiquidateFee;
+    uint public _accumulatedDeposits;
+    uint public _accumulatedBorrows;
+    uint public _accumulatedPaybackFILPeriod;
 
     //administrative factors
-    address private _owner;
-    address private _governance;
-    address payable private _foundation;
-    FILTrust private _tokenFILTrust;
-    Validation private _validation;
-    Calculation private _calculation;
-    FilecoinAPI private _filecoinAPI;
-    FILStake private _filStake;
+    address public _owner;
+    address public _governance;
+    address payable public _foundation;
+    FILTrust public _tokenFILTrust;
+    Validation public _validation;
+    Calculation public _calculation;
+    FilecoinAPI public _filecoinAPI;
+    FILStake public _filStake;
 
     //comprehensive factors
-    uint private _rateBase;
-    uint private _redeemFeeRate; // redeemFeeRate = _redeemFeeRate / _rateBase
-    uint private _borrowFeeRate; // borrowFeeRate = _borrowFeeRate / _rateBase
-    uint private _collateralRate; // collateralRate = _collateralRate / _rateBase
-    uint private _minDepositAmount; // minimum deposit amount acceptable
-    uint private _minBorrowAmount; // minimum borrow amount acceptable
-    uint private _maxExistingBorrows; // maximum existing borrows for each miner
-    uint private _maxFamilySize; // maximum family size
-    uint private _requiredQuota; // require quota upon changing beneficiary
-    int64 private _requiredExpiration; // required expiration upon changing beneficiary
+    uint public _rateBase;
+    uint public _redeemFeeRate; // redeemFeeRate = _redeemFeeRate / _rateBase
+    uint public _borrowFeeRate; // borrowFeeRate = _borrowFeeRate / _rateBase
+    uint public _collateralRate; // collateralRate = _collateralRate / _rateBase
+    uint public _minDepositAmount; // minimum deposit amount acceptable
+    uint public _minBorrowAmount; // minimum borrow amount acceptable
+    uint public _maxExistingBorrows; // maximum existing borrows for each miner
+    uint public _maxFamilySize; // maximum family size
+    uint public _requiredQuota; // require quota upon changing beneficiary
+    int64 public _requiredExpiration; // required expiration upon changing beneficiary
 
     //Liquidating factors
-    uint private _maxLiquidations;
-    uint private _minLiquidateInterval;
-    uint private _alertThreshold;
-    uint private _liquidateThreshold;
-    uint private _liquidateDiscountRate;
-    uint private _liquidateFeeRate;
+    uint public _maxLiquidations;
+    uint public _minLiquidateInterval;
+    uint public _alertThreshold;
+    uint public _liquidateThreshold;
+    uint public _liquidateDiscountRate;
+    uint public _liquidateFeeRate;
 
     //Borrowing & payback interest rate factors
-    uint private _u_1;
-    uint private _r_0;
-    uint private _r_1;
-    uint private _r_m;
-    uint private _n;
+    uint public _u_1;
+    uint public _r_0;
+    uint public _r_1;
+    uint public _r_m;
+    uint public _n;
 
     //Deposit & Redeem factors
-    uint private _u_m;
-    uint private _j_n;
+    uint public _u_m;
+    uint public _j_n;
 
     uint constant DEFAULT_MIN_DEPOSIT = 1 ether;
     uint constant DEFAULT_MIN_BORROW = 10 ether;
@@ -750,6 +750,10 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
     }
 
+    function getMinerBorrowsLength(uint64 minerId) external view returns (uint) {
+        return _minerBorrows[minerId].length;
+    }
+
     function getBorrowable(uint64 minerId) public returns (bool, string memory) {
         uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
         for (uint i = 0; i < miners.length; i++) {
@@ -1102,7 +1106,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         else return true;
     }
 
-    function maxBorrowAllowedByFamilyStatus(FamilyStatus memory status) private view returns (uint) {
+    function maxBorrowAllowedByFamilyStatus(FamilyStatus memory status) public view returns (uint) {
         uint a = status.balanceSum * _collateralRate;
         uint b = status.principalAndInterestSum * _rateBase;
         if (a <= b) return 0;

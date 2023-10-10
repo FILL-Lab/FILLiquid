@@ -38,16 +38,19 @@ contract Calculation {
 
         uint amountFilLeft = amountFil;
         uint amountFit = 0;
-        uint amountFilCurved = rateBase * utilizedLiquidity / u_m - filLiquidity;
-        if (amountFilCurved > amountFil) {
-            amountFilCurved = amountFil;
+        uint[2] memory amountFilCurved = divideWithUpperRound(rateBase * utilizedLiquidity, u_m);
+        amountFilCurved[0] -= filLiquidity;
+        amountFilCurved[1] -= filLiquidity;
+        if (amountFilCurved[1] > amountFil) {
+            amountFilCurved[0] = amountFil;
+            amountFilCurved[1] = amountFil;
         }
-        if (amountFilCurved != 0) {
-            amountFilLeft -= amountFilCurved;
-            amountFit += ud((filLiquidity + amountFilCurved - utilizedLiquidity) * uUNIT / (filLiquidity - utilizedLiquidity)).sqrt().unwrap() * fitTotalSupply / uUNIT - fitTotalSupply;
+        if (amountFilCurved[1] != 0) {
+            amountFilLeft -= amountFilCurved[1];
+            amountFit += ud((filLiquidity + amountFilCurved[0] - utilizedLiquidity) * uUNIT / (filLiquidity - utilizedLiquidity)).sqrt().unwrap() * fitTotalSupply / uUNIT - fitTotalSupply;
         }
         if (amountFilLeft != 0) {
-            amountFit += ((fitTotalSupply + amountFit) * amountFilLeft) / (filLiquidity + amountFilCurved);
+            amountFit += ((fitTotalSupply + amountFit) * amountFilLeft) / (filLiquidity + amountFilCurved[1]);
         }
         return amountFit;
     }
@@ -64,7 +67,7 @@ contract Calculation {
             if (amountFil <= amountFilLeft) return amountFil;
             else {
                 amountFil = amountFilLeft;
-                uint fitExhausted = divideWithRound(amountFilLeft * fitTotalSupply, filLiquidity);
+                uint fitExhausted = divideWithUpperRound(amountFilLeft * fitTotalSupply, filLiquidity)[1];
                 if (amountFitLeft > fitExhausted) amountFitLeft -= fitExhausted;
                 else amountFitLeft = 0;
                 if (amountFitLeft == 0) return amountFilLeft;
@@ -105,8 +108,9 @@ contract Calculation {
         return uUNIT / rateBase;
     }
 
-    function divideWithRound(uint dividend, uint divisor) private pure returns (uint) {
-        if (dividend % divisor == 0) return dividend / divisor;
-        else return dividend / divisor + 1;
+    function divideWithUpperRound(uint dividend, uint divisor) private pure returns (uint[2] memory r) {
+        r[0] = dividend / divisor;
+        if (dividend % divisor == 0) r[1] = r[0];
+        else r[1] = r[0] + 1;
     }
 }

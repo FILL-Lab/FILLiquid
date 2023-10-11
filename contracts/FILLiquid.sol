@@ -74,7 +74,7 @@ interface FILLiquidInterface {
         uint accumulatedDeposits;           // p.   Accumulated Deposites
         uint accumulatedBorrows;            // q.   Accumulated Borrows
         uint accumulatedPaybackFILPeriod;   // r.   Accumulated Multiple of Payback and Period
-        uint utilizationRate;               // s.   Current Utilization Rate s=c/a=(h-i+l)/(d+j-e-k)
+        uint utilizationRate;               // s.   Current Utilization Rate s=c/a=(h-i+l-m)/(d+j-e-k-m)
         uint exchangeRate;                  // t.   Current FIL/FILTrust Exchange Rate
         uint interestRate;                  // u.   Current Interest Rate
         uint collateralizedMiner;           // v.   Collateralized miners

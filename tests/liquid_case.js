@@ -69,9 +69,9 @@ describe("Liquid", function () {
 
 
     const FILGovernance = await hre.ethers.getContractFactory("FILGovernance");
-    const fILGovernance = await FILGovernance.deploy("FILGovernance", "FIG")
+    const filGovernance = await FILGovernance.deploy("FILGovernance", "FIG")
 
-    console.log("deployed fILGovernance")
+    console.log("deployed filGovernance")
 
     const Governance = await hre.ethers.getContractFactory("Governance");
     const governance = await Governance.deploy()
@@ -79,14 +79,14 @@ describe("Liquid", function () {
     const FILLiquid = await hre.ethers.getContractFactory("FILLiquid")
     const filLiquid = await FILLiquid.deploy(filTrust.address, validation.address, calculation.address, filcoinAPI.address, stake.address, governance.address, owner.address, {gasLimit: 30000000})
 
-    await governance.setContactAddrs(filLiquid.address, stake.address, fILGovernance.address)
-    await stake.setContactAddrs(filLiquid.address, governance.address, filTrust.address, calculation.address, fILGovernance.address)
+    await governance.setContactAddrs(filLiquid.address, stake.address, filGovernance.address)
+    await stake.setContactAddrs(filLiquid.address, governance.address, filTrust.address, calculation.address, filGovernance.address)
 
-    await fILGovernance.addManager(filLiquid.address)
-    await fILGovernance.addManager(stake.address)
+    await filGovernance.addManager(filLiquid.address)
+    await filGovernance.addManager(stake.address)
     await filTrust.addManager(filLiquid.address)
 
-    return { filLiquid, filTrust, validation, calculation, filcoinAPI, stake, governance, owner, otherAccount }
+    return { filLiquid, filTrust, validation, calculation, filcoinAPI, stake, governance, filGovernance, owner, otherAccount }
   }
 
   function getProcessedParams(params, signers) {
@@ -96,7 +96,7 @@ describe("Liquid", function () {
         if (item.startsWith("__signer")) {
           signerIndex = Number(item.split("__signer")[1])
           signer = signers[signerIndex]
-          newParams.push(signer)
+          newParams.push(signer.address)
           continue
         }
       }
@@ -129,8 +129,8 @@ describe("Liquid", function () {
         signers.push(signer)
 
 
-        block = await ethers.provider.getBlock()
-        console.log("block.timestamp: ", block.timestamp)
+        // block = await ethers.provider.getBlock()
+        // console.log("block.timestamp: ", block.timestamp)
       }
 
       const contracts = await loadFixture(deployLiquid)
@@ -170,6 +170,8 @@ describe("Liquid", function () {
         // console.log("signers: ", signers)
         // console.log("step.signerIndex: ", step.signerIndex)
         newParams = getProcessedParams(step.params, signers)
+        // console.log("newParams: ", newParams)
+
         tx = await contract.connect(signer)[step.functionName](...newParams, {value: step.value})
         result = await tx.wait()
 
@@ -198,31 +200,32 @@ describe("Liquid", function () {
       // console.log("liquidStatus: ", liquidStatus)
 
       for (step of finalStateCheckList) {
-        // if(step.mineBlockNumber < 2) {
-        //   throw("step.mineBlockNumber < 2")
+
+        // if(step.mineBlockNumber < 1) {
+        //   throw("step.mineBlockNumber < 1")
         // }
-        // mineBlockNumberHex = `0x${(step.mineBlockNumber).toString(16)}`
-        // await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1e"]);
+        // mineBlockNumberHex = `0x${(step.increaseBlockNumber-1).toString(16)}`
+        // await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
 
-        if(step.mineBlockNumber < 1) {
-          throw("step.mineBlockNumber < 1")
-        }
-        // mineBlockNumberHex = `0x${step.mineBlockNumber.toString(16)}`
-        mineBlockNumberHex = `0x${(step.increaseBlockNumber-1).toString(16)}`
-        await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
-
-        lastTimestamp += step.increaseBlockNumber*30
-        await hre.network.provider.send("evm_setNextBlockTimestamp", [`0x${(lastTimestamp).toString(16)}`])
+        // lastTimestamp += step.increaseBlockNumber*30
+        // await hre.network.provider.send("evm_setNextBlockTimestamp", [`0x${(lastTimestamp).toString(16)}`])
 
         contract = contracts[step.contractName]
         signer = signers[step.signerIndex]
-        // console.log("contract: ", contract)
-        // console.log("signer: ", signer)
-        results = await contract.connect(signer)[step.functionName](...step.params, {value: step.value})
 
-        console.log("step.functionName: ", step.functionName, )
+        
+        newParams = getProcessedParams(step.params, signers)
+
+        // console.log("newParams: ", newParams)
+
+        // console.log("step.contractName: ", step.contractName, "contract: ", contract)
+
+        results = await contract.connect(signer)[step.functionName](...newParams, {value: step.value})
+
+        console.log("step.functionName: ", step.functionName, "step.contractName: ", step.contractName, "results: ", results)
 
         typeOfStepResults = typeof(step.results)
+
         if (Array.isArray(step.results)){
           
         }else if (typeOfStepResults === "object") {
@@ -237,6 +240,12 @@ describe("Liquid", function () {
             }
           }
         }else {
+          if (BigNumber.isBigNumber(results)) {
+            resultValue = results.toBigInt()
+            if (resultValue !== targetValue) {
+              throw(`return value is not match expected targetValue: ${targetValue} resultValue: ${resultValue}`)
+            }
+          }
           throw(`Unknown type of step.results ${typeOfStepResults}`)
         }
       }

@@ -85,8 +85,5 @@ console.log("borrowFee: ", borrowFee)
 
 // liquidity = BigInt(50e18) + 
 
-fig = getInterectAllocateFIG(40000, 10000)
-console.log("fig: ", fig)
-
-fig = getStakeAllocateFIG(40000, 10000)
+fig = getInterectAllocateFIG(0, 1709116196590981160)
 console.log("fig: ", fig)

@@ -127,6 +127,10 @@ describe("Liquid", function () {
         }
         await sender.sendTransaction(sendTransaction)
         signers.push(signer)
+
+
+        block = await ethers.provider.getBlock()
+        console.log("block.timestamp: ", block.timestamp)
       }
 
       const contracts = await loadFixture(deployLiquid)
@@ -140,15 +144,26 @@ describe("Liquid", function () {
       principalAndInterest = await contract.paybackAmount(BigInt(20e18), 31536000n, 82000n)
       console.log("principalAndInterest: ", principalAndInterest.toBigInt())
 
+      lastTimestamp = (await ethers.provider.getBlock()).timestamp
+
       for (step of stepList) {
 
-        if(step.functionName === "directPayback") {
-          tx = await contract.callStatic.minerBorrows(...step.params)
-          console.log("minerBorrows: ", tx)
-        }
+        // if(step.functionName === "directPayback") {
+        //   tx = await contract.callStatic.minerBorrows(...step.params)
+        //   console.log("minerBorrows: ", tx)
+        // }
 
-        mineBlockNumberHex = `0x${step.mineBlockNumber.toString(16)}`
-        await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1e"]);
+        if(step.mineBlockNumber < 2) {
+          throw("step.mineBlockNumber < 2")
+        }
+        // mineBlockNumberHex = `0x${step.mineBlockNumber.toString(16)}`
+        mineBlockNumberHex = `0x${(step.increaseBlockNumber-2).toString(16)}`
+        await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
+
+        lastTimestamp += step.increaseBlockNumber*30
+        await hre.network.provider.send("evm_setNextBlockTimestamp", [`0x${(lastTimestamp).toString(16)}`])
+
+
         contract = contracts[step.contractName]
         signer = signers[step.signerIndex]
         // console.log("signer: ", signer)
@@ -157,11 +172,20 @@ describe("Liquid", function () {
         newParams = getProcessedParams(step.params, signers)
         tx = await contract.connect(signer)[step.functionName](...newParams, {value: step.value})
         result = await tx.wait()
+
+        block = await ethers.provider.getBlock()
+        console.log("block: ", block)
+        // block = await ethers.provider.getBlock()
+        // console.log("step.functionName: ", step.functionName, "result: ", result, "block: ", block)
+
         sendTransaction = {
           to: signer.address,
           value: result.cumulativeGasUsed.toBigInt() * result.effectiveGasPrice.toBigInt()
         }
         await signers[0].sendTransaction(sendTransaction)
+
+        // await hre.network.provider.send("hardhat_mine", [`0x${(1).toString(16)}`, `0x${(98).toString(16)}`]);
+
         try {
           interestRate = await contract.interestRateBorrow(BigInt(20e18))
           console.log("interestRate: ", interestRate.toBigInt())
@@ -170,9 +194,26 @@ describe("Liquid", function () {
         }
       }
 
+      // liquidStatus = await contracts.filLiquid.getStatus()
+      // console.log("liquidStatus: ", liquidStatus)
+
       for (step of finalStateCheckList) {
-        mineBlockNumberHex = `0x${step.mineBlockNumber.toString(16)}`
-        await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1e"]);
+        // if(step.mineBlockNumber < 2) {
+        //   throw("step.mineBlockNumber < 2")
+        // }
+        // mineBlockNumberHex = `0x${(step.mineBlockNumber).toString(16)}`
+        // await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1e"]);
+
+        if(step.mineBlockNumber < 1) {
+          throw("step.mineBlockNumber < 1")
+        }
+        // mineBlockNumberHex = `0x${step.mineBlockNumber.toString(16)}`
+        mineBlockNumberHex = `0x${(step.increaseBlockNumber-1).toString(16)}`
+        await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
+
+        lastTimestamp += step.increaseBlockNumber*30
+        await hre.network.provider.send("evm_setNextBlockTimestamp", [`0x${(lastTimestamp).toString(16)}`])
+
         contract = contracts[step.contractName]
         signer = signers[step.signerIndex]
         // console.log("contract: ", contract)
@@ -199,7 +240,6 @@ describe("Liquid", function () {
           throw(`Unknown type of step.results ${typeOfStepResults}`)
         }
       }
-
     })
   })
 })

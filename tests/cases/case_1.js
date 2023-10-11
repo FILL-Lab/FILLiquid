@@ -2,7 +2,7 @@ const CASE = {
     name: "",
     stepList: [
         {
-          mineBlockNumber: 1023,
+          increaseBlockNumber: 3,
           contractName: "filLiquid",
           functionName: "collateralizingMiner",
           params: [101, "0x23"],
@@ -10,7 +10,7 @@ const CASE = {
           signerIndex: 1,
         },
         {
-          mineBlockNumber: 1023,
+          increaseBlockNumber: 4,
           contractName: "filLiquid",
           functionName: "deposit",
           params: [0],
@@ -18,7 +18,7 @@ const CASE = {
           signerIndex: 2,
         },
         {
-          mineBlockNumber: 1023,
+          increaseBlockNumber: 1023,
           contractName: "filLiquid",
           functionName: "borrow",
           params: [101, BigInt(20e18), 500000],
@@ -26,7 +26,7 @@ const CASE = {
           signerIndex: 1,
         },
         {
-          mineBlockNumber: 1051200,
+          increaseBlockNumber: 1051200-1,
           contractName: "filLiquid",
           functionName: "directPayback",
           params: [101],
@@ -36,7 +36,7 @@ const CASE = {
       ],
     finalStateCheckList: [
         {
-          mineBlockNumber: 1023,
+          increaseBlockNumber: 1023,
           contractName: "filLiquid",
           functionName: "getStatus",
           params: [],
@@ -47,7 +47,7 @@ const CASE = {
           }
         },
         {
-          mineBlockNumber: 1023,
+          increaseBlockNumber: 1023,
           contractName: "filTrust",
           functionName: "balanceOf",
           params: ["__signer2"],
@@ -58,7 +58,7 @@ const CASE = {
           }
         },
         {
-          mineBlockNumber: 1023,
+          increaseBlockNumber: 1023,
           contractName: "filGovernance",
           functionName: "balanceOf",
           params: ["__signer1"],

@@ -37,7 +37,6 @@ interface FILLiquidInterface {
         uint balance;
         uint borrowSum;
         Convertion.Integer availableBalance;
-        bool haveCollateralizing;
         BorrowInterestInfo[] borrows;
     }
     struct UserInfo {
@@ -173,7 +172,7 @@ interface FILLiquidInterface {
     /// @return user’s bound miners
     function userMiners(address account) external view returns (uint64[] memory);
 
-    /// @dev get collateralizing miner info : minerId,quota,borrowCount,paybackCount,expiration
+    /// @dev get collateralizing miner info: minerId, quota, borrowCount, paybackCount, expiration
     /// @param minerId miner id
     /// @return info return collateralizing miner info
     function getCollateralizingMinerInfo(uint64 minerId) external view returns (MinerCollateralizingInfo memory);
@@ -418,10 +417,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         require(amount > 0 && amount <= maxBorrowAllowed(minerId), "Insufficient collateral");
         uint realInterestRate = interestRateBorrow(amount);
         isHigher(expectInterestRate, realInterestRate);
-        
-        //todo: check quota and expiration is big enough
-        //MinerTypes.BeneficiaryTerm memory term = _filecoinAPI.getBeneficiary(minerId).active.term;
-        //require(collateralNeeded + collateralizingInfo.collateralAmount <= term.quota.bigInt2Uint() - term.used_quota.bigInt2Uint(), "Insufficient quota");
 
         uint borrowId = _accumulatedBorrows;
         BorrowInfo[] storage borrows = _minerBorrows[minerId];
@@ -714,7 +709,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         result.minerId = minerId;
         result.balance = FilAddress.toAddress(minerId).balance;
         result.availableBalance = _filecoinAPI.getAvailableBalance(minerId).bigInt2Integer();
-        result.haveCollateralizing = _minerCollateralizing[minerId].quota > 0;
         result.borrows = new BorrowInterestInfo[](borrows.length);
         for (uint i = 0; i < result.borrows.length; i++) {
             BorrowInfo storage info = borrows[i];
@@ -1115,7 +1109,6 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function withdrawBalance(uint64 minerId, uint withdrawnAmount) private{
         if (withdrawnAmount > 0) {
-            _minerCollateralizing[minerId].quota -= withdrawnAmount;
             (bool success, bytes memory data) = address(_filecoinAPI).delegatecall(
                 abi.encodeCall(FilecoinAPI.withdrawBalance, (minerId, withdrawnAmount))
             );

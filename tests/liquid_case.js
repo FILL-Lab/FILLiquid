@@ -226,9 +226,12 @@ describe("Liquid", function () {
 
         typeOfStepResults = typeof(step.results)
 
-        if (Array.isArray(step.results)){
+        console.log("typeOfStepResults: ", typeOfStepResults)
+
+        // if (Array.isArray(step.results)){
           
-        }else if (typeOfStepResults === "object") {
+        // }else 
+        if (typeOfStepResults === "object") {
           for (let key of Object.keys(step.results)) {
             targetValue = step.results[key]
             resultValue = results[key]
@@ -239,13 +242,19 @@ describe("Liquid", function () {
               throw(`return value is not match expected key: ${key} targetValue: ${targetValue} resultValue: ${resultValue}`)
             }
           }
-        }else {
-          if (BigNumber.isBigNumber(results)) {
-            resultValue = results.toBigInt()
-            if (resultValue !== targetValue) {
-              throw(`return value is not match expected targetValue: ${targetValue} resultValue: ${resultValue}`)
-            }
+        }else if (typeOfStepResults === "bigint") {
+          resultValue = results.toBigInt()
+          if (resultValue !== step.results) {
+            throw(`return value is not match expected step.results: ${step.results} resultValue: ${resultValue}`)
           }
+        }
+        else {
+          // if (BigNumber.isBigNumber(results)) {
+          //   resultValue = results.toBigInt()
+          //   if (resultValue !== targetValue) {
+          //     throw(`return value is not match expected targetValue: ${targetValue} resultValue: ${resultValue}`)
+          //   }
+          // }
           throw(`Unknown type of step.results ${typeOfStepResults}`)
         }
       }

@@ -1,9 +1,13 @@
+const { duration } = require("@openzeppelin/test-helpers/src/time");
 
 const BASE_RATE = 1000000n
 
 const REDEEM_FEE_RATE = 5000n
 const BORROW_FEE_RATE = 10000n
 
+principal = BigInt(50e18)
+borrowAmount = BigInt(10e18)
+durationTime = 1051200n * 30n * 1n
 
 function calculateInterect(principal, duration, annualRate, baseRate) {
   annualRateFloat = Number(annualRate) / Number(baseRate);
@@ -15,6 +19,7 @@ function calculateInterect(principal, duration, annualRate, baseRate) {
 
 
 function getAnnualRate(liquidity, borrowd, baseRate) {
+  console.log("liquidity, borrowd, baseRate: ", liquidity, borrowd, baseRate)
   u = borrowd * baseRate / liquidity
   interestRate = 10000n + (((100000n - 10000n) * baseRate / 500000n) * u) / baseRate
   // interestRate = (10000n + 180000n * u) / baseRate
@@ -24,6 +29,9 @@ function getAnnualRate(liquidity, borrowd, baseRate) {
     number = (0.6 / 0.1)
     n = Math.log(number) / Math.log(base)
     r = 0.1 * Math.pow((1 - 0.5) / (1 - uFloat), n)
+
+    console.log("r: ", r, "n: ", n, "uFloat: ", uFloat, "base: ", base)
+
     interestRate = BigInt(Math.floor(r * Number(baseRate)))
   }
   return interestRate
@@ -50,8 +58,8 @@ function getIntegralDN(total_interest, total_supply, half) {
 
 function getInterectAllocateFIG(total_interest, new_interest) {
 
-  total_supply = 480000000
-  half = 900000
+  total_supply = 480000000e18
+  half = 900000e18
   dnn = getIntegralDN(total_interest + new_interest, total_supply, half)
   dnn_1 = getIntegralDN(total_interest, total_supply, half)
   fig = dnn_1 - dnn
@@ -68,12 +76,10 @@ function getStakeAllocateFIG(total_interest, new_interest) {
   return Math.floor(fig)
 }
 
-principal = BigInt(20e18)
-
-annualRate = getAnnualRate(BigInt(50e18), principal, BASE_RATE)
+annualRate = getAnnualRate(borrowAmount, principal, BASE_RATE)
 console.log("annualRate: ", annualRate)
 
-interest = calculateInterect(principal, 1051200n * 30n, annualRate, BASE_RATE)
+interest = calculateInterect(principal, durationTime, annualRate, BASE_RATE)
 principalInterect = principal + interest
 console.log("principalInterect: ", principalInterect, "interest: ", interest)
 
@@ -85,5 +91,5 @@ console.log("borrowFee: ", borrowFee)
 
 // liquidity = BigInt(50e18) + 
 
-fig = getInterectAllocateFIG(0, 1709116196590981160)
-console.log("fig: ", fig)
+fig = getInterectAllocateFIG(0, interest)
+console.log("fig: ", fig, "fig_human", fig/1e18)

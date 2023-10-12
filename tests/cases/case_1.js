@@ -14,14 +14,14 @@ const CASE = {
           contractName: "filLiquid",
           functionName: "deposit",
           params: [0],
-          value: BigInt(50e18),
+          value: BigInt(500000e18),
           signerIndex: 2,
         },
         {
           increaseBlockNumber: 1023,
           contractName: "filLiquid",
           functionName: "borrow",
-          params: [101, BigInt(20e18), 500000],
+          params: [10323231, BigInt(20e18), 500000],
           value: BigInt(0),
           signerIndex: 1,
         },
@@ -29,7 +29,7 @@ const CASE = {
           increaseBlockNumber: 1051200,
           contractName: "filLiquid",
           functionName: "directPayback",
-          params: [101],
+          params: [10323231],
           value: BigInt(20e18),
           signerIndex: 5,
         },
@@ -43,7 +43,7 @@ const CASE = {
           value: BigInt(0),
           signerIndex: 0,
           results: {
-            totalFIL: BigInt(50e18) + 1709116196590981160n
+            totalFIL: BigInt(50e18) + 10155440213021967777792n
           }
         },
         // {
@@ -64,9 +64,7 @@ const CASE = {
           params: ["__signer5"],
           value: BigInt(0),
           signerIndex: 0,
-          results: {
-            totalFIL: 480000000n
-          }
+          results: 3739604426469114898284544n
         },
       ]
 }

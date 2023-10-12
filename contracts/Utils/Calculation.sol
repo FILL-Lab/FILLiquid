@@ -69,8 +69,7 @@ contract Calculation {
                 amountFil = amountFilLeft;
                 uint fitExhausted = divideWithUpperRound(amountFilLeft * fitTotalSupply, filLiquidity)[1];
                 if (amountFitLeft > fitExhausted) amountFitLeft -= fitExhausted;
-                else amountFitLeft = 0;
-                if (amountFitLeft == 0) return amountFilLeft;
+                else return amountFil;
             }
         }
         uint theta = amountFitLeft * rateBase / (fitTotalSupply - amountFit + amountFitLeft);

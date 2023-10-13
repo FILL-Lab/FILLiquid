@@ -1071,7 +1071,6 @@ contract FILLiquid is Context, FILLiquidInterface {
 
         address user = _minerBindsMap[minerId];
         _accumulatedBadDebt -= _badDebt[user];
-        _badDebt[user] = 0;
         uint balanceSum = 0;
         uint principleSum = 0;
         uint64[] storage miners = _userMinerPairs[user];
@@ -1082,7 +1081,7 @@ contract FILLiquid is Context, FILLiquidInterface {
                 principleSum += borrowList[j].remainingOriginalAmount;
             }
         }
-        if (balanceSum == 0) {
+        if (balanceSum == 0 || _badDebt[user] != 0) {
             _badDebt[user] = principleSum;
             _accumulatedBadDebt += principleSum;
         }

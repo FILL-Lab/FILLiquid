@@ -141,7 +141,7 @@ describe("Liquid", function () {
       let finalStateCheckList = case_1.CASE.finalStateCheckList
 
       contract = contracts.filLiquid
-      principalAndInterest = await contract.paybackAmount(BigInt(20e18), 31536000n, 82000n)
+      principalAndInterest = await contract.paybackAmount(BigInt(20000e18), 31536000n*5n, 82000n)
       console.log("principalAndInterest: ", principalAndInterest.toBigInt())
 
       lastTimestamp = (await ethers.provider.getBlock()).timestamp
@@ -175,10 +175,7 @@ describe("Liquid", function () {
         tx = await contract.connect(signer)[step.functionName](...newParams, {value: step.value})
         result = await tx.wait()
 
-        block = await ethers.provider.getBlock()
-        console.log("block: ", block)
         // block = await ethers.provider.getBlock()
-        // console.log("step.functionName: ", step.functionName, "result: ", result, "block: ", block)
 
         sendTransaction = {
           to: signer.address,
@@ -191,13 +188,14 @@ describe("Liquid", function () {
         try {
           interestRate = await contract.interestRateBorrow(BigInt(20e18))
           console.log("interestRate: ", interestRate.toBigInt())
+
+          console.log("step.functionName: ", step.functionName)
+          liquidStatus = await contracts.filLiquid.getStatus()
+          console.log("liquidStatus: ", liquidStatus)
         }catch(error) {
 
         }
       }
-
-      // liquidStatus = await contracts.filLiquid.getStatus()
-      // console.log("liquidStatus: ", liquidStatus)
 
       for (step of finalStateCheckList) {
 

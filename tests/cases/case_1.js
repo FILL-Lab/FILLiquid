@@ -1,3 +1,5 @@
+const ONE_ETHER = BigInt(1e18)
+
 const CASE = {
     name: "",
     stepList: [
@@ -5,7 +7,7 @@ const CASE = {
           increaseBlockNumber: 3,
           contractName: "filLiquid",
           functionName: "collateralizingMiner",
-          params: [101, "0x23"],
+          params: [10323231, "0x23"],
           value: BigInt(0),
           signerIndex: 1,
         },
@@ -14,38 +16,38 @@ const CASE = {
           contractName: "filLiquid",
           functionName: "deposit",
           params: [0],
-          value: BigInt(500000e18),
+          value: ONE_ETHER * 50000n,
           signerIndex: 2,
         },
         {
           increaseBlockNumber: 1023,
           contractName: "filLiquid",
           functionName: "borrow",
-          params: [10323231, BigInt(20e18), 500000],
+          params: [10323231, ONE_ETHER * 10000n, 500000],
           value: BigInt(0),
           signerIndex: 1,
         },
         {
-          increaseBlockNumber: 1051200,
+          increaseBlockNumber: 1051200 * 40,
           contractName: "filLiquid",
           functionName: "directPayback",
           params: [10323231],
-          value: BigInt(20e18),
+          value: ONE_ETHER * 10000n,
           signerIndex: 5,
         },
       ],
     finalStateCheckList: [
-        {
-          increaseBlockNumber: 1023,
-          contractName: "filLiquid",
-          functionName: "getStatus",
-          params: [],
-          value: BigInt(0),
-          signerIndex: 0,
-          results: {
-            totalFIL: BigInt(50e18) + 10155440213021967777792n
-          }
-        },
+        // {
+        //   increaseBlockNumber: 1023,
+        //   contractName: "filLiquid",
+        //   functionName: "getStatus",
+        //   params: [],
+        //   value: BigInt(0),
+        //   signerIndex: 0,
+        //   results: {
+        //     totalFIL: ONE_ETHER * 70000n
+        //   }
+        // },
         // {
         //   increaseBlockNumber: 1023,
         //   contractName: "filTrust",

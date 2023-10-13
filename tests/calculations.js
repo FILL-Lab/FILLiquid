@@ -5,8 +5,10 @@ const BASE_RATE = 1000000n
 const REDEEM_FEE_RATE = 5000n
 const BORROW_FEE_RATE = 10000n
 
-principal = BigInt(50e18)
-borrowAmount = BigInt(10e18)
+const ONE_ETHER = BigInt(1e18)
+
+principal = ONE_ETHER * 50000n
+borrowAmount = ONE_ETHER * 20000n
 durationTime = 1051200n * 30n * 1n
 
 function calculateInterect(principal, duration, annualRate, baseRate) {

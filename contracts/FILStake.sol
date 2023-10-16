@@ -265,7 +265,7 @@ contract FILStake is Context{
         return (_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share);
     }
 
-    function getContactAddrs() external view returns (address, address, address, address, address) {
+    function getContractAddrs() external view returns (address, address, address, address, address) {
         return (_filLiquid, _governance, address(_tokenFILTrust), address(_calculation), address(_tokenFILGovernance));
     }
 

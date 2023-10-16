@@ -6,7 +6,7 @@ import "@zondax/filecoin-solidity/contracts/v0.8/types/MinerTypes.sol";
 import "@zondax/filecoin-solidity/contracts/v0.8/types/CommonTypes.sol";
 
 import "./Utils/Validation.sol";
-import "./Utils/Convertion.sol";
+import "./Utils/Conversion.sol";
 import "./Utils/Calculation.sol";
 import "./Utils/FilAddress.sol";
 import "./Utils/FilecoinAPI.sol";
@@ -36,7 +36,7 @@ interface FILLiquidInterface {
         uint debtOutStanding;
         uint balance;
         uint borrowSum;
-        Convertion.Integer availableBalance;
+        Conversion.Integer availableBalance;
         BorrowInterestInfo[] borrows;
     }
     struct UserInfo {
@@ -247,7 +247,7 @@ interface FILLiquidInterface {
 }
 
 contract FILLiquid is Context, FILLiquidInterface {
-    using Convertion for *;
+    using Conversion for *;
 
     mapping(uint64 => BorrowInfo[]) private _minerBorrows;
     mapping(address => uint64[]) private _userMinerPairs;
@@ -567,10 +567,10 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function uncollateralizingMiner(uint64 minerId) external isBindMiner(minerId) haveCollateralizing(minerId) {
         require(_minerCollateralizing[minerId].borrowAmount == 0, "Payback first");
-        require(_badDebt[_minerBindsMap[minerId]] == 0, "Family with bad debt");
+        require(_badDebt[_msgSender()] == 0, "Family with bad debt");
         uint balanceSum = 0;
         uint principalAndInterestSum = 0;
-        uint64[] storage miners = _userMinerPairs[_minerBindsMap[minerId]];
+        uint64[] storage miners = _userMinerPairs[_msgSender()];
         for (uint i = 0; i < miners.length; i++) {
             if (miners[i] == minerId) continue;
             balanceSum += FilAddress.toAddress(miners[i]).balance;

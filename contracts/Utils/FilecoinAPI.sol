@@ -6,10 +6,10 @@ import "@zondax/filecoin-solidity/contracts/v0.8/MinerAPI.sol";
 import "@zondax/filecoin-solidity/contracts/v0.8/PrecompilesAPI.sol";
 import "@zondax/filecoin-solidity/contracts/v0.8/SendAPI.sol";
 
-import "./Convertion.sol";
+import "./Conversion.sol";
 
 contract FilecoinAPI{
-    using Convertion for *;
+    using Conversion for *;
 
     function getAvailableBalance(uint64 actorId) external returns (CommonTypes.BigInt memory){
         return MinerAPI.getAvailableBalance(wrapId(actorId));

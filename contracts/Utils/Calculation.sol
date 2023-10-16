@@ -45,10 +45,8 @@ contract Calculation {
             amountFilCurved[0] = amountFil;
             amountFilCurved[1] = amountFil;
         }
-        if (amountFilCurved[1] != 0) {
-            amountFilLeft -= amountFilCurved[1];
-            amountFit += ud((filLiquidity + amountFilCurved[0] - utilizedLiquidity) * uUNIT / (filLiquidity - utilizedLiquidity)).sqrt().unwrap() * fitTotalSupply / uUNIT - fitTotalSupply;
-        }
+        amountFilLeft -= amountFilCurved[1];
+        amountFit += ud((filLiquidity + amountFilCurved[0] - utilizedLiquidity) * uUNIT / (filLiquidity - utilizedLiquidity)).sqrt().unwrap() * fitTotalSupply / uUNIT - fitTotalSupply;
         if (amountFilLeft != 0) {
             amountFit += ((fitTotalSupply + amountFit) * amountFilLeft) / (filLiquidity + amountFilCurved[1]);
         }
@@ -79,7 +77,7 @@ contract Calculation {
 
     function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) external pure returns (uint) {
         if (borrowPeriod == 0 || borrowAmount == 0) return borrowAmount;
-        UD60x18 x = ud(borrowPeriod * annualRate * convertionFactor(rateBase) / ANNUM);
+        UD60x18 x = ud(borrowPeriod * annualRate * conversionFactor(rateBase) / ANNUM);
         return x.exp().intoUint256() * borrowAmount / uUNIT;
     }
 
@@ -92,7 +90,7 @@ contract Calculation {
     }
 
     function toUD60x18(uint input, uint rateBase) private pure returns (UD60x18){
-        return ud(input * convertionFactor(rateBase));
+        return ud(input * conversionFactor(rateBase));
     }
 
     function toUD60x18Direct(uint input) private pure returns (UD60x18){
@@ -100,10 +98,10 @@ contract Calculation {
     }
 
     function toUint(UD60x18 input, uint rateBase) private pure returns (uint) {
-        return input.intoUint256() / convertionFactor(rateBase);
+        return input.intoUint256() / conversionFactor(rateBase);
     }
 
-    function convertionFactor(uint rateBase) private pure returns (uint) {
+    function conversionFactor(uint rateBase) private pure returns (uint) {
         return uUNIT / rateBase;
     }
 

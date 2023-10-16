@@ -269,7 +269,7 @@ contract FILStake is Context{
         return (_filLiquid, _governance, address(_tokenFILTrust), address(_calculation), address(_tokenFILGovernance));
     }
 
-    function setContactAddrs(
+    function setContractAddrs(
         address new_filLiquid,
         address new_governance,
         address new_tokenFILTrust,

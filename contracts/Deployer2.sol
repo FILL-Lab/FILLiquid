@@ -51,7 +51,7 @@ contract Deployer2 {
         );
         emit ContractPublishing("FILLiquid", address(_filLiquid));
 
-        _filStake.setContactAddrs(
+        _filStake.setContractAddrs(
             address(_filLiquid),
             address(_governance),
             address(_filTrust),

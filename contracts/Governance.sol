@@ -321,6 +321,11 @@ contract Governance is Context {
         return _proposals[proposalId].status.info;
     }
 
+    function getVoteStatusBrief(uint proposalId) validProposalId(proposalId) external view returns (Voting memory) {
+        VotingStatusInfo storage info = _proposals[proposalId].status.info;
+        return Voting(info.amountTotal, info.amounts);
+    }
+
     function canUnbond(address sender) public returns (uint, bool, string memory) {
         if (_bondings[sender] == 0) return (0, false, "Not bonded");
         (, uint maxVote) = votingProposalSum(sender);

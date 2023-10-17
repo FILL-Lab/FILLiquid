@@ -125,7 +125,6 @@ contract Governance is Context {
 
     constructor() {
         _owner = _msgSender();
-
         _rateBase = DEFAULT_RATEBASE;
         _minYes = DEFAULT_MIN_YES;
         _maxNo = DEFAULT_MAX_NO;
@@ -155,9 +154,8 @@ contract Governance is Context {
     // If amount = 0, or amount > _bondings[sender] - maxVote, unbond the maximum possible amount
     function unbond(uint amount) external {
         address sender = _msgSender();
-        require(_bondings[sender] > 0, "Not bonded");
-        (, uint maxVote) = votingProposalSum(sender);
-        require(_bondings[sender] > maxVote, "all bond is on held for voting");
+        (uint maxVote, bool unbondable, string memory reason) = canUnbond(sender);
+        require(unbondable, reason);
         if (amount == 0 || amount > _bondings[sender] - maxVote)
             amount = _bondings[sender] - maxVote;
         _bondings[sender] -= amount;
@@ -169,7 +167,8 @@ contract Governance is Context {
     }
 
     function propose(proposolCategory category, uint discussionIndex, string memory text, uint[] memory values) external {
-        require (_proposals.length - renew1stActiveProposal() < _maxActiveProposals, "Max active proposals reached");
+        (bool proposable, string memory reason) = canPropose();
+        require(proposable, reason);
         _checkParameter(category, values);
         address sender = _msgSender();
         uint deposits = getDepositThreshold();
@@ -202,9 +201,8 @@ contract Governance is Context {
         VotingStatus storage status = p.status;
         address voter = _msgSender();
         Voting storage voting = status.voterVotings[voter];
-        require(amount >= _voteThreshold, "Voting amount too low");
-        require(info.deadline >= block.number, "Proposal voting finished");
-        require(voting.amountTotal + amount <= _bondings[voter], "Bonded FIG not enough");
+        (bool votable, string memory reason) = _canVote(voter, amount, voting.amountTotal, info.deadline);
+        require(votable, reason);
         VotingStatusInfo storage vInfo = status.info;
         if (voting.amountTotal == 0) vInfo.voters.push(voter);
         vInfo.amountTotal += amount;
@@ -218,13 +216,13 @@ contract Governance is Context {
     function execute(uint proposalId) validProposalId(proposalId) external {
         Proposal storage p = _proposals[proposalId];
         ProposalInfo storage info = p.info;
-        address sender = _msgSender();
-        require(info.deadline < block.number, "Proposal voting in progress");
-        require(!info.executed, "Already executed");
+        (bool executable, string memory reason) = _canExecute(info.deadline, info.executed);
+        require(executable, reason);
         info.executed = true;
         if (_firstActiveProposalId <= proposalId) {
             _firstActiveProposalId = proposalId + 1;
         }
+        address sender = _msgSender();
         voteResult result = _voteResult(p.status.info);
         if (result == voteResult.rejectedWithVeto) {
             (uint liquidate, uint remain) = _liquidateResult(info.deposited);
@@ -321,6 +319,29 @@ contract Governance is Context {
 
     function getVoteStatus(uint proposalId) validProposalId(proposalId) external view returns (VotingStatusInfo memory) {
         return _proposals[proposalId].status.info;
+    }
+
+    function canUnbond(address sender) public returns (uint, bool, string memory) {
+        if (_bondings[sender] == 0) return (0, false, "Not bonded");
+        (, uint maxVote) = votingProposalSum(sender);
+        if (_bondings[sender] <= maxVote) return (0, false, "all bond is on held for voting");
+        else return (maxVote, true, "");
+    }
+
+    function canPropose() public returns (bool, string memory) {
+        if (_proposals.length - renew1stActiveProposal() < _maxActiveProposals) return (true, "");
+        else return (false, "Max active proposals reached");
+    }
+
+    function canVote(uint proposalId, uint amount) external view returns (bool, string memory) {
+        Proposal storage p = _proposals[proposalId];
+        address voter = _msgSender();
+        return _canVote(voter, amount, p.status.voterVotings[voter].amountTotal, p.info.deadline);
+    }
+
+    function canExecute(uint proposalId) external view returns (bool, string memory) {
+        ProposalInfo storage info = _proposals[proposalId].info;
+        return _canExecute(info.deadline, info.executed);
     }
 
     function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
@@ -427,5 +448,18 @@ contract Governance is Context {
         if (liquidate % _rateBase == 0) liquidate /= _rateBase;
         else liquidate = liquidate / _rateBase + 1;
         remain = amount - liquidate;
+    }
+
+    function _canVote(address voter, uint amount, uint amountTotal, uint deadline) private view returns (bool, string memory) {
+        if (amount < _voteThreshold) return (false, "Voting amount too low");
+        if (deadline < block.number) return (false, "Proposal voting finished");
+        if (amountTotal + amount > _bondings[voter]) return (false, "Bonded FIG not enough");
+        else return (true, "");
+    }
+
+    function _canExecute(uint deadline, bool executed) private view returns (bool, string memory) {
+        if (deadline >= block.number) return (false, "Proposal voting in progress");
+        if (executed) return (false, "Already executed");
+        else return (true, "");
     }
 }

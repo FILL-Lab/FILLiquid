@@ -789,7 +789,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
         if (_minerBorrows[minerId].length >= _maxExistingBorrows) return (false, "Too many borrows");
         if (_filecoinAPI.getAvailableBalance(minerId).neg) return (false, "Negtive available balance");
-        if (_badDebt[_minerBindsMap[minerId]] != 0) return(false, "Family with bad debt");
+        if (_badDebt[_minerBindsMap[minerId]] != 0) return (false, "Family with bad debt");
         return (true, "");
     }
 

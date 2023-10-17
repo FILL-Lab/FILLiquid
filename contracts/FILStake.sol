@@ -157,10 +157,7 @@ contract FILStake is Context{
         _tokenFILTrust.transfer(staker, stake.amount);
         _accumulatedWithdrawn += stake.amount;
         emit Unstaked(staker, stake.id, stake.amount, stake.start, stake.end, realEnd, minted);
-
-        if (pos != stakes.length - 1) {
-            stakes[pos] = stakes[stakes.length - 1];
-        }
+        stakes[pos] = stakes[stakes.length - 1];
         stakes.pop();
     }
 
@@ -186,17 +183,19 @@ contract FILStake is Context{
         result.staker = staker;
         result.stakeSum = status.stakeSum;
         result.stakeInfos = new StakeInfo[](stakes.length);
+        uint height = block.number;
         for (uint i = 0; i < stakes.length; i++) {
             result.stakeInfos[i].stake = stakes[i];
-            result.stakeInfos[i].canWithdraw = block.number >= stakes[i].end;
+            result.stakeInfos[i].canWithdraw = height >= stakes[i].end;
         }
     }
 
     function getStakerTerms(address staker) public view returns (uint fitFixed, uint fitVariable) {
         StakerStatus storage status = _stakerStakes[staker];
         Stake[] storage stakes = status.stakes;
+        uint height = block.number;
         for (uint i = 0; i < stakes.length; i++) {
-            if (block.number >= stakes[i].end) fitVariable += stakes[i].amount;
+            if (height >= stakes[i].end) fitVariable += stakes[i].amount;
         }
         fitFixed = status.stakeSum - fitVariable;
     }
@@ -266,11 +265,11 @@ contract FILStake is Context{
         return (_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share);
     }
 
-    function getContactAddrs() external view returns (address, address, address, address, address) {
+    function getContractAddrs() external view returns (address, address, address, address, address) {
         return (_filLiquid, _governance, address(_tokenFILTrust), address(_calculation), address(_tokenFILGovernance));
     }
 
-    function setContactAddrs(
+    function setContractAddrs(
         address new_filLiquid,
         address new_governance,
         address new_tokenFILTrust,

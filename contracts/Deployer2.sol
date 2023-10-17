@@ -51,14 +51,14 @@ contract Deployer2 {
         );
         emit ContractPublishing("FILLiquid", address(_filLiquid));
 
-        _filStake.setContactAddrs(
+        _filStake.setContractAddrs(
             address(_filLiquid),
             address(_governance),
             address(_filTrust),
             address(_calculation),
             address(_filGovernance)
         );
-        _governance.setContactAddrs(
+        _governance.setContractAddrs(
             address(_filLiquid),
             address(_filStake),
             address(_filGovernance)

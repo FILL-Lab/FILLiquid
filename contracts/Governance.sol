@@ -55,7 +55,7 @@ contract Governance is Context {
     struct GovernanceInfo {
         uint bonders;
         uint totalBondedAmount;
-        uint nextProposalId;
+        uint firstActiveProposalId;
     }
     event Proposed (
         address indexed proposer,
@@ -91,7 +91,7 @@ contract Governance is Context {
     Proposal[] private _proposals;
     uint private _numberOfBonders;
     uint private _totalBondedAmount;
-    uint private _1stActiveProposalId;  // the oldest proposal still in voting phase
+    uint private _firstActiveProposalId;  // the oldest proposal still in voting phase
     uint private _rateBase;
     uint private _minYes;
     uint private _maxNo;
@@ -103,7 +103,7 @@ contract Governance is Context {
     uint private _voteThreshold;
     uint private _votingPeriod;
     uint private _executionPeriod;
-    uint private _maxActiveProposal;
+    uint private _maxActiveProposals;
     address private _owner;
 
     FILLiquid private _filLiquid;
@@ -137,7 +137,7 @@ contract Governance is Context {
         _voteThreshold = DEFAULT_VOTE_THRESHOLD;
         _votingPeriod = DEFAULT_VOTING_PERIOD;
         _executionPeriod = DEFAULT_EXECUTION_PERIOD;
-        _maxActiveProposal = DEFAULT_MAX_ACTIVE_PROPOSAL;
+        _maxActiveProposals = DEFAULT_MAX_ACTIVE_PROPOSAL;
     }
 
     function bond(uint amount) external {
@@ -169,7 +169,7 @@ contract Governance is Context {
     }
 
     function propose(proposolCategory category, uint discussionIndex, string memory text, uint[] memory values) external {
-        require (_proposals.length - renew1stActiveProposal() < _maxActiveProposal, "Max active proposals reached");
+        require (_proposals.length - renew1stActiveProposal() < _maxActiveProposals, "Max active proposals reached");
         _checkParameter(category, values);
         address sender = _msgSender();
         uint deposits = getDepositThreshold();
@@ -222,14 +222,14 @@ contract Governance is Context {
         require(info.deadline < block.number, "Proposal voting in progress");
         require(!info.executed, "Already executed");
         info.executed = true;
-        if (_1stActiveProposalId <= proposalId) {
-            _1stActiveProposalId = proposalId + 1;
+        if (_firstActiveProposalId <= proposalId) {
+            _firstActiveProposalId = proposalId + 1;
         }
         voteResult result = _voteResult(p.status.info);
         if (result == voteResult.rejectedWithVeto) {
             (uint liquidate, uint remain) = _liquidateResult(info.deposited);
             _tokenFILGovernance.transfer(sender, liquidate);
-            _tokenFILGovernance.burn(address(this), remain);
+            _tokenFILGovernance.burn(remain);
         } else {
             if (result == voteResult.approved) {
                 // according to the white paper, the execution can be done anytime after the voting process.
@@ -266,10 +266,10 @@ contract Governance is Context {
     }
 
     function renew1stActiveProposal() public returns (uint i) {
-        for (i = _1stActiveProposalId; i < _proposals.length; i++) {
+        for (i = _firstActiveProposalId; i < _proposals.length; i++) {
             if (_proposals[i].info.deadline >= block.number) break;
         }
-        _1stActiveProposalId = i;
+        _firstActiveProposalId = i;
     }
 
     function votedForProposal(address voter, uint proposalId) validProposalId(proposalId) external view returns (Voting memory) {
@@ -277,7 +277,7 @@ contract Governance is Context {
     }
 
     function getStatus() external view returns (GovernanceInfo memory) {
-        return GovernanceInfo(_numberOfBonders, _totalBondedAmount, _1stActiveProposalId);
+        return GovernanceInfo(_numberOfBonders, _totalBondedAmount, _firstActiveProposalId);
     }
 
     function getProposalInfo(uint proposalId) validProposalId(proposalId) external view returns (ProposalInfo memory) {
@@ -324,7 +324,7 @@ contract Governance is Context {
     }
 
     function getFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
-        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _quorum, _liquidate, _depositRatioThreshold, _depositAmountThreshold, _voteThreshold, _votingPeriod, _executionPeriod, _maxActiveProposal);
+        return (_rateBase, _minYes, _maxNo, _maxNoWithVeto, _quorum, _liquidate, _depositRatioThreshold, _depositAmountThreshold, _voteThreshold, _votingPeriod, _executionPeriod, _maxActiveProposals);
     }
 
     function setFactors(
@@ -339,7 +339,7 @@ contract Governance is Context {
         uint new_voteThreshold,
         uint new_votingPeriod,
         uint new_executionPeriod,
-        uint new_maxActiveProposal
+        uint new_maxActiveProposals
     ) onlyOwner external {
         require(
             new_minYes <= new_rateBase &&
@@ -358,14 +358,14 @@ contract Governance is Context {
         _voteThreshold = new_voteThreshold;
         _votingPeriod = new_votingPeriod;
         _executionPeriod = new_executionPeriod;
-        _maxActiveProposal = new_maxActiveProposal;
+        _maxActiveProposals = new_maxActiveProposals;
     }
 
-    function getContactAddrs() external view returns (address, address, address) {
+    function getContractAddrs() external view returns (address, address, address) {
         return (address(_filLiquid), address(_filStake), address(_tokenFILGovernance));
     }
 
-    function setContactAddrs(
+    function setContractAddrs(
         address new_filLiquid,
         address new_filStake,
         address new_tokenFILGovernance
@@ -405,7 +405,7 @@ contract Governance is Context {
     }
 
     // _voteResult is to calculate the vote result
-    // The invoker needs to make sure the voting period is end to call this function
+    // The invoker needs to make sure that the voting period is ended upon calling this function
     function _voteResult(VotingStatusInfo storage info) private view returns (voteResult result) {
         uint amountTotal = info.amountTotal;
         uint amountYes = info.amounts[uint(voteCategory.yes)];

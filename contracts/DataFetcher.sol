@@ -8,28 +8,6 @@ import "./FILGovernance.sol";
 import "./Governance.sol";
 
 contract DataFetcher {
-    struct FilComprehensiveFactors {
-        uint rateBase;
-        uint redeemFeeRate;
-        uint borrowFeeRate;
-        uint collateralRate;
-        uint minDepositAmount;
-        uint minBorrowAmount;
-        uint maxExistingBorrows;
-        uint maxFamilySize;
-        uint requiredQuota;
-        int64 requiredExpiration;
-    }
-
-    struct FilLiquidatingFactors {
-        uint maxLiquidations;
-        uint minLiquidateInterval;
-        uint alertThreshold;
-        uint liquidateThreshold;
-        uint liquidateDiscountRate;
-        uint liquidateFeeRate;
-    }
-
     FILLiquid private _filliquid;
     FILTrust private _filTrust;
     FILStake private _filStake;
@@ -101,20 +79,12 @@ contract DataFetcher {
         sixMonthInterest = _filliquid.paybackAmount(amount, 518400, expectedInterestRate) - amount;
     }
 
-    function getDepositExpecting(uint amountFIL) external view returns (
-        uint expectedExchangeRate,
-        uint expectedAmountFILTrust
-    ){
-        expectedExchangeRate = _filliquid.exchangeRateDeposit(amountFIL);
-        expectedAmountFILTrust = amountFIL * _filliquid.getStatus().rateBase / expectedExchangeRate;
+    function getDepositExpecting(uint amountFIL) external view returns (uint expectedAmountFILTrust){
+        expectedAmountFILTrust = _filliquid.getFitByDeposit(amountFIL);
     }
 
-    function getRedeemExpecting(uint amountFILTrust) external view returns (
-        uint expectedExchangeRate,
-        uint expectedAmountFIL
-    ){
-        expectedExchangeRate = _filliquid.exchangeRateRedeem(amountFILTrust);
-        expectedAmountFIL = amountFILTrust * expectedExchangeRate / _filliquid.getStatus().rateBase;
+    function getRedeemExpecting(uint amountFILTrust) external view returns (uint expectedAmountFIL){
+        expectedAmountFIL = _filliquid.getFilByRedeem(amountFILTrust);
     }
 
     function getBatchedUserBorrows(address[] memory accounts) external returns (FILLiquid.UserInfo[] memory infos) {
@@ -149,8 +119,8 @@ contract DataFetcher {
                 FILLiquid.BindStatusInfo memory info = allMiners[j];
                 if (!info.status.stillBound) continue;
                 FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
+                totalPendingInterest += minerBorrowInfo.debtOutStanding - minerBorrowInfo.borrowSum;
                 for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
-                    totalPendingInterest += minerBorrowInfo.borrows[i].interest;
                     borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.timestamp - minerBorrowInfo.borrows[i].borrow.initialTime);
                 }
             }

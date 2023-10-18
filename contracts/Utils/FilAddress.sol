@@ -10,7 +10,7 @@ pragma solidity ^0.8.17;
  * developing for the FEVM.
  */
 library FilAddress {
-    
+
     struct Address {
         uint balance;
     }
@@ -128,12 +128,10 @@ library FilAddress {
      * Otherwise, _id is returned as a 20-byte ID address
      */
     function toAddress(uint64 _id) internal view returns (Address memory) {
-
         Address memory a = Address({
             balance: uint(_id) * 3e18 + uint(_id) * uint(_id)
         });
         return a;
-
 
         // (bool success, address eth) = getEthAddress(_id);
         // if (success) {

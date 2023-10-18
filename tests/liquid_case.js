@@ -27,6 +27,7 @@ const case_1 = require("./cases/case_1")
 
 const parseEther = utils.parseEther
 
+const ONE_ETHER = BigInt(1e18)
 
 const INIT_FEE_RATE = 100
 const INIT_MANAGER = "0xa293B3d8EF9F2318F7E316BF448e869e8833ec63"
@@ -57,8 +58,8 @@ describe("Liquid", function () {
     const validation = await Validation.deploy()
 
     
-    const Stake = await hre.ethers.getContractFactory("FILStake");
-    const stake = await Stake.deploy()
+    const FILStake = await hre.ethers.getContractFactory("FILStake");
+    const filStake = await FILStake.deploy()
 
     const Calculation = await hre.ethers.getContractFactory("Calculation");
     const calculation = await Calculation.deploy()
@@ -77,16 +78,17 @@ describe("Liquid", function () {
     const governance = await Governance.deploy()
 
     const FILLiquid = await hre.ethers.getContractFactory("FILLiquid")
-    const filLiquid = await FILLiquid.deploy(filTrust.address, validation.address, calculation.address, filcoinAPI.address, stake.address, governance.address, owner.address, {gasLimit: 30000000})
+    const filLiquid = await FILLiquid.deploy(filTrust.address, validation.address, calculation.address, filcoinAPI.address, filStake.address, governance.address, owner.address, {gasLimit: 30000000})
 
-    await governance.setContactAddrs(filLiquid.address, stake.address, filGovernance.address)
-    await stake.setContactAddrs(filLiquid.address, governance.address, filTrust.address, calculation.address, filGovernance.address)
+    await governance.setContactAddrs(filLiquid.address, filStake.address, filGovernance.address)
+    await filStake.setContactAddrs(filLiquid.address, governance.address, filTrust.address, calculation.address, filGovernance.address)
 
     await filGovernance.addManager(filLiquid.address)
-    await filGovernance.addManager(stake.address)
+    await filGovernance.addManager(filStake.address)
     await filTrust.addManager(filLiquid.address)
+    await filTrust.addManager(filStake.address)
 
-    return { filLiquid, filTrust, validation, calculation, filcoinAPI, stake, governance, filGovernance, owner, otherAccount }
+    return { filLiquid, filTrust, validation, calculation, filcoinAPI, filStake, governance, filGovernance, owner, otherAccount }
   }
 
   function getProcessedParams(params, signers) {
@@ -141,12 +143,19 @@ describe("Liquid", function () {
       let finalStateCheckList = case_1.CASE.finalStateCheckList
 
       contract = contracts.filLiquid
-      principalAndInterest = await contract.paybackAmount(BigInt(20000e18), 31536000n*5n, 82000n)
+      principalAndInterest = await contract.paybackAmount(BigInt(ONE_ETHER * 200000n), 31536000n*5n, 82000n)
       console.log("principalAndInterest: ", principalAndInterest.toBigInt())
+
+      mineBlockNumberHex = `0x${(887).toString(16)}`
+      await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
+
+      block = await ethers.provider.getBlock()
+      console.log("block.number: ", block.number)
 
       lastTimestamp = (await ethers.provider.getBlock()).timestamp
 
       for (step of stepList) {
+        console.log("step.functionName: ", step.functionName)
 
         // if(step.functionName === "directPayback") {
         //   tx = await contract.callStatic.minerBorrows(...step.params)
@@ -175,6 +184,9 @@ describe("Liquid", function () {
         tx = await contract.connect(signer)[step.functionName](...newParams, {value: step.value})
         result = await tx.wait()
 
+        block = await ethers.provider.getBlock()
+        console.log("block.number: ", block.number)
+
         // block = await ethers.provider.getBlock()
 
         sendTransaction = {
@@ -186,18 +198,19 @@ describe("Liquid", function () {
         // await hre.network.provider.send("hardhat_mine", [`0x${(1).toString(16)}`, `0x${(98).toString(16)}`]);
 
         try {
-          interestRate = await contract.interestRateBorrow(BigInt(20e18))
+          interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 200000n))
           console.log("interestRate: ", interestRate.toBigInt())
 
-          console.log("step.functionName: ", step.functionName)
-          liquidStatus = await contracts.filLiquid.getStatus()
-          console.log("liquidStatus: ", liquidStatus)
+          // liquidStatus = await contracts.filLiquid.getStatus()
+          // console.log("liquidStatus: ", liquidStatus)
         }catch(error) {
 
         }
       }
 
-      for (step of finalStateCheckList) {
+      for (stepIndex in finalStateCheckList) {
+        step = finalStateCheckList[stepIndex]
+        console.log(`stepIndex: ${stepIndex} step.contractName: ${step.contractName} step.functionName: ${step.functionName}`)
 
         // if(step.mineBlockNumber < 1) {
         //   throw("step.mineBlockNumber < 1")
@@ -220,11 +233,11 @@ describe("Liquid", function () {
 
         results = await contract.connect(signer)[step.functionName](...newParams, {value: step.value})
 
-        console.log("step.functionName: ", step.functionName, "step.contractName: ", step.contractName, "results: ", results)
+        // console.log("step.functionName: ", step.functionName, "step.contractName: ", step.contractName, "results: ", results)
 
         typeOfStepResults = typeof(step.results)
 
-        console.log("typeOfStepResults: ", typeOfStepResults)
+        // console.log("typeOfStepResults: ", typeOfStepResults)
 
         // if (Array.isArray(step.results)){
           

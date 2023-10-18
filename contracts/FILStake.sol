@@ -37,21 +37,21 @@ contract FILStake is Context{
         uint nextStakeID;
     }
     event Interest(
-        address mintee,
+        address indexed minter,
         uint amount,
         uint minted
     );
     event Staked(
-        address staker,
-        uint id,
+        address indexed staker,
+        uint indexed id,
         uint amount,
         uint start,
         uint end,
         uint minted
     );
     event Unstaked(
-        address staker,
-        uint id,
+        address indexed staker,
+        uint indexed id,
         uint amount,
         uint start,
         uint end,
@@ -74,7 +74,7 @@ contract FILStake is Context{
     uint private _accumulatedStakeMint;
     uint private _accumulatedWithdrawn;
 
-    uint private _n_interest; // 曲线参数
+    uint private _n_interest;
     uint private _n_stake;
     uint private _minStakePeriod;
     uint private _maxStakePeriod;
@@ -112,11 +112,11 @@ contract FILStake is Context{
         _stake_share = DEFAULT_STAKE_SHARE;
     }
 
-    function handleInterest(address mintee, uint amount) onlyFilLiquid external returns (uint minted) {
+    function handleInterest(address minter, uint amount) onlyFilLiquid external returns (uint minted) {
         (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(amount);
         _accumulatedInterest += amount;
-        if (minted > 0) _tokenFILGovernance.mint(mintee, minted);
-        emit Interest(mintee, amount, minted);
+        if (minted > 0) _tokenFILGovernance.mint(minter, minted);
+        emit Interest(minter, amount, minted);
     }
 
     function stakeFilTrust(uint amount, uint maxStart, uint duration) external returns (uint minted) {
@@ -237,7 +237,6 @@ contract FILStake is Context{
 
     function getStatus() external view returns (FILStakeInfo memory) {
         return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID);
-        // 6949147218225114,8100000000000000000,699840000000000000000000,2568950286891029975338,61249002803585745053567,0,4
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {

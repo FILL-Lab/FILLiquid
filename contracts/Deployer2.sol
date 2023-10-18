@@ -10,7 +10,6 @@ import "./Deployer1.sol";
 import "./FILStake.sol";
 import "./Governance.sol";
 import "./FILLiquid.sol";
-import "./DataFetcher.sol";
 
 contract Deployer2 {
     FILStake private _filStake;

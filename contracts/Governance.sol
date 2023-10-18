@@ -20,9 +20,9 @@ contract Governance is Context {
         abstain
     }
     enum voteResult {
-        success,
-        fail,
-        failWithVeto,
+        approved,
+        rejected,
+        rejectedWithVeto,
         pending
     }
     struct Voting {
@@ -58,40 +58,40 @@ contract Governance is Context {
         uint nextProposalId;
     }
     event Proposed (
-        uint proposalId,
+        address indexed proposer,
+        uint indexed proposalId,
+        uint indexed discussionIndex,
         proposolCategory category,
         uint deadline,
         uint deposited,
-        uint discussionIndex,
         string text,
-        address proposer,
         uint[] values
     );
     event Bonded (
-        address bonder,
+        address indexed bonder,
         uint amount
     );
     event Unbonded (
-        address bonder,
+        address indexed bonder,
         uint amount
     );
     event Voted (
-        uint proposalId,
+        address indexed voter,
+        uint indexed proposalId,
         voteCategory category,
-        uint amount,
-        address voter
+        uint amount
     );
     event Executed (
-        uint proposalId,
-        voteResult result,
-        address executor
+        address indexed executor,
+        uint indexed proposalId,
+        voteResult result
     );
 
     mapping(address => uint) private _bondings;
     Proposal[] private _proposals;
-    uint private _bonders;
+    uint private _numberOfBonders;
     uint private _totalBondedAmount;
-    uint private _nextProposalId;
+    uint private _1stActiveProposalId;  // the oldest proposal still in voting phase
     uint private _rateBase;
     uint private _minYes;
     uint private _maxNo;
@@ -116,8 +116,8 @@ contract Governance is Context {
     uint constant DEFAULT_MAX_NO_WITH_VETO = 333333;
     uint constant DEFAULT_QUORUM = 400000;
     uint constant DEFAULT_LIQUIDATE = 200000;
-    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 100;
-    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e20;
+    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 100;    // 0.01% (100/1000000)
+    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e20;  // 500FIG 
     uint constant DEFAULT_VOTE_THRESHOLD = 1e19;
     uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days
     uint constant DEFAULT_EXECUTION_PERIOD = 20160; // 7 days
@@ -143,29 +143,33 @@ contract Governance is Context {
     function bond(uint amount) external {
         address sender = _msgSender();
         _tokenFILGovernance.withdraw(sender, amount);
-        if (_bondings[sender] == 0) _bonders++;
+        if (_bondings[sender] == 0) _numberOfBonders++;
         _bondings[sender] += amount;
         _totalBondedAmount += amount;
 
         emit Bonded(sender, amount);
     }
 
+    // Unbond is to withdraw FIG from the governance contract
+    // Only _bondings[sender] - maxVote can be unbonded
+    // If amount = 0, or amount > _bondings[sender] - maxVote, unbond the maximum possible amount
     function unbond(uint amount) external {
         address sender = _msgSender();
         require(_bondings[sender] > 0, "Not bonded");
         (, uint maxVote) = votingProposalSum(sender);
-        require(amount <= _bondings[sender] - maxVote, "Invalid amount");
-        if (amount == 0) amount = _bondings[sender];
+        require(_bondings[sender] > maxVote, "all bond is on held for voting");
+        if (amount == 0 || amount > _bondings[sender] - maxVote)
+            amount = _bondings[sender] - maxVote;
         _bondings[sender] -= amount;
         _totalBondedAmount -= amount;
-        if (_bondings[sender] == 0) _bonders--;
+        if (_bondings[sender] == 0) _numberOfBonders--;
         _tokenFILGovernance.transfer(sender, amount);
 
         emit Unbonded(sender, amount);
     }
 
     function propose(proposolCategory category, uint discussionIndex, string memory text, uint[] memory values) external {
-        require (_proposals.length - renewFirstVotingProposal() < _maxActiveProposal, "Max active proposals reached");
+        require (_proposals.length - renew1stActiveProposal() < _maxActiveProposal, "Max active proposals reached");
         _checkParameter(category, values);
         address sender = _msgSender();
         uint deposits = getDepositThreshold();
@@ -181,13 +185,13 @@ contract Governance is Context {
         info.values = values;
 
         emit Proposed(
+            info.proposer,
             _proposals.length - 1,
+            info.discussionIndex,
             info.category,
             info.deadline,
             info.deposited,
-            info.discussionIndex,
             info.text,
-            info.proposer,
             info.values
         );
     }
@@ -199,8 +203,8 @@ contract Governance is Context {
         address voter = _msgSender();
         Voting storage voting = status.voterVotings[voter];
         require(amount >= _voteThreshold, "Voting amount too low");
-        require(info.deadline >= block.number, "Proposal finished");
-        require(voting.amountTotal + amount <= _bondings[voter], "Invalid amount");
+        require(info.deadline >= block.number, "Proposal voting finished");
+        require(voting.amountTotal + amount <= _bondings[voter], "Bonded FIG not enough");
         VotingStatusInfo storage vInfo = status.info;
         if (voting.amountTotal == 0) vInfo.voters.push(voter);
         vInfo.amountTotal += amount;
@@ -208,7 +212,7 @@ contract Governance is Context {
         voting.amountTotal += amount;
         voting.amounts[uint(category)] += amount;
 
-        emit Voted(proposalId, category, amount, voter);
+        emit Voted(voter, proposalId, category, amount);
     }
 
     function execute(uint proposalId) validProposalId(proposalId) external {
@@ -218,20 +222,24 @@ contract Governance is Context {
         require(info.deadline < block.number, "Proposal voting in progress");
         require(!info.executed, "Already executed");
         info.executed = true;
-        if (_nextProposalId <= proposalId) {
-            _nextProposalId = proposalId + 1;
+        if (_1stActiveProposalId <= proposalId) {
+            _1stActiveProposalId = proposalId + 1;
         }
         voteResult result = _voteResult(p.status.info);
-        if (result == voteResult.failWithVeto) {
+        if (result == voteResult.rejectedWithVeto) {
             (uint liquidate, uint remain) = _liquidateResult(info.deposited);
             _tokenFILGovernance.transfer(sender, liquidate);
             _tokenFILGovernance.burn(address(this), remain);
         } else {
-            if (info.deadline + _executionPeriod >= block.number) {
-                if (result == voteResult.success) {
-                    if (info.category == proposolCategory.filLiquid) _filLiquid.setGovernanceFactors(info.values);
-                    else if (info.category == proposolCategory.filStake) _filStake.setGovernanceFactors(info.values);
+            if (result == voteResult.approved) {
+                // according to the white paper, the execution can be done anytime after the voting process.
+                if (info.category == proposolCategory.filLiquid) {
+                    _filLiquid.setGovernanceFactors(info.values);
+                } else if (info.category == proposolCategory.filStake) {
+                    _filStake.setGovernanceFactors(info.values);
                 }
+            }
+            if (info.deadline + _executionPeriod >= block.number) {
                 _tokenFILGovernance.transfer(info.proposer, info.deposited);
             } else {
                 (uint liquidate, uint remain) = _liquidateResult(info.deposited);
@@ -240,11 +248,11 @@ contract Governance is Context {
             }
         }
 
-        emit Executed(proposalId, result, _msgSender());
+        emit Executed(_msgSender(), proposalId, result);
     }
 
     function votingProposalSum(address bonder) public returns (uint count, uint maxVote) {
-        for (uint i = renewFirstVotingProposal(); i < _proposals.length; i++) {
+        for (uint i = renew1stActiveProposal(); i < _proposals.length; i++) {
             uint amount = _proposals[i].status.voterVotings[bonder].amountTotal;
             if (amount > 0) {
                 if (amount > maxVote) maxVote = amount;
@@ -257,11 +265,11 @@ contract Governance is Context {
         return _bondings[bonder];
     }
 
-    function renewFirstVotingProposal() public returns (uint i) {
-        for (i = _nextProposalId; i < _proposals.length; i++) {
+    function renew1stActiveProposal() public returns (uint i) {
+        for (i = _1stActiveProposalId; i < _proposals.length; i++) {
             if (_proposals[i].info.deadline >= block.number) break;
         }
-        _nextProposalId = i;
+        _1stActiveProposalId = i;
     }
 
     function votedForProposal(address voter, uint proposalId) validProposalId(proposalId) external view returns (Voting memory) {
@@ -269,7 +277,7 @@ contract Governance is Context {
     }
 
     function getStatus() external view returns (GovernanceInfo memory) {
-        return GovernanceInfo(_bonders, _totalBondedAmount, _nextProposalId);
+        return GovernanceInfo(_numberOfBonders, _totalBondedAmount, _1stActiveProposalId);
     }
 
     function getProposalInfo(uint proposalId) validProposalId(proposalId) external view returns (ProposalInfo memory) {
@@ -280,12 +288,17 @@ contract Governance is Context {
         return _proposals.length;
     }
 
+    /// getDepositThreshold is to get the required amount of FIG tokens for a proposal to deposit
+    /// From the white paper: 
+    ///     To prevent spam, proposals must be accompanied by a deposit of FIG tokens from the proposer.
+    ///     Proposals that have been deposited with at least the higher of 0.01% of FIG circulating supply or 
+    ///     500 FIG, will proceed to voting stage.      
     function getDepositThreshold() public view returns (uint result) {
         result = _depositRatioThreshold * _tokenFILGovernance.totalSupply() / _rateBase;
         if (result < _depositAmountThreshold) result = _depositAmountThreshold;
     }
 
-    function getVoteResult(uint proposalId) validProposalId(proposalId) external view returns (
+    function getVoteResult(uint proposalId) validProposalId(proposalId) external returns (
         uint amountTotal,
         uint amountYes,
         uint amountNo,
@@ -298,7 +311,12 @@ contract Governance is Context {
         amountNo = info.amounts[uint(voteCategory.no)];
         amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
         amountAbstain = info.amounts[uint(voteCategory.abstain)];
-        result = _voteResult(info);
+
+        if (renew1stActiveProposal() > proposalId) {
+            result = _voteResult(info);
+        } else { // The voting is still in progress
+            result = voteResult.pending;
+        }
     }
 
     function getVoteStatus(uint proposalId) validProposalId(proposalId) external view returns (VotingStatusInfo memory) {
@@ -386,19 +404,21 @@ contract Governance is Context {
         }
     }
 
+    // _voteResult is to calculate the vote result
+    // The invoker needs to make sure the voting period is end to call this function
     function _voteResult(VotingStatusInfo storage info) private view returns (voteResult result) {
         uint amountTotal = info.amountTotal;
         uint amountYes = info.amounts[uint(voteCategory.yes)];
         uint amountNo = info.amounts[uint(voteCategory.no)];
         uint amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
         if (amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
-            result = voteResult.failWithVeto;
+            result = voteResult.rejectedWithVeto;
         } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {
-            result = voteResult.fail;
+            result = voteResult.rejected;
         } else if (amountYes * _rateBase >= amountTotal * _minYes && amountTotal * _rateBase >= _totalBondedAmount * _quorum) {
-            result = voteResult.success;
+            result = voteResult.approved;
         } else {
-            result = voteResult.pending;
+            result = voteResult.rejected;
         }
     }
 

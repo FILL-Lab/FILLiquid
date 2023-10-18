@@ -8,8 +8,9 @@ const BORROW_FEE_RATE = 10000n
 const ONE_ETHER = BigInt(1e18)
 
 principal = ONE_ETHER * 50000n
-borrowAmount = ONE_ETHER * 20000n
+borrowAmount = 151363557022570715200000n
 durationTime = 1051200n * 30n * 1n
+liquidity = ONE_ETHER * 500000n + 101363557022570715200000n
 
 function calculateInterect(principal, duration, annualRate, baseRate) {
   annualRateFloat = Number(annualRate) / Number(baseRate);
@@ -25,6 +26,7 @@ function getAnnualRate(liquidity, borrowd, baseRate) {
   u = borrowd * baseRate / liquidity
   interestRate = 10000n + (((100000n - 10000n) * baseRate / 500000n) * u) / baseRate
   // interestRate = (10000n + 180000n * u) / baseRate
+  console.log("u: ", u)
   if (u > (baseRate / 2n)) {
     uFloat = Number(u) / Number(baseRate)
     base = (1 - 0.5) / (1 - 0.9)
@@ -51,34 +53,40 @@ function getFee(amount, rate, rateBase) {
 
 
 function getIntegralDN(total_interest, total_supply, half) {
+  total_interest = Number(total_interest)
+  total_supply = Number(total_supply)
+  half = Number(half)
+
   nn = total_interest / half
+
   fnn = Math.pow(2, nn)
   dn = total_supply / fnn
-  return dn
+  return BigInt(dn)
 }
 
 
 function getInterectAllocateFIG(total_interest, new_interest) {
 
-  total_supply = 480000000e18
-  half = 900000e18
+  total_supply = BigInt(480000000e18)
+  half = BigInt(900000e18)
   dnn = getIntegralDN(total_interest + new_interest, total_supply, half)
   dnn_1 = getIntegralDN(total_interest, total_supply, half)
   fig = dnn_1 - dnn
-  return Math.floor(fig)
+  return fig
+  // return BigInt(Math.floor(fig))
 }
 
 
-function getStakeAllocateFIG(total_interest, new_interest) {
+function getStakeAllocateFIG(total_stake, new_stake) {
   total_supply = 720000000
   half = 5550000
-  dnn = getIntegralDN(total_interest + new_interest, total_supply, half)
-  dnn_1 = getIntegralDN(total_interest, total_supply, half)
+  dnn = getIntegralDN(total_stake + new_stake, total_supply, half)
+  dnn_1 = getIntegralDN(total_stake, total_supply, half)
   fig = dnn_1 - dnn
   return Math.floor(fig)
 }
 
-annualRate = getAnnualRate(borrowAmount, principal, BASE_RATE)
+annualRate = getAnnualRate(liquidity, borrowAmount, BASE_RATE)
 console.log("annualRate: ", annualRate)
 
 interest = calculateInterect(principal, durationTime, annualRate, BASE_RATE)
@@ -93,5 +101,14 @@ console.log("borrowFee: ", borrowFee)
 
 // liquidity = BigInt(50e18) + 
 
-fig = getInterectAllocateFIG(0, interest)
-console.log("fig: ", fig, "fig_human", fig/1e18)
+// fig = getInterectAllocateFIG(0n, interest)
+// console.log("fig: ", fig, "fig_human", Number(fig)/1e18)
+
+
+
+// figStake = getStakeAllocateFIG(0n, 500000n * ONE_ETHER)
+// console.log("figStake: ", fig, "figStakeHuman", fig/1e18)
+
+
+r = ONE_ETHER * 500000n * (1051200n / 2n)
+console.log("r: ", r)

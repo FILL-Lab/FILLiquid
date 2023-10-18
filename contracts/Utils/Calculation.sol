@@ -9,7 +9,7 @@ uint256 constant ANNUM = 31536000;
 contract Calculation {
     function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) external pure returns (uint) {
         require(u < rateBase, "Utilization rate cannot be bigger than 1.");
-        if (u <= u_1) return     r_0 + ((r_1 - r_0) * u) / u_1;
+        if (u <= u_1) return r_0 + ((r_1 - r_0) * u) / u_1;
         UD60x18 base = toUD60x18((rateBase * (rateBase - u_1)) / (rateBase - u), rateBase);
         UD60x18 exp = ud(n);
         return toUint(base.pow(exp), rateBase) * r_1 / rateBase;
@@ -20,28 +20,23 @@ contract Calculation {
         require(n >= uUNIT, "Invalid N");
     }
 
-    function getExchangeRate(uint u, uint u_m, uint j_n, uint rateBase, uint fleLiquidity, uint filLiquidity) external pure returns (uint) {
+    function getExchangeRate(uint u, uint u_m, uint j_n, uint rateBase, uint fitLiquidity, uint filLiquidity) external pure returns (uint) {
         require(u < rateBase, "Utilization rate cannot be bigger than 1.");
-        uint fleFil = rateBase;
-        if (fleLiquidity != 0 && fleLiquidity != filLiquidity) {
-            fleFil = fleLiquidity * rateBase / filLiquidity;
+        uint filFit = rateBase;
+        if (fitLiquidity != 0 && fitLiquidity != filLiquidity) {
+            filFit = filLiquidity * rateBase / fitLiquidity;
         }
-        if (u <= u_m) return fleFil;
+        if (u <= u_m) return filFit;
         uint base = (rateBase * (rateBase - u_m)) / (rateBase - u);
         uint exp = (u - u_m) * j_n / rateBase;
         uint m_u = pow(base, exp, rateBase);
-        return m_u * fleFil / rateBase;
+        return filFit * rateBase / m_u;
     }
 
     function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) external pure returns (uint) {
         if (borrowPeriod == 0 || borrowAmount == 0) return borrowAmount;
         UD60x18 x = ud(borrowPeriod * annualRate * conventionFactor(rateBase) / ANNUM);
         return x.exp().intoUint256() * borrowAmount / uUNIT;
-    }
-
-    function getExp(uint num) external pure returns (uint) {
-        UD60x18 x = ud(num);
-        return x.exp().intoUint256();
     }
 
     function getMinted(uint current, uint amount, uint n, uint total, uint lastAccumulated) external pure returns(uint, uint) {

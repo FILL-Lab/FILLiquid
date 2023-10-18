@@ -82,17 +82,15 @@ const CASE = {
             rateBase: RATE_BASE
           }
         },
-        // {
-        //   increaseBlockNumber: 1023,
-        //   contractName: "filTrust",
-        //   functionName: "balanceOf",
-        //   params: ["__signer2"],
-        //   value: BigInt(0),
-        //   signerIndex: 0,
-        //   results: {
-        //     totalFIL: BigInt(50e18)
-        //   }
-        // },
+        {
+          increaseBlockNumber: 1023,
+          contractName: "filTrust",
+          functionName: "balanceOf",
+          params: ["__signer2"],
+          value: BigInt(0),
+          signerIndex: 0,
+          results: 0n
+        },
         {
           increaseBlockNumber: 1023,
           contractName: "filGovernance",
@@ -110,6 +108,33 @@ const CASE = {
           value: BigInt(0),
           signerIndex: 0,
           results: 22636406937969680296986392n
+        },
+        {
+          increaseBlockNumber: 1023,
+          contractName: "filTrust",
+          functionName: "balanceOf",
+          params: ["__signer5"],
+          value: BigInt(0),
+          signerIndex: 0,
+          results: 0n
+        },
+        {
+          increaseBlockNumber: 1023,
+          contractName: "filTrust",
+          functionName: "balanceOf",
+          params: ["__signer1"],
+          value: BigInt(0),
+          signerIndex: 0,
+          results: 0n
+        },
+        {
+          increaseBlockNumber: 1023,
+          contractName: "filGovernance",
+          functionName: "balanceOf",
+          params: ["__signer1"],
+          value: BigInt(0),
+          signerIndex: 0,
+          results: 0n
         },
       ]
 }

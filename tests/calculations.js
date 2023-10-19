@@ -7,9 +7,9 @@ const BORROW_FEE_RATE = 10000n
 
 const ONE_ETHER = BigInt(1e18)
 
-principal = ONE_ETHER * 50000n
-borrowAmount = 151363557022570715200000n
-durationTime = 1051200n * 30n * 1n
+principal = ONE_ETHER * 140000n
+borrowAmount = ONE_ETHER * 50000n + 101363557022570715200000n + ONE_ETHER * 140000n
+durationTime = 1051200n / 2n * 30n * 1n
 liquidity = ONE_ETHER * 500000n + 101363557022570715200000n
 
 function calculateInterect(principal, duration, annualRate, baseRate) {
@@ -88,6 +88,10 @@ function getStakeAllocateFIG(total_stake, new_stake) {
 
 annualRate = getAnnualRate(liquidity, borrowAmount, BASE_RATE)
 console.log("annualRate: ", annualRate)
+
+principal = ONE_ETHER * 140000n
+annualRate = 97210n
+durationTime = (1051200n / 2n) * 30n * 1n
 
 interest = calculateInterect(principal, durationTime, annualRate, BASE_RATE)
 principalInterect = principal + interest

@@ -23,7 +23,7 @@ const { assert } = require("console")
 const { transaction } = require("@openzeppelin/test-helpers/src/send")
 const { duration } = require("@openzeppelin/test-helpers/src/time")
 
-const case_1 = require("./cases/case_1")
+const case_1 = require("./cases/case_4")
 
 const parseEther = utils.parseEther
 
@@ -154,8 +154,9 @@ describe("Liquid", function () {
 
       lastTimestamp = (await ethers.provider.getBlock()).timestamp
 
-      for (step of stepList) {
-        console.log("step.functionName: ", step.functionName)
+      for (stepIndex in stepList) {
+        step = stepList[stepIndex]
+        console.log(`checkStepIndex: ${stepIndex} step.contractName: ${step.contractName} step.functionName: ${step.functionName}`)
 
         // if(step.functionName === "directPayback") {
         //   tx = await contract.callStatic.minerBorrows(...step.params)
@@ -198,11 +199,11 @@ describe("Liquid", function () {
         // await hre.network.provider.send("hardhat_mine", [`0x${(1).toString(16)}`, `0x${(98).toString(16)}`]);
 
         try {
-          interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 200000n))
-          console.log("interestRate: ", interestRate.toBigInt())
+          // interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 200000n))
+          // console.log("interestRate: ", interestRate.toBigInt())
 
-          // liquidStatus = await contracts.filLiquid.getStatus()
-          // console.log("liquidStatus: ", liquidStatus)
+          liquidStatus = await contracts.filLiquid.getStatus()
+          console.log("liquidStatus: ", liquidStatus)
         }catch(error) {
 
         }
@@ -210,7 +211,7 @@ describe("Liquid", function () {
 
       for (stepIndex in finalStateCheckList) {
         step = finalStateCheckList[stepIndex]
-        console.log(`stepIndex: ${stepIndex} step.contractName: ${step.contractName} step.functionName: ${step.functionName}`)
+        console.log(`checkStepIndex: ${stepIndex} step.contractName: ${step.contractName} step.functionName: ${step.functionName}`)
 
         // if(step.mineBlockNumber < 1) {
         //   throw("step.mineBlockNumber < 1")

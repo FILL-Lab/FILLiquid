@@ -23,7 +23,7 @@ const { assert } = require("console")
 const { transaction } = require("@openzeppelin/test-helpers/src/send")
 const { duration } = require("@openzeppelin/test-helpers/src/time")
 
-const case_1 = require("./cases/case_4")
+const case_1 = require("./cases/case_5")
 
 const parseEther = utils.parseEther
 
@@ -199,11 +199,20 @@ describe("Liquid", function () {
         // await hre.network.provider.send("hardhat_mine", [`0x${(1).toString(16)}`, `0x${(98).toString(16)}`]);
 
         try {
-          // interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 200000n))
-          // console.log("interestRate: ", interestRate.toBigInt())
+          interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 320000n))
+          console.log("interestRate: ", interestRate.toBigInt())
 
-          liquidStatus = await contracts.filLiquid.getStatus()
-          console.log("liquidStatus: ", liquidStatus)
+          
+          
+          maxBorrowAllowedByUtilization = await contract.maxBorrowAllowedByUtilization()
+          totalFILLiquidity = await contract.totalFILLiquidity()
+          utilizedLiquidity = await contract.utilizedLiquidity()
+          console.log("maxBorrowAllowedByUtilization: ", maxBorrowAllowedByUtilization.toBigInt())
+          console.log("totalFILLiquidity: ", totalFILLiquidity.toBigInt())
+          console.log("utilizedLiquidity: ", utilizedLiquidity.toBigInt())
+
+          // liquidStatus = await contracts.filLiquid.getStatus()
+          // console.log("liquidStatus: ", liquidStatus)
         }catch(error) {
 
         }

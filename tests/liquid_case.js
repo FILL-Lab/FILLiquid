@@ -23,7 +23,7 @@ const { assert } = require("console")
 const { transaction } = require("@openzeppelin/test-helpers/src/send")
 const { duration } = require("@openzeppelin/test-helpers/src/time")
 
-const case_1 = require("./cases/case_5")
+const case_1 = require("./cases/case_6")
 
 const parseEther = utils.parseEther
 
@@ -211,8 +211,8 @@ describe("Liquid", function () {
           console.log("totalFILLiquidity: ", totalFILLiquidity.toBigInt())
           console.log("utilizedLiquidity: ", utilizedLiquidity.toBigInt())
 
-          // liquidStatus = await contracts.filLiquid.getStatus()
-          // console.log("liquidStatus: ", liquidStatus)
+          liquidStatus = await contracts.filLiquid.getStatus()
+          console.log("liquidStatus: ", liquidStatus)
         }catch(error) {
 
         }

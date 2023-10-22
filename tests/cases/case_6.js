@@ -71,6 +71,30 @@ const CASE = {
           value: ONE_ETHER * 200000n,
           signerIndex: 11,
         },
+        {
+          increaseBlockNumber: 2880 * 170,
+          contractName: "filLiquid",
+          functionName: "directPayback",
+          params: [4323231],
+          value: ONE_ETHER * 200000n,
+          signerIndex: 11,
+        },
+        {
+          increaseBlockNumber: 2880 * 30,
+          contractName: "filStake",
+          functionName: "unStakeFilTrust",
+          params: [0],
+          value: 0,
+          signerIndex: 2,
+        },
+        {
+          increaseBlockNumber: 2880 * 25,
+          contractName: "filLiquid",
+          functionName: "redeem",
+          params: [180000n * ONE_ETHER, 10],
+          value: 0,
+          signerIndex: 2,
+        },
       ],
     finalStateCheckList: [
         {
@@ -81,8 +105,8 @@ const CASE = {
           value: BigInt(0),
           signerIndex: 0,
           results: {
-            totalFIL: ONE_ETHER * 500000n + 101363557022570715200000n + 40243690975934386880000n,
-            availableFIL: 450000n * ONE_ETHER - 120000n * ONE_ETHER,
+            totalFIL: ONE_ETHER * 500000n + 101363557022570715200000n + 40243690975934386880000n + 8142450438958218479616n - 233909891437486801944576n,
+            availableFIL: 450000n * ONE_ETHER - 120000n * ONE_ETHER + 6260575008474229555712n + 1881875430483988923904n,
             utilizedLiquidity: 200000n * ONE_ETHER + 101363557022570715200000n - 150000n * ONE_ETHER + (ONE_ETHER * 120000n + 40243690975934386880000n),
             accumulatedDeposit: ONE_ETHER * 500000n,
             accumulatedRedeem: 0n,

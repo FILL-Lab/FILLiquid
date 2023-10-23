@@ -5,6 +5,7 @@ import { UD60x18, ud, intoUint256, convert } from "@prb/math/src/UD60x18.sol";
 import { uEXP2_MAX_INPUT, uUNIT } from "@prb/math/src/ud60x18/Constants.sol";
 
 uint256 constant ANNUM = 31536000;
+uint256 constant BASE = 1e10;
 
 contract Calculation {
     function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) external pure returns (uint) {
@@ -70,8 +71,8 @@ contract Calculation {
                 else return amountFil;
             }
         }
-        uint theta = amountFitLeft * rateBase / (fitTotalSupply - amountFit + amountFitLeft);
-        amountFil += theta * (2 * rateBase - theta) * (filLiquidity - amountFil - utilizedLiquidity) / (rateBase * rateBase);
+        uint theta = amountFitLeft * BASE / (fitTotalSupply - amountFit + amountFitLeft);
+        amountFil += theta * (2 * BASE - theta) * (filLiquidity - amountFil - utilizedLiquidity) / (BASE * BASE);
         return amountFil;
     }
 

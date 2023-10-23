@@ -456,7 +456,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             (bool success, ) = address(_filecoinAPI).delegatecall(
                 abi.encodeCall(FilecoinAPI.send, (minerId, fees[0]))
             );
-            assert(success);
+            require(success, "Sending failed");
         }
 
         emit Borrow(borrowId, _msgSender(), minerId, fees[0], fees[1], realInterestRate, block.timestamp);
@@ -1103,7 +1103,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         (bool success, ) = address(_filecoinAPI).delegatecall(
             abi.encodeCall(FilecoinAPI.changeBeneficiary, (minerId, beneficiary, quota, expiration))
         );
-        assert(success);
+        require(success, "ChangeBeneficiary failed");
     }
 
     function withdrawBalance(uint64 minerId, uint withdrawnAmount) private{
@@ -1111,8 +1111,8 @@ contract FILLiquid is Context, FILLiquidInterface {
             (bool success, bytes memory data) = address(_filecoinAPI).delegatecall(
                 abi.encodeCall(FilecoinAPI.withdrawBalance, (minerId, withdrawnAmount))
             );
-            assert(success);
-            assert(uint(bytes32(data)) == withdrawnAmount);
+            require(success, "WithdrawBalance failed");
+            require(uint(bytes32(data)) == withdrawnAmount, "Invalid withdrawal");
         }
     }
 }

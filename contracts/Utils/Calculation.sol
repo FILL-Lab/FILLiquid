@@ -5,7 +5,7 @@ import { UD60x18, ud, intoUint256, convert } from "@prb/math/src/UD60x18.sol";
 import { uEXP2_MAX_INPUT, uUNIT } from "@prb/math/src/ud60x18/Constants.sol";
 
 uint256 constant ANNUM = 31536000;
-uint256 constant BASE = 1e10;
+uint256 constant BASE = 1e18;
 
 contract Calculation {
     function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) external pure returns (uint) {

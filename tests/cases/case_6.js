@@ -127,9 +127,9 @@ const CASE = {
           contractName: "filTrust",
           functionName: "balanceOf",
           params: ["__signer2"],
-          value: 320000n * ONE_ETHER,
+          value: 0,
           signerIndex: 0,
-          results: 0n
+          results: 320000n * ONE_ETHER
         },
         {
           increaseBlockNumber: 1023,
@@ -147,7 +147,7 @@ const CASE = {
           params: ["__signer2"],
           value: BigInt(0),
           signerIndex: 0,
-          results: 22636406937969680296986392n
+          results: 214942069970559993122191269n
         },
         {
           increaseBlockNumber: 1023,

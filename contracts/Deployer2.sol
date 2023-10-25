@@ -70,8 +70,7 @@ contract Deployer2 {
         (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
         _filTrust.addManager(address(_filLiquid));
         _filTrust.addManager(address(_filStake));
-        (uint rateBase,,,,,,,,,) = _filLiquid.getComprehensiveFactors();
-        _filLiquid.deposit{value: msg.value}(rateBase);
+        _filLiquid.deposit{value: msg.value}(msg.value);
         uint filTrustBalance = _filTrust.balanceOf(address(this));
         assert(filTrustBalance == msg.value);
         _filTrust.transfer(msg.sender, filTrustBalance);

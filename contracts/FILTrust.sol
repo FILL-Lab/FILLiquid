@@ -21,6 +21,7 @@ contract FILTrust is ERC20 {
     }
 
     function burn(address account, uint256 amount) external onlyManager {
+        require(amount + 10 ** decimals() <= totalSupply(), "Burn too much");
         _burn(account, amount);
     }
 

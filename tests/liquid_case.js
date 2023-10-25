@@ -23,7 +23,7 @@ const { assert } = require("console")
 const { transaction } = require("@openzeppelin/test-helpers/src/send")
 const { duration } = require("@openzeppelin/test-helpers/src/time")
 
-const case_1 = require("./cases/case_6")
+const case_1 = require("./cases/case_7")
 
 const parseEther = utils.parseEther
 
@@ -85,6 +85,7 @@ describe("Liquid", function () {
 
     await filGovernance.addManager(filLiquid.address)
     await filGovernance.addManager(filStake.address)
+    await filGovernance.addManager(governance.address)
     await filTrust.addManager(filLiquid.address)
     await filTrust.addManager(filStake.address)
 
@@ -156,7 +157,7 @@ describe("Liquid", function () {
 
       for (stepIndex in stepList) {
         step = stepList[stepIndex]
-        console.log(`checkStepIndex: ${stepIndex} step.contractName: ${step.contractName} step.functionName: ${step.functionName}`)
+        console.log(`stepIndex: ${stepIndex} step.contractName: ${step.contractName} step.functionName: ${step.functionName}`)
 
         // if(step.functionName === "directPayback") {
         //   tx = await contract.callStatic.minerBorrows(...step.params)
@@ -199,20 +200,22 @@ describe("Liquid", function () {
         // await hre.network.provider.send("hardhat_mine", [`0x${(1).toString(16)}`, `0x${(98).toString(16)}`]);
 
         try {
-          interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 320000n))
-          console.log("interestRate: ", interestRate.toBigInt())
 
-          
-          
-          maxBorrowAllowedByUtilization = await contract.maxBorrowAllowedByUtilization()
-          totalFILLiquidity = await contract.totalFILLiquidity()
-          utilizedLiquidity = await contract.utilizedLiquidity()
-          console.log("maxBorrowAllowedByUtilization: ", maxBorrowAllowedByUtilization.toBigInt())
-          console.log("totalFILLiquidity: ", totalFILLiquidity.toBigInt())
-          console.log("utilizedLiquidity: ", utilizedLiquidity.toBigInt())
+          // maxBorrowAllowedByUtilization = await contract.maxBorrowAllowedByUtilization()
+          // totalFILLiquidity = await contract.totalFILLiquidity()
+          // utilizedLiquidity = await contract.utilizedLiquidity()
+          // console.log("maxBorrowAllowedByUtilization: ", maxBorrowAllowedByUtilization.toBigInt())
+          // console.log("totalFILLiquidity: ", totalFILLiquidity.toBigInt())
+          // console.log("utilizedLiquidity: ", utilizedLiquidity.toBigInt())
 
-          liquidStatus = await contracts.filLiquid.getStatus()
-          console.log("liquidStatus: ", liquidStatus)
+          // liquidStatus = await contracts.filLiquid.getStatus()
+          // console.log("liquidStatus: ", liquidStatus)
+
+          depositThreshold = await contracts.governance.getDepositThreshold()
+          console.log("depositThreshold: ", depositThreshold)
+          
+          totalSupply = await contracts.filGovernance.totalSupply()
+          console.log("totalSupply: ", totalSupply)
         }catch(error) {
 
         }

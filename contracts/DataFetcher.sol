@@ -6,6 +6,7 @@ import "./FILTrust.sol";
 import "./FILStake.sol";
 import "./FILGovernance.sol";
 import "./Governance.sol";
+import "./Utils/FilecoinAPI.sol";
 
 contract DataFetcher {
     FILLiquid private _filliquid;
@@ -13,13 +14,15 @@ contract DataFetcher {
     FILStake private _filStake;
     FILGovernance private _filGovernance;
     Governance private _governance;
+    FilecoinAPI private _filecoinAPI;
 
-    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FILStake filStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr) {
+    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FILStake filStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr, FilecoinAPI filecoinAPIAddr) {
         _filliquid = filLiquidAddr;
         _filTrust = filTrustAddr;
         _filStake = filStakeAddr;
         _filGovernance = filGovernanceAddr;
         _governance = governanceAddr;
+        _filecoinAPI = filecoinAPIAddr;
     }
 
     function fetchData() external view returns (
@@ -129,6 +132,10 @@ contract DataFetcher {
         borrowing = filLiquidInfo.utilizedLiquidity;
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
         accumulatedPaybackFILPeriod = filLiquidInfo.accumulatedPaybackFILPeriod;
+    }
+
+    function getPendingBeneficiary(uint64 minerId) external returns (address, bool) {
+        return _filecoinAPI.getPendingBeneficiaryId(minerId);
     }
 
     function filliquid() external view returns (address) {

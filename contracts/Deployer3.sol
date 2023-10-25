@@ -9,6 +9,7 @@ import "./FILStake.sol";
 import "./Governance.sol";
 import "./FILLiquid.sol";
 import "./DataFetcher.sol";
+import "./Utils/FilecoinAPI.sol";
 
 contract Deployer3 {
     DataFetcher private _dataFetcher;
@@ -29,11 +30,11 @@ contract Deployer3 {
             Deployer1 _deployer1,
             address _ownerDeployer2
         ) = _deployer2.getAddrs();
-        (,,,FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
+        (,,FilecoinAPI _filecoinAPI, FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
         require (msg.sender == _ownerDeployer2, "only owner allowed");
         _owner = msg.sender;
 
-        _dataFetcher = new DataFetcher(_filLiquid, _filTrust, _filStake, _filGovernance, _governance);
+        _dataFetcher = new DataFetcher(_filLiquid, _filTrust, _filStake, _filGovernance, _governance, _filecoinAPI);
         emit ContractPublishing("DataFetcher", address(_dataFetcher));
     }
 

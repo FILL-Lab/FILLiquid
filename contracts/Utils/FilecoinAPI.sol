@@ -7,6 +7,7 @@ import "@zondax/filecoin-solidity/contracts/v0.8/PrecompilesAPI.sol";
 import "@zondax/filecoin-solidity/contracts/v0.8/SendAPI.sol";
 
 import "./Conversion.sol";
+import "./FilAddress.sol";
 
 contract FilecoinAPI{
     using Conversion for *;
@@ -15,7 +16,7 @@ contract FilecoinAPI{
         return MinerAPI.getAvailableBalance(wrapId(actorId));
     }
 
-    function getBeneficiary(uint64 minerId) external returns (MinerTypes.GetBeneficiaryReturn memory){
+    function getBeneficiary(uint64 minerId) public returns (MinerTypes.GetBeneficiaryReturn memory){
         return MinerAPI.getBeneficiary(wrapId(minerId));
     }
 
@@ -25,6 +26,12 @@ contract FilecoinAPI{
 
     function getOwnerActorId(uint64 minerId) external returns (uint64){
         return PrecompilesAPI.resolveAddress(MinerAPI.getOwner(wrapId(minerId)).owner);
+    }
+
+    function getPendingBeneficiaryId(uint64 minerId) external returns (address, bool){
+        CommonTypes.FilAddress memory newBeneficiary = getBeneficiary(minerId).proposed.new_beneficiary;
+        if (newBeneficiary.data.length == 0) return (address(0), false);
+        else return (FilAddress.toAddress(PrecompilesAPI.resolveAddress(newBeneficiary)), true);
     }
 
     function resolveEthAddress(address addr) external view returns (uint64){

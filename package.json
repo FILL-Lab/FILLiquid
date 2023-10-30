@@ -28,7 +28,7 @@
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.19",
     "solhint": "^3.3.6",
-    "solidity-coverage": "^0.7.13"
+    "solidity-coverage": "^0.8.5"
   },
   "dependencies": {
     "@glif/filecoin-address": "^2.0.20",

@@ -9,6 +9,11 @@ import "./Governance.sol";
 import "./Utils/FilecoinAPI.sol";
 
 contract DataFetcher {
+    struct MinerBorrowable {
+        bool borrowable;
+        string reason;
+    }
+
     FILLiquid private _filliquid;
     FILTrust private _filTrust;
     FILStake private _filStake;
@@ -99,6 +104,19 @@ contract DataFetcher {
 
     function getUserBorrowsByMiner(uint64 minerId) external returns (FILLiquid.UserInfo memory infos) {
         return _filliquid.userBorrows(_filliquid.minerUser(minerId));
+    }
+
+    function getUserBorrowsAndBorrowable(address account) external returns (FILLiquid.UserInfo memory info, MinerBorrowable[] memory borrowables) {
+        info = _filliquid.userBorrows(account);
+        borrowables = getBorrowable(account);
+    }
+
+    function getBorrowable(address account) public returns (MinerBorrowable[] memory result) {
+        uint64[] memory miners = _filliquid.userMiners(account);
+        result = new MinerBorrowable[](miners.length);
+        for (uint i = 0; i < miners.length; i++) {
+            (result[i].borrowable, result[i].reason) = _filliquid.getBorrowable(miners[i]);
+        }
     }
 
     function getTotalPendingInterest() external returns (

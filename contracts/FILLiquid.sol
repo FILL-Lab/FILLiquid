@@ -320,7 +320,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     uint constant DEFAULT_MIN_DEPOSIT = 1 ether;
     uint constant DEFAULT_MIN_BORROW = 10 ether;
-    uint constant DEFAULT_MAX_EXISTING_BORROWS = 3;
+    uint constant DEFAULT_MAX_EXISTING_BORROWS = 5;
     uint constant DEFAULT_MAX_FAMILY_SIZE = 5;
     uint constant DEFAULT_RATE_BASE = 1000000;
     uint constant DEFAULT_REDEEM_FEE_RATE = 5000;

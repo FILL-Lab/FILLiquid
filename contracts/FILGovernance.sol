@@ -14,7 +14,6 @@ contract FILGovernance is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol){
         _owner = _msgSender();
         _burner = _msgSender();
-        addManager(_owner);
         _mint(_owner, maxSupply() - maxLiquid());
     }
 

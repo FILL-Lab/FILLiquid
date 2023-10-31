@@ -83,6 +83,7 @@ contract Deployer2 {
         _filStake.setOwner(msg.sender);
         _governance.setOwner(msg.sender);
         _filLiquid.setOwner(msg.sender);
+        _filGovernance.transfer(msg.sender, _filGovernance.balanceOf(address(this)));
     }
 
     function getAddrs() external view returns (FILStake, Governance, FILLiquid, Deployer1, address) {

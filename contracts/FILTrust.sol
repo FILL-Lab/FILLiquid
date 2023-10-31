@@ -9,7 +9,6 @@ contract FILTrust is ERC20 {
 
     constructor(string memory name, string memory symbol) ERC20(name, symbol){
         _owner = _msgSender();
-        addManager(_owner);
     }
 
     function withdraw(address account, uint256 amount) external onlyManager {

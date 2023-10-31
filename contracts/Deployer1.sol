@@ -38,6 +38,7 @@ contract Deployer1 {
         require (msg.sender == _owner, "only owner allowed");
         _filTrust.setOwner(deployer2);
         _filGovernance.setOwner(deployer2);
+        _filGovernance.transfer(deployer2, _filGovernance.balanceOf(address(this)));
     }
 
     function getAddrs() external view returns (Validation, Calculation, FilecoinAPI, FILTrust, FILGovernance, address) {

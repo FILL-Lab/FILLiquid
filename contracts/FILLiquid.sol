@@ -73,13 +73,12 @@ interface FILLiquidInterface {
         uint accumulatedLiquidateFee;       // o.   Total liquidate fee
         uint accumulatedDeposits;           // p.   Accumulated Deposites
         uint accumulatedBorrows;            // q.   Accumulated Borrows
-        uint accumulatedPaybackFILPeriod;   // r.   Accumulated Multiple of Payback and Period
-        uint utilizationRate;               // s.   Current Utilization Rate s=c/a=(h-i+l-m)/(d+j-e-k-m)
-        uint exchangeRate;                  // t.   Current FIL/FILTrust Exchange Rate
-        uint interestRate;                  // u.   Current Interest Rate
-        uint collateralizedMiner;           // v.   Collateralized miners
-        uint minerWithBorrows;              // w.   Miner with Borrows
-        uint rateBase;                      // x.   Rate base
+        uint utilizationRate;               // r.   Current Utilization Rate s=c/a=(h-i+l-m)/(d+j-e-k-m)
+        uint exchangeRate;                  // s.   Current FIL/FILTrust Exchange Rate
+        uint interestRate;                  // t.   Current Interest Rate
+        uint collateralizedMiner;           // u.   Collateralized miners
+        uint minerWithBorrows;              // v.   Miner with Borrows
+        uint rateBase;                      // w.   Rate base
     }
     struct FamilyStatus {
         uint balanceSum;
@@ -275,7 +274,6 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint private _accumulatedLiquidateFee;
     uint private _accumulatedDeposits;
     uint private _accumulatedBorrows;
-    uint private _accumulatedPaybackFILPeriod;
 
     //administrative factors
     address private _owner;
@@ -620,7 +618,6 @@ contract FILLiquid is Context, FILLiquidInterface {
                 accumulatedLiquidateFee: _accumulatedLiquidateFee,
                 accumulatedDeposits: _accumulatedDeposits,
                 accumulatedBorrows: _accumulatedBorrows,
-                accumulatedPaybackFILPeriod: _accumulatedPaybackFILPeriod,
                 utilizationRate: utilizationRate(),
                 exchangeRate: exchangeRate(),
                 interestRate: interestRate(),
@@ -1050,7 +1047,6 @@ contract FILLiquid is Context, FILLiquidInterface {
             }
             r[2] += payBackInterest;
             r[1] += paybackPrincipal;
-            _accumulatedPaybackFILPeriod += paybackPrincipal * (block.timestamp - info.initialTime);
             if (principalAndInterest > payBackTotal){
                 info.borrowAmount = principalAndInterest - payBackTotal;
                 info.datedTime = block.timestamp;

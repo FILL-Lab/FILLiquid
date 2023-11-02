@@ -25,3 +25,5 @@ if (u > (params.rate_base / 2n)) {
 }
 
 console.log("ended")
+
+console.log("interestRate: ", interestRate)

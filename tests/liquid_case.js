@@ -23,7 +23,7 @@ const { assert } = require("console")
 const { transaction } = require("@openzeppelin/test-helpers/src/send")
 const { duration } = require("@openzeppelin/test-helpers/src/time")
 
-const case_1 = require("./cases/case_7")
+const case_1 = require("./cases/case_8")
 
 const parseEther = utils.parseEther
 
@@ -211,13 +211,18 @@ describe("Liquid", function () {
           // liquidStatus = await contracts.filLiquid.getStatus()
           // console.log("liquidStatus: ", liquidStatus)
 
-          depositThreshold = await contracts.governance.getDepositThreshold()
-          console.log("depositThreshold: ", depositThreshold)
+          // depositThreshold = await contracts.governance.getDepositThreshold()
+          // console.log("depositThreshold: ", depositThreshold)
           
-          totalSupply = await contracts.filGovernance.totalSupply()
-          console.log("totalSupply: ", totalSupply)
-        }catch(error) {
+          // totalSupply = await contracts.filGovernance.totalSupply()
+          // console.log("totalSupply: ", totalSupply)
 
+          // proposalInfo = await contracts.governance.getProposalInfo(0)
+          // console.log("proposalInfo: ", proposalInfo)
+
+          ownerFigBalance = await contracts.filGovernance.balanceOf(signers[0].address)
+          console.log("ownerFigBalance: ", ownerFigBalance)
+        }catch(error) {
         }
       }
 
@@ -240,21 +245,10 @@ describe("Liquid", function () {
         
         newParams = getProcessedParams(step.params, signers)
 
-        // console.log("newParams: ", newParams)
-
-        // console.log("step.contractName: ", step.contractName, "contract: ", contract)
-
         results = await contract.connect(signer)[step.functionName](...newParams, {value: step.value})
-
-        // console.log("step.functionName: ", step.functionName, "step.contractName: ", step.contractName, "results: ", results)
 
         typeOfStepResults = typeof(step.results)
 
-        // console.log("typeOfStepResults: ", typeOfStepResults)
-
-        // if (Array.isArray(step.results)){
-          
-        // }else 
         if (typeOfStepResults === "object") {
           for (let key of Object.keys(step.results)) {
             targetValue = step.results[key]

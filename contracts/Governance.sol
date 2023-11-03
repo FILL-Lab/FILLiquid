@@ -437,7 +437,7 @@ contract Governance is Context {
         uint amountYes = info.amounts[uint(voteCategory.yes)];
         uint amountNo = info.amounts[uint(voteCategory.no)];
         uint amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
-        if (amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
+        if (amountNoWithVeto > 0 && amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
             result = voteResult.rejectedWithVeto;
         } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {
             result = voteResult.rejected;

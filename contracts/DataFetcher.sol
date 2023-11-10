@@ -126,8 +126,7 @@ contract DataFetcher {
         uint totalFIL,
         uint borrowing,
         uint borrowingAndPeriod,
-        uint accumulatedPayback,
-        uint accumulatedPaybackFILPeriod
+        uint accumulatedPayback
     ) {
         blockHeight = block.number;
         blockTimeStamp = block.timestamp;
@@ -149,7 +148,6 @@ contract DataFetcher {
         totalFIL = filLiquidInfo.totalFIL;
         borrowing = filLiquidInfo.utilizedLiquidity;
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
-        accumulatedPaybackFILPeriod = filLiquidInfo.accumulatedPaybackFILPeriod;
     }
 
     function getPendingBeneficiary(uint64 minerId) external returns (address, bool) {

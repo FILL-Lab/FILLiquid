@@ -116,8 +116,8 @@ contract Governance is Context {
     uint constant DEFAULT_MAX_NO_WITH_VETO = 333333;
     uint constant DEFAULT_QUORUM = 400000;
     uint constant DEFAULT_LIQUIDATE = 200000;
-    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 100;    // 0.01% (100/1000000)
-    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e20;  // 500FIG 
+    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 10;    // 0.001% (10/1000000)
+    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 1e22;  // 10000FIG 
     uint constant DEFAULT_VOTE_THRESHOLD = 1e19;
     uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days
     uint constant DEFAULT_EXECUTION_PERIOD = 20160; // 7 days
@@ -437,7 +437,7 @@ contract Governance is Context {
         uint amountYes = info.amounts[uint(voteCategory.yes)];
         uint amountNo = info.amounts[uint(voteCategory.no)];
         uint amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
-        if (amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
+        if (amountNoWithVeto > 0 && amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
             result = voteResult.rejectedWithVeto;
         } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {
             result = voteResult.rejected;

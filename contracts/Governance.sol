@@ -246,7 +246,7 @@ contract Governance is Context {
             }
         }
 
-        emit Executed(_msgSender(), proposalId, result);
+        emit Executed(sender, proposalId, result);
     }
 
     function votingProposalSum(address bonder) public returns (uint count, uint maxVote) {
@@ -338,9 +338,8 @@ contract Governance is Context {
         else return (false, "Max active proposals reached");
     }
 
-    function canVote(uint proposalId, uint amount) external view returns (bool, string memory) {
+    function canVote(address voter, uint proposalId, uint amount) external view returns (bool, string memory) {
         Proposal storage p = _proposals[proposalId];
-        address voter = _msgSender();
         return _canVote(voter, amount, p.status.voterVotings[voter].amountTotal, p.info.deadline);
     }
 

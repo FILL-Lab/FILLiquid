@@ -246,9 +246,9 @@ contract FILGovernancePool is Context {
     }
 
     function hasActiveProposal(proposolCategory category) public view returns (bool) {
-        uint id = _currentProposalIds[uint(category)];
-        if (id != 0) {
-            ProposalInfo storage info = _proposals[id].info;
+        uint idplus = _currentProposalIds[uint(category)];
+        if (idplus != 0) {
+            ProposalInfo storage info = _proposals[idplus - 1].info;
             if (info.deadline >= block.number && !info.executed) return true;
         }
         return false;
@@ -298,8 +298,16 @@ contract FILGovernancePool is Context {
         return _proposals[proposalId].status.info;
     }
 
-    function hasVoted(address voter, uint proposalId) validProposalId(proposalId) public view returns (bool) {
-        return _proposals[proposalId].status.proed[voter] || _proposals[proposalId].status.coned[voter];
+    function hasVoted(address voter, uint proposalId) public view returns (bool) {
+        return hasProed(voter, proposalId) || hasConed(voter, proposalId);
+    }
+
+    function hasProed(address voter, uint proposalId) validProposalId(proposalId) public view returns (bool) {
+        return _proposals[proposalId].status.proed[voter];
+    }
+
+    function hasConed(address voter, uint proposalId) validProposalId(proposalId) public view returns (bool) {
+        return _proposals[proposalId].status.coned[voter];
     }
 
     function getSigners() external view returns (address[] memory) {
@@ -412,16 +420,6 @@ contract FILGovernancePool is Context {
         _;
     }
 
-    function _refreshSigners(address[] storage signers) private {
-        for (uint i = 0; i < _signers.length; i++) {
-            delete _isSigner[_signers[i]];
-        }
-        _signers = signers;
-        for (uint i = 0; i < _signers.length; i++) {
-            _isSigner[_signers[i]] = true;
-        }
-    }
-
     function _propose(proposolCategory category, uint subIndex, string memory text) private {
         bool activeProposal = hasActiveProposal(category);
         if (!activeProposal) {
@@ -465,14 +463,19 @@ contract FILGovernancePool is Context {
         address voter = _msgSender();
         VotingStatus storage status = p.status;
         VotingStatusInfo storage info = status.info;
-        address[] storage voters = info.votersPro;
         if (status.proed[voter]) {
             delete status.proed[voter];
+            _removeVoter(voter, info.votersPro);
         }
         else {
             delete status.coned[voter];
-            voters = info.votersCon;
+            _removeVoter(voter, info.votersCon);
         }
+
+        emit Unvoted(voter, proposalId);
+    }
+
+    function _removeVoter(address voter, address[] storage voters) private {
         for (uint i = 0; i < voters.length; i++) {
             if (voters[i] == voter) {
                 if (i != voters.length - 1) {
@@ -482,8 +485,6 @@ contract FILGovernancePool is Context {
                 break;
             }
         }
-
-        emit Unvoted(voter, proposalId);
     }
 
     function _execute(uint proposalId) private {
@@ -501,7 +502,13 @@ contract FILGovernancePool is Context {
             }
             else if (info.category == proposolCategory.modifySigners) {
                 ModifySignersInfo storage m = _modifySignersInfos[info.subIndex];
-                _refreshSigners(m.newSigners);
+                for (uint i = 0; i < _signers.length; i++) {
+                    delete _isSigner[_signers[i]];
+                }
+                _signers = m.newSigners;
+                for (uint i = 0; i < _signers.length; i++) {
+                    _isSigner[_signers[i]] = true;
+                }
                 _votingThreshold = m.newVotingThreshold;
             } else if (info.category == proposolCategory.modifyVotingPeriod) {
                 _votingPeriod = _modifyVotingPeriodInfos[info.subIndex].newVotingPeriod;

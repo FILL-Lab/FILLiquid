@@ -134,15 +134,15 @@ contract FILGovernancePool is Context {
     Proposal[] private _proposals;
     address[] private _signers;
     uint[5] private _currentProposalIds;
+    mapping(address => bool) _isSigner;
     uint private _votingThreshold;
     uint private _votingPeriod;
     uint private _startHeight;
     uint private _totallyReleasedHeight;
-    mapping(address => bool) _isSigner;
     address private _foundation;
     FILGovernance private _tokenFILGovernance;
 
-    uint constant MIN_VOTING_PERIOD = 2880; // 1 days
+    uint constant MIN_VOTING_PERIOD = 2880; // 1 day
 
     constructor(address[] memory signers, address foundation, uint voteThreshold, uint votingPeriod, address tokenFILGovernance, uint totallyReleasedHeight)
     isValidVotingThreshold(voteThreshold, signers.length)

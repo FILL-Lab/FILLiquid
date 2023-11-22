@@ -137,7 +137,7 @@ interface FILLiquidInterface {
     /// @dev collateralizing miner : change beneficiary to contract , need owner for miner propose change beneficiary first
     /// @param minerId miner id
     /// @param signature miner signature
-    function collateralizingMiner(uint64 minerId, bytes memory signature) external;
+    function collateralizingMiner(uint64 minerId, bytes calldata signature) external;
 
     /// @dev uncollateralizing miner : change beneficiary back to miner owner, need payback all first
     /// @param minerId miner id
@@ -518,7 +518,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         emit Liquidate(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
     }
 
-    function collateralizingMiner(uint64 minerId, bytes memory signature) external noCollateralizing(minerId){
+    function collateralizingMiner(uint64 minerId, bytes calldata signature) external noCollateralizing(minerId){
         //bindMiner
         require(_minerBindsMap[minerId] == address(0), "Unbind first");
         address sender = _msgSender();
@@ -920,7 +920,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (_u_1, _r_0, _r_1, _r_m, _n);
     }
 
-    function setGovernanceFactors(uint[] memory values) external onlyGovernance {
+    function setGovernanceFactors(uint[] calldata values) external onlyGovernance {
         _u_1 = values[0];
         _r_0 = values[1];
         _r_1 = values[2];
@@ -939,7 +939,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
-    function checkGovernanceFactors(uint[] memory values) external view {
+    function checkGovernanceFactors(uint[] calldata values) external view {
         require(values.length == 15, "Invalid input length");
         require(values[0] <= _rateBase && values[0] < _u_m, "Invalid u_1");
         require(values[1] < values[2], "Invalid r_0");

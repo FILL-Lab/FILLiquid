@@ -160,7 +160,7 @@ contract FILGovernancePool is Context {
         _totallyReleasedHeight = totallyReleasedHeight;
     }
 
-    function proposeModifyFoundation(string memory text, address newFoundation) senderIsSigner external {
+    function proposeModifyFoundation(string calldata text, address newFoundation) senderIsSigner external {
         ModifyFoundationInfo memory info = ModifyFoundationInfo(newFoundation);
         _modifyFoundationInfos.push(info);
         _propose(proposolCategory.modifyFoundation, _modifyFoundationInfos.length - 1, text);
@@ -177,7 +177,7 @@ contract FILGovernancePool is Context {
         );
     }
 
-    function proposeModifySigners(string memory text, address[] memory newSigners, uint newVotingThreshold) senderIsSigner isValidSignerCount(newVotingThreshold, newSigners.length) external {
+    function proposeModifySigners(string calldata text, address[] calldata newSigners, uint newVotingThreshold) senderIsSigner isValidSignerCount(newVotingThreshold, newSigners.length) external {
         ModifySignersInfo memory info = ModifySignersInfo(newSigners, newVotingThreshold);
         _modifySignersInfos.push(info);
         _propose(proposolCategory.modifySigners, _modifySignersInfos.length - 1, text);
@@ -194,7 +194,7 @@ contract FILGovernancePool is Context {
         );
     }
 
-    function proposeModifyVotingPeriod(string memory text, uint newVotingPeriod) senderIsSigner isValidVotingPeriod(newVotingPeriod) external {
+    function proposeModifyVotingPeriod(string calldata text, uint newVotingPeriod) senderIsSigner isValidVotingPeriod(newVotingPeriod) external {
         ModifyVotingPeriodInfo memory info = ModifyVotingPeriodInfo(newVotingPeriod);
         _modifyVotingPeriodInfos.push(info);
         _propose(proposolCategory.modifyVotingPeriod, _modifyVotingPeriodInfos.length - 1, text);
@@ -211,7 +211,7 @@ contract FILGovernancePool is Context {
         );
     }
 
-    function proposeModifyVotingThreshold(string memory text, uint newVotingThreshold) senderIsSigner isValidVotingThreshold(newVotingThreshold, _signers.length) external {
+    function proposeModifyVotingThreshold(string calldata text, uint newVotingThreshold) senderIsSigner isValidVotingThreshold(newVotingThreshold, _signers.length) external {
         ModifyVotingThresholdInfo memory info = ModifyVotingThresholdInfo(newVotingThreshold);
         _modifyVotingThresholdInfos.push(info);
         _propose(proposolCategory.modifyVotingThreshold, _modifyVotingThresholdInfos.length - 1, text);
@@ -228,7 +228,7 @@ contract FILGovernancePool is Context {
         );
     }
 
-    function proposeTransferOut(string memory text, uint amount) senderIsSigner external {
+    function proposeTransferOut(string calldata text, uint amount) senderIsSigner external {
         TransferOutInfo memory info = TransferOutInfo(amount);
         _transferOutInfos.push(info);
         _propose(proposolCategory.transferOut, _transferOutInfos.length - 1, text);
@@ -395,7 +395,7 @@ contract FILGovernancePool is Context {
     }
 
     modifier senderIsSigner() {
-        require(_isSigner[_msgSender()], "Sender is mot signer");
+        require(_isSigner[_msgSender()], "Sender is not signer");
         _;
     }
 
@@ -420,7 +420,7 @@ contract FILGovernancePool is Context {
         _;
     }
 
-    function _propose(proposolCategory category, uint subIndex, string memory text) private {
+    function _propose(proposolCategory category, uint subIndex, string calldata text) private {
         bool activeProposal = hasActiveProposal(category);
         if (!activeProposal) {
             if (category == proposolCategory.modifySigners) activeProposal = hasActiveProposal(proposolCategory.modifyVotingThreshold);
@@ -526,6 +526,7 @@ contract FILGovernancePool is Context {
 
     function _canVote(address voter, uint proposalId) private view returns (bool, string memory) {
         Proposal storage p = _proposals[proposalId];
+        if (!_isSigner[voter]) return (false, "Sender is not signer");
         if (p.info.deadline < block.number) return (false, "Proposal finished");
         if (hasVoted(voter,proposalId)) return (false, "Already voted");
         else return (true, "");

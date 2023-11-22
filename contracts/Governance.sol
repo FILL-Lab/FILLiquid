@@ -166,7 +166,7 @@ contract Governance is Context {
         emit Unbonded(sender, amount);
     }
 
-    function propose(proposolCategory category, uint discussionIndex, string memory text, uint[] memory values) external {
+    function propose(proposolCategory category, uint discussionIndex, string calldata text, uint[] calldata values) external {
         (bool proposable, string memory reason) = canPropose();
         require(proposable, reason);
         _checkParameter(category, values);
@@ -419,7 +419,7 @@ contract Governance is Context {
         _;
     }
 
-    function _checkParameter(proposolCategory category, uint[] memory params) private view {
+    function _checkParameter(proposolCategory category, uint[] calldata params) private view {
         if (category == proposolCategory.filLiquid) {
             _filLiquid.checkGovernanceFactors(params);
         } else if (category == proposolCategory.filStake) {

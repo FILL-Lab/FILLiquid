@@ -40,8 +40,8 @@ contract FilecoinAPI{
 
     function changeBeneficiary(
         uint64 minerId,
-        CommonTypes.FilAddress memory beneficiary,
-        CommonTypes.BigInt memory quota,
+        CommonTypes.FilAddress calldata beneficiary,
+        CommonTypes.BigInt calldata quota,
         CommonTypes.ChainEpoch expiration
     ) external{
         MinerAPI.changeBeneficiary(

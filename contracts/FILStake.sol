@@ -252,12 +252,12 @@ contract FILStake is Context{
         _maxStakes = new_maxStakes;
     }
 
-    function setGovernanceFactors(uint[] memory params) onlyGovernance external {
+    function setGovernanceFactors(uint[] calldata params) onlyGovernance external {
         _n_interest = params[0];
         _n_stake = params[1];
     }
 
-    function checkGovernanceFactors(uint[] memory params) external pure {
+    function checkGovernanceFactors(uint[] calldata params) external pure {
         require(params.length == 2, "Invalid input length");
     }
 

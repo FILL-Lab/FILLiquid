@@ -62,7 +62,7 @@ contract Calculation {
         uint amountFil = 0;
         if (filLiquidity * u_m > utilizedLiquidity * rateBase) {
             amountFil = (amountFit * filLiquidity) / fitTotalSupply;
-            uint amountFilLeft = filLiquidity * u_m / rateBase - utilizedLiquidity;
+            uint amountFilLeft = filLiquidity - utilizedLiquidity * rateBase / u_m;
             if (amountFil <= amountFilLeft) return amountFil;
             else {
                 amountFil = amountFilLeft;

@@ -470,24 +470,26 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint[3] memory r = paybackProcess(minerIdPayee, msg.value + amount);
         uint sentBack = 0;
         uint withdrawn = 0;
+        address sender = _msgSender();
         if (r[0] > amount) {
             sentBack = r[0] - amount;
-            payable(_msgSender()).transfer(sentBack);
+            payable(sender).transfer(sentBack);
         } else if (r[0] < amount) {
             withdrawn = amount - r[0];
             withdrawBalance(minerIdPayer, withdrawn);
         }
-        _filStake.handleInterest(_msgSender(), r[2]);
+        _filStake.handleInterest(sender, r[2]);
 
-        emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], withdrawn, msg.value - sentBack);
+        emit Payback(sender, minerIdPayee, minerIdPayer, r[1], r[2], withdrawn, msg.value - sentBack);
         return (r[1], r[2]);
     }
 
     function directPayback(uint64 minerId) external isBorrower(minerId) payable returns (uint, uint) {
         uint[3] memory r = paybackProcess(minerId, msg.value);
-        if (r[0] > 0) payable(_msgSender()).transfer(r[0]);
-        _filStake.handleInterest(_msgSender(), r[2]);
-        emit Payback(_msgSender(), minerId, minerId, r[1], r[2], 0, msg.value - r[0]);
+        address sender = _msgSender();
+        if (r[0] > 0) payable(sender).transfer(r[0]);
+        _filStake.handleInterest(_minerBindsMap[minerId], r[2]);
+        emit Payback(sender, minerId, minerId, r[1], r[2], 0, msg.value - r[0]);
         return (r[1], r[2]);
     }
 
@@ -512,10 +514,11 @@ contract FILLiquid is Context, FILLiquidInterface {
             withdrawBalance(minerIdPayer, totalWithdraw);
         }
         _foundation.transfer(fees[1]);
-        if (bonus > 0) payable(_msgSender()).transfer(bonus);
+        address sender = _msgSender();
+        if (bonus > 0) payable(sender).transfer(bonus);
         result = [r[1], r[2], bonus, fees[1]];
 
-        emit Liquidate(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
+        emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
     }
 
     function collateralizingMiner(uint64 minerId, bytes calldata signature) external noCollateralizing(minerId){
@@ -556,7 +559,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
         emit CollateralizingMiner(
             minerId,
-            _msgSender(),
+            sender,
             proposedBeneficiaryRet.new_beneficiary.data,
             quota,
             uExpiration
@@ -565,10 +568,11 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function uncollateralizingMiner(uint64 minerId) external isBindMiner(minerId) haveCollateralizing(minerId) {
         require(_minerCollateralizing[minerId].borrowAmount == 0, "Payback first");
-        require(_badDebt[_msgSender()] == 0, "Family with bad debt");
+        address sender = _msgSender();
+        require(_badDebt[sender] == 0, "Family with bad debt");
         uint balanceSum = 0;
         uint principalAndInterestSum = 0;
-        uint64[] storage miners = _userMinerPairs[_msgSender()];
+        uint64[] storage miners = _userMinerPairs[sender];
         for (uint i = 0; i < miners.length; i++) {
             if (miners[i] == minerId) continue;
             balanceSum += FilAddress.toAddress(miners[i]).balance;
@@ -595,7 +599,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
         _binds[minerId].stillBound = false;
 
-        emit UncollateralizingMiner(minerId, _msgSender(), minerOwner.data, 0, 0);
+        emit UncollateralizingMiner(minerId, sender, minerOwner.data, 0, 0);
     }
 
     function getStatus() external view returns (FILLiquidInfo memory) {

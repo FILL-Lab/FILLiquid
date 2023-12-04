@@ -32,7 +32,7 @@ contract Calculation {
     }
 
     function getFitByDeposit(uint amountFil, uint u_m, uint rateBase, uint fitTotalSupply, uint filLiquidity, uint utilizedLiquidity) external pure returns (uint) {
-        require(utilizedLiquidity < filLiquidity, "Utilization rate must be smaller than 1");
+        require(utilizedLiquidity < filLiquidity || filLiquidity == 0, "Utilization rate must be smaller than 1");
         if (amountFil == 0) return 0;
         if (fitTotalSupply == 0 || filLiquidity == 0) return amountFil;
         if (utilizedLiquidity * rateBase <= u_m * filLiquidity) return (fitTotalSupply * amountFil) / filLiquidity;

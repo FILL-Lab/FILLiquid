@@ -95,7 +95,7 @@ contract DataFetcher {
         expectedAmountFIL = _filliquid.getFilByRedeem(amountFILTrust);
     }
 
-    function getBatchedUserBorrows(address[] memory accounts) external returns (FILLiquid.UserInfo[] memory infos) {
+    function getBatchedUserBorrows(address[] calldata accounts) external returns (FILLiquid.UserInfo[] memory infos) {
         infos = new FILLiquid.UserInfo[](accounts.length);
         for (uint i = 0; i < infos.length; i++) {
             infos[i] = _filliquid.userBorrows(accounts[i]);

@@ -112,7 +112,7 @@ contract FILStake is Context{
         _stake_share = DEFAULT_STAKE_SHARE;
     }
 
-    function handleInterest(address minter, uint amount) onlyFilLiquid external returns (uint minted) {
+    function handleInterest(address minter, uint amount) onlyFiLLiquid external returns (uint minted) {
         (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(amount);
         _accumulatedInterest += amount;
         if (minted > 0) _tokenFILGovernance.mint(minter, minted);
@@ -252,12 +252,12 @@ contract FILStake is Context{
         _maxStakes = new_maxStakes;
     }
 
-    function setGovernanceFactors(uint[] memory params) onlyGovernance external {
+    function setGovernanceFactors(uint[] calldata params) onlyGovernance external {
         _n_interest = params[0];
         _n_stake = params[1];
     }
 
-    function checkGovernanceFactors(uint[] memory params) external pure {
+    function checkGovernanceFactors(uint[] calldata params) external pure {
         require(params.length == 2, "Invalid input length");
     }
 
@@ -301,7 +301,7 @@ contract FILStake is Context{
         _;
     }
 
-    modifier onlyFilLiquid() {
+    modifier onlyFiLLiquid() {
         require(_msgSender() == _filLiquid, "Only filLiquid allowed");
         _;
     }

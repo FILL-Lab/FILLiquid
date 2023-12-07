@@ -10,13 +10,13 @@ import "@openzeppelin/contracts/utils/Context.sol";
 contract Validation is Context {
     mapping(bytes => uint256) private _nonces;
 
-    event ShowMsg(bytes m);
-
     function validateOwner(
         uint64 minerID,
-        bytes memory signature,
+        bytes calldata signature,
         address sender
     ) external {
+        if (signature.length == 97) signature = signature[1:];
+        require (signature.length == 96, "Invalid signature length");
         CommonTypes.FilAddress memory ownerAddr = getOwner(minerID);
         bytes memory digest = getDigest(
             ownerAddr.data,
@@ -34,12 +34,10 @@ contract Validation is Context {
     }
 
     function getSigningMsg(uint64 minerID) external returns (bytes memory m) {
-        bytes memory ownerAddr = getOwner(minerID).data;
-        m = getDigest(ownerAddr, minerID, _msgSender());
-        emit ShowMsg(m);
+        return getDigest(getOwner(minerID).data, minerID, _msgSender());
     }
 
-    function getNonce(bytes memory addr) external view returns (uint256) {
+    function getNonce(bytes calldata addr) external view returns (uint256) {
         return _nonces[addr];
     }
 

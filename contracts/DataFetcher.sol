@@ -14,6 +14,30 @@ contract DataFetcher {
         string reason;
     }
 
+    struct FiLLiquidGovernanceFactors {
+        uint u_1;
+        uint r_0;
+        uint r_1;
+        uint r_m;
+        uint collateralRate;
+        uint maxFamilySize;
+        uint alertThreshold;
+        uint liquidateThreshold;
+        uint maxLiquidations;
+        uint minLiquidateInterval;
+        uint liquidateDiscountRate;
+        uint liquidateFeeRate;
+        uint maxExistingBorrows;
+        uint minBorrowAmount;
+        uint minDepositAmount;
+        uint n;
+    }
+
+    struct FiLStakeGovernanceFactors {
+        uint n_interest;
+        uint n_stake;
+    }
+
     FILLiquid private _filliquid;
     FILTrust private _filTrust;
     FILStake private _filStake;
@@ -67,6 +91,37 @@ contract DataFetcher {
         filTrustBalance = _filTrust.balanceOf(staker);
         (filTrustFixed, filTrustVariable) = _filStake.getStakerTerms(staker);
         filGovernanceBalance = _filGovernance.balanceOf(staker);
+    }
+
+    function fetchGovernanceFactors() external view returns (
+        FiLLiquidGovernanceFactors memory fiLLiquidGovernanceFactors,
+        FiLStakeGovernanceFactors memory fiLStakeGovernanceFactors
+    ) {
+        (
+            fiLLiquidGovernanceFactors.u_1,
+            fiLLiquidGovernanceFactors.r_0,
+            fiLLiquidGovernanceFactors.r_1,
+            fiLLiquidGovernanceFactors.r_m,
+            fiLLiquidGovernanceFactors.n
+        ) = _filliquid.getBorrowPayBackFactors();
+        (
+            ,,,
+            fiLLiquidGovernanceFactors.collateralRate,
+            fiLLiquidGovernanceFactors.minDepositAmount,
+            fiLLiquidGovernanceFactors.minBorrowAmount,
+            fiLLiquidGovernanceFactors.maxExistingBorrows,
+            fiLLiquidGovernanceFactors.maxFamilySize,
+            ,
+        ) = _filliquid.getComprehensiveFactors();
+        (
+            fiLLiquidGovernanceFactors.maxLiquidations,
+            fiLLiquidGovernanceFactors.minLiquidateInterval,
+            fiLLiquidGovernanceFactors.alertThreshold,
+            fiLLiquidGovernanceFactors.liquidateThreshold,
+            fiLLiquidGovernanceFactors.liquidateDiscountRate,
+            fiLLiquidGovernanceFactors.liquidateFeeRate
+        ) = _filliquid.getLiquidatingFactors();
+        (fiLStakeGovernanceFactors.n_interest, fiLStakeGovernanceFactors.n_stake,,,,,,,) = _filStake.getAllFactors();
     }
 
     function maxBorrowAllowed(uint64 minerId) external returns (uint amount) {

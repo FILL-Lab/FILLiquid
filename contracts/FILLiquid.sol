@@ -822,7 +822,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         ;
     }
 
-    /*function setAdministrativeFactors(
+    function setAdministrativeFactors(
         address new_tokenFILTrust,
         address new_validation,
         address new_calculation,
@@ -838,7 +838,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _filStake = FILStake(new_filStake);
         _governance = new_governance;
         _foundation = new_foundation;
-    }*/
+    }
 
     function getComprehensiveFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, int64) {
         return (

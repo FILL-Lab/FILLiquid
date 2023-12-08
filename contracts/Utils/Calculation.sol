@@ -54,26 +54,38 @@ contract Calculation {
         return amountFit;
     }
 
+    // The white paper outlines two types of redemption mechanisms for maintaining pool liquidity liveness:
+    //   - Proportional Redemption when utilizationRate is less than or equal to u_m / rateBase
+    //   - Discounted Redemption when utilizationRate is greater than u_m / rateBase
     function getFilByRedeem(uint amountFit, uint u_m, uint rateBase, uint fitTotalSupply, uint filLiquidity, uint utilizedLiquidity) external pure returns (uint) {
         require(utilizedLiquidity < filLiquidity, "Utilization rate must be smaller than 1");
         require(amountFit < fitTotalSupply, "Invalid FIT amount");
         if (amountFit == 0) return 0;
-        uint amountFitLeft = amountFit;
-        uint amountFil = 0;
-        if (filLiquidity * u_m > utilizedLiquidity * rateBase) {
-            amountFil = (amountFit * filLiquidity) / fitTotalSupply;
-            uint amountFilLeft = filLiquidity - utilizedLiquidity * rateBase / u_m;
-            if (amountFil <= amountFilLeft) return amountFil;
-            else {
-                amountFil = amountFilLeft;
-                uint fitExhausted = divideWithUpperRound(amountFilLeft * fitTotalSupply, filLiquidity)[1];
-                if (amountFitLeft > fitExhausted) amountFitLeft -= fitExhausted;
-                else return amountFil;
+        uint amountFit2DiscRedeem = amountFit; 
+        uint amountFil4Redeem = 0;
+
+        // Check if Partial or complete Proportional Redemption is required.
+        if (filLiquidity * u_m > utilizedLiquidity * rateBase) { 
+            // The maximum FIL amount that Proportional Redemption can perform under the current conditions
+            // The utilizationRate == u_m after maximum proportional redempation, i.e.
+            // utilizedLiquidity / (filLiquidity - maxAmountFil4PropRedeem) = u_m / rateBase
+            uint maxAmountFil4PropRedeem = filLiquidity - utilizedLiquidity * rateBase / u_m;
+
+            uint maxAmountFit2PropRedeem = divideWithUpperRound(maxAmountFil4PropRedeem * fitTotalSupply, filLiquidity)[1];
+            if (amountFit <= maxAmountFit2PropRedeem) {
+                // All redemption could be proportional
+                return (amountFit * filLiquidity) / fitTotalSupply;
+            } else {
+                // There will be both proportional and discounted redemptions
+                amountFit2DiscRedeem -= maxAmountFit2PropRedeem;
+                amountFil4Redeem = maxAmountFil4PropRedeem;
             }
-        }
-        uint theta = amountFitLeft * BASE / (fitTotalSupply - amountFit + amountFitLeft);
-        amountFil += theta * (2 * BASE - theta) * (filLiquidity - amountFil - utilizedLiquidity) / (BASE * BASE);
-        return amountFil;
+        } 
+
+        // Plus the amount of FIL for the discounted redemption 
+        uint theta = amountFit2DiscRedeem * BASE / (fitTotalSupply - amountFit + amountFit2DiscRedeem);
+        amountFil4Redeem += theta * (2 * BASE - theta) * (filLiquidity - amountFil4Redeem - utilizedLiquidity) / (BASE * BASE);
+        return amountFil4Redeem;
     }
 
     function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) external pure returns (uint) {

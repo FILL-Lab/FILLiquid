@@ -118,7 +118,7 @@ contract MultiSignFactory is Context {
         );
     }
 
-    function proposeOuterProposal(string calldata text, address target, bytes calldata code) senderIsSigner external {
+    function proposeOuterProposal(string calldata text, address target, bytes calldata code) senderIsSigner external payable {
         OuterProposalInfo memory info = OuterProposalInfo(target, code);
         _outerProposalInfos.push(info);
         _propose(proposolCategory.outerProposal, _outerProposalInfos.length - 1, text);
@@ -133,7 +133,7 @@ contract MultiSignFactory is Context {
         );
     }
 
-    function vote(uint proposalId, voteCategory v) senderIsSigner validProposalId(proposalId) public {
+    function vote(uint proposalId, voteCategory v) senderIsSigner validProposalId(proposalId) public payable {
         (bool votable, string memory reason) = _canVote(_msgSender(), proposalId);
         require(votable, reason);
         _vote(proposalId, v);
@@ -149,7 +149,7 @@ contract MultiSignFactory is Context {
         vote(proposalId, v);
     }
 
-    function execute(uint proposalId) senderIsSigner validProposalId(proposalId) external {
+    function execute(uint proposalId) senderIsSigner validProposalId(proposalId) external payable {
         (bool executable, string memory reason) = _canExecute(proposalId);
         require(executable, reason);
         _execute(proposalId);

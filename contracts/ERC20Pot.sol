@@ -12,12 +12,14 @@ contract ERC20Pot is Context {
 
     address _owner;
     ERC20 _token;
+    uint private _initialAmount;
     uint private _startHeight;
     uint private _totallyReleasedHeight;
 
-    constructor (address owner, ERC20 token, uint startHeight, uint totallyReleasedHeight) {
+    constructor (address owner, ERC20 token, uint initialAmount, uint startHeight, uint totallyReleasedHeight) {
         _owner = owner;
         _token = token;
+        _initialAmount = initialAmount;
         _startHeight = startHeight;
         _totallyReleasedHeight = totallyReleasedHeight;
     }
@@ -28,10 +30,21 @@ contract ERC20Pot is Context {
         emit Transferred(receiver, amount);
     }
 
+    function getLocked(uint height) public view returns (uint) {
+        if (_totallyReleasedHeight <= _startHeight || height >= _totallyReleasedHeight) return 0;
+        else if (height <= _startHeight) return _initialAmount;
+        else return (_totallyReleasedHeight - height) * _initialAmount / (_totallyReleasedHeight - _startHeight);
+    }
+
+    function getLockedNow() external view returns (uint) {
+        return getLocked(block.number);
+    }
+
     function canRelease(uint height) public view returns (uint) {
-        uint total = _token.balanceOf(address(this));
-        if (_totallyReleasedHeight <= _startHeight || height >= _totallyReleasedHeight) return total;
-        return (height - _startHeight) * total / (_totallyReleasedHeight - _startHeight);
+        uint balance = _token.balanceOf(address(this));
+        uint locked = getLocked(height);
+        if (balance > locked) return balance - locked;
+        else return 0;
     }
 
     function canReleaseNow() public view returns (uint) {
@@ -47,8 +60,8 @@ contract ERC20Pot is Context {
         (receiver, amount) = abi.decode(input[4:], (address, uint));
     }
 
-    function getFactors() external view returns (address, address, uint, uint) {
-        return (_owner, address(_token), _startHeight, _totallyReleasedHeight);
+    function getFactors() external view returns (address, address, uint, uint, uint) {
+        return (_owner, address(_token), _initialAmount, _startHeight, _totallyReleasedHeight);
     }
 
     modifier onlyOwner() {

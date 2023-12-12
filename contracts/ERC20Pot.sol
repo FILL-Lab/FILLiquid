@@ -9,6 +9,9 @@ contract ERC20Pot is Context {
         address indexed receiver,
         uint amount
     );
+    event OwnerChanged (
+        address indexed owner
+    );
 
     address _owner;
     ERC20 _token;
@@ -30,6 +33,11 @@ contract ERC20Pot is Context {
         emit Transferred(receiver, amount);
     }
 
+    function changeOwner(address new_owner) external onlyOwner {
+        _owner = new_owner;
+        emit OwnerChanged(_owner);
+    }
+
     function getLocked(uint height) public view returns (uint) {
         if (_totallyReleasedHeight <= _startHeight || height >= _totallyReleasedHeight) return 0;
         else if (height <= _startHeight) return _initialAmount;
@@ -49,15 +57,6 @@ contract ERC20Pot is Context {
 
     function canReleaseNow() public view returns (uint) {
         return canRelease(block.number);
-    }
-
-    function encode(address receiver, uint amount) external pure returns (bytes memory) {
-        return abi.encodeWithSignature("transfer(address,uint256)", receiver, amount);
-    }
-
-    function decode(bytes calldata input) external pure returns (bytes memory selector, address receiver, uint amount) {
-        selector = input[:4];
-        (receiver, amount) = abi.decode(input[4:], (address, uint));
     }
 
     function getFactors() external view returns (address, address, uint, uint, uint) {

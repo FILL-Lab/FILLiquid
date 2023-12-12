@@ -478,7 +478,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             withdrawn = amount - r[0];
             withdrawBalance(minerIdPayer, withdrawn);
         }
-        _filStake.handleInterest(sender, r[2]);
+        _filStake.handleInterest(sender, r[1], r[2]);
 
         emit Payback(sender, minerIdPayee, minerIdPayer, r[1], r[2], withdrawn, msg.value - sentBack);
         return (r[1], r[2]);
@@ -488,7 +488,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint[3] memory r = paybackProcess(minerId, msg.value);
         address sender = _msgSender();
         if (r[0] > 0) payable(sender).transfer(r[0]);
-        _filStake.handleInterest(_minerBindsMap[minerId], r[2]);
+        _filStake.handleInterest(_minerBindsMap[minerId], r[1], r[2]);
         emit Payback(sender, minerId, minerId, r[1], r[2], 0, msg.value - r[0]);
         return (r[1], r[2]);
     }

@@ -4,16 +4,16 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/utils/Context.sol";
 
 contract MultiSignFactory is Context {
-    enum voteResult {
+    enum approveResult {
         passed,
         pending
     }
-    struct VotingStatusInfo {
-        address[] voters;
+    struct ApprovalStatusInfo {
+        address[] approvers;
     }
-    struct VotingStatus {
-        VotingStatusInfo info;
-        mapping(address => bool) voted;
+    struct ApprovalStatus {
+        ApprovalStatusInfo info;
+        mapping(address => bool) approved;
     }
     struct ProposalInfo {
         address proposer;
@@ -24,7 +24,7 @@ contract MultiSignFactory is Context {
     }
     struct Proposal {
         ProposalInfo info;
-        VotingStatus status;
+        ApprovalStatus status;
     }
 
     event Proposed (
@@ -34,12 +34,12 @@ contract MultiSignFactory is Context {
         bytes code,
         string text
     );
-    event Voted (
-        address indexed voter,
+    event Approved (
+        address indexed approver,
         uint indexed proposalId
     );
-    event Unvoted (
-        address indexed voter,
+    event Unapproved (
+        address indexed approver,
         uint indexed proposalId
     );
     event Executed (
@@ -50,35 +50,35 @@ contract MultiSignFactory is Context {
     );
     event SignersModified (
         address[] signers,
-        uint votingThreshold
+        uint approvalThreshold
     );
 
     Proposal[] private _proposals;
     address[] private _signers;
     mapping(address => bool) _isSigner;
-    uint private _votingThreshold;
+    uint private _approvalThreshold;
 
-    constructor(address[] memory signers, uint votingThreshold) isValidSignerCount(votingThreshold, signers.length) {
+    constructor(address[] memory signers, uint approvalThreshold) isValidSignerCount(approvalThreshold, signers.length) {
         _signers = signers;
         for (uint i = 0; i < _signers.length; i++) {
             _isSigner[_signers[i]] = true;
         }
-        _votingThreshold = votingThreshold;
+        _approvalThreshold = approvalThreshold;
     }
 
     function propose(address target, bytes calldata code, string calldata text) senderIsSigner external payable {
         _propose(target, code, text);
     }
 
-    function vote(uint proposalId) senderIsSigner validProposalId(proposalId) external payable {
-        (bool votable, string memory reason) = _canVote(_msgSender(), proposalId);
+    function approve(uint proposalId) senderIsSigner validProposalId(proposalId) external payable {
+        (bool votable, string memory reason) = _canApprove(_msgSender(), proposalId);
         require(votable, reason);
-        _vote(proposalId);
+        _approve(proposalId);
     }
 
-    function unVote(uint proposalId) senderIsSigner validProposalId(proposalId) external {
-        require(hasVoted(_msgSender(), proposalId), "No voting for this proposal");
-        _unVote(proposalId);
+    function unapprove(uint proposalId) senderIsSigner validProposalId(proposalId) external {
+        require(haveApproved(_msgSender(), proposalId), "No approval for this proposal");
+        _unapprove(proposalId);
     }
 
     function execute(uint proposalId) senderIsSigner validProposalId(proposalId) external payable {
@@ -87,7 +87,7 @@ contract MultiSignFactory is Context {
         _execute(proposalId);
     }
 
-    function renewSigners(address[] calldata signers, uint votingThreshold) isValidSignerCount(votingThreshold, signers.length) senderIsSelf external {
+    function renewSigners(address[] calldata signers, uint approvalThreshold) isValidSignerCount(approvalThreshold, signers.length) senderIsSelf external {
         for (uint i = 0; i < _signers.length; i++) {
             delete _isSigner[_signers[i]];
         }
@@ -95,17 +95,17 @@ contract MultiSignFactory is Context {
         for (uint i = 0; i < _signers.length; i++) {
             _isSigner[_signers[i]] = true;
         }
-        _votingThreshold = votingThreshold;
-        emit SignersModified(signers, votingThreshold);
+        _approvalThreshold = approvalThreshold;
+        emit SignersModified(signers, approvalThreshold);
     }
 
-    function encode(address[] calldata signers, uint votingThreshold) external pure returns (bytes memory) {
-        return abi.encodeWithSignature("renewSigners(address[],uint256)", signers, votingThreshold);
+    function encode(address[] calldata signers, uint approvalThreshold) external pure returns (bytes memory) {
+        return abi.encodeWithSignature("renewSigners(address[],uint256)", signers, approvalThreshold);
     }
 
-    function decode(bytes calldata input) external pure returns (bytes memory selector, address[] memory signers, uint votingThreshold) {
+    function decode(bytes calldata input) external pure returns (bytes memory selector, address[] memory signers, uint approvalThreshold) {
         selector = input[:4];
-        (signers, votingThreshold) = abi.decode(input[4:], (address[], uint));
+        (signers, approvalThreshold) = abi.decode(input[4:], (address[], uint));
     }
 
     function isSigner(address addr) external view returns (bool) {
@@ -120,17 +120,17 @@ contract MultiSignFactory is Context {
         return _proposals.length;
     }
 
-    function getVoteResult(uint proposalId) validProposalId(proposalId) public view returns (voteResult) {
-        if (_proposals[proposalId].status.info.voters.length >= _votingThreshold) return voteResult.passed;
-        else return voteResult.pending;
+    function getApproveResult(uint proposalId) validProposalId(proposalId) public view returns (approveResult) {
+        if (_proposals[proposalId].status.info.approvers.length >= _approvalThreshold) return approveResult.passed;
+        else return approveResult.pending;
     }
 
-    function getVoteStatus(uint proposalId) validProposalId(proposalId) external view returns (VotingStatusInfo memory) {
+    function getApproveStatus(uint proposalId) validProposalId(proposalId) external view returns (ApprovalStatusInfo memory) {
         return _proposals[proposalId].status.info;
     }
 
-    function hasVoted(address voter, uint proposalId) validProposalId(proposalId) public view returns (bool) {
-        return _proposals[proposalId].status.voted[voter];
+    function haveApproved(address approver, uint proposalId) validProposalId(proposalId) public view returns (bool) {
+        return _proposals[proposalId].status.approved[approver];
     }
 
     function getSigners() external view returns (address[] memory) {
@@ -146,16 +146,16 @@ contract MultiSignFactory is Context {
         return _signers[index];
     }
 
-    function canVote(address voter, uint proposalId) validProposalId(proposalId) external view returns (bool, string memory) {
-        return _canVote(voter, proposalId);
+    function canApprove(address approver, uint proposalId) validProposalId(proposalId) external view returns (bool, string memory) {
+        return _canApprove(approver, proposalId);
     }
 
     function canExecute(uint proposalId) validProposalId(proposalId) external view returns (bool, string memory) {
         return _canExecute(proposalId);
     }
 
-    function getVotingThreshold() external view returns (uint) {
-        return _votingThreshold;
+    function getApprovalThreshold() external view returns (uint) {
+        return _approvalThreshold;
     }
 
     modifier senderIsSigner() {
@@ -168,9 +168,9 @@ contract MultiSignFactory is Context {
         _;
     }
 
-    modifier isValidSignerCount(uint votingThreshold, uint signerCount) {
+    modifier isValidSignerCount(uint approvalThreshold, uint signerCount) {
         require(signerCount > 0, "At least one signer required");
-        require(votingThreshold > 0 && votingThreshold <= signerCount, "Invalid votingThreshold");
+        require(approvalThreshold > 0 && approvalThreshold <= signerCount, "Invalid approvalThreshold");
         _;
     }
 
@@ -195,40 +195,40 @@ contract MultiSignFactory is Context {
             code,
             text
         );
-        (bool votable,) = _canVote(proposer, proposalId);
-        if (votable) _vote(proposalId);
+        (bool votable,) = _canApprove(proposer, proposalId);
+        if (votable) _approve(proposalId);
         else if (msg.value > 0) payable(proposer).transfer(msg.value);
     }
 
-    function _vote(uint proposalId) private {
+    function _approve(uint proposalId) private {
         Proposal storage p = _proposals[proposalId];
-        address voter = _msgSender();
-        VotingStatus storage status = p.status;
-        status.voted[voter] = true;
-        status.info.voters.push(voter);
-        emit Voted(voter, proposalId);
+        address approver = _msgSender();
+        ApprovalStatus storage status = p.status;
+        status.approved[approver] = true;
+        status.info.approvers.push(approver);
+        emit Approved(approver, proposalId);
         (bool executable,) = _canExecute(proposalId);
         if (executable) _execute(proposalId);
-        else if (msg.value > 0) payable(voter).transfer(msg.value);
+        else if (msg.value > 0) payable(approver).transfer(msg.value);
     }
 
-    function _unVote(uint proposalId) private {
+    function _unapprove(uint proposalId) private {
         Proposal storage p = _proposals[proposalId];
-        address voter = _msgSender();
-        VotingStatus storage status = p.status;
-        VotingStatusInfo storage info = status.info;
-        delete status.voted[voter];
-        address[] storage voters = info.voters;
-        for (uint i = 0; i < voters.length; i++) {
-            if (voters[i] == voter) {
-                if (i != voters.length - 1) {
-                    voters[i] = voters[voters.length - 1];
+        address approver = _msgSender();
+        ApprovalStatus storage status = p.status;
+        ApprovalStatusInfo storage info = status.info;
+        delete status.approved[approver];
+        address[] storage approvers = info.approvers;
+        for (uint i = 0; i < approvers.length; i++) {
+            if (approvers[i] == approver) {
+                if (i != approvers.length - 1) {
+                    approvers[i] = approvers[approvers.length - 1];
                 }
-                voters.pop();
+                approvers.pop();
                 break;
             }
         }
-        emit Unvoted(voter, proposalId);
+        emit Unapproved(approver, proposalId);
     }
 
     function _execute(uint proposalId) private {
@@ -238,15 +238,15 @@ contract MultiSignFactory is Context {
         emit Executed(_msgSender(), proposalId, success, output);
     }
 
-    function _canVote(address voter, uint proposalId) private view returns (bool, string memory) {
-        if (!_isSigner[voter]) return (false, "Sender is not signer");
-        if (hasVoted(voter,proposalId)) return (false, "Already voted");
+    function _canApprove(address approver, uint proposalId) private view returns (bool, string memory) {
+        if (!_isSigner[approver]) return (false, "Sender is not signer");
+        if (haveApproved(approver,proposalId)) return (false, "Already approved");
         else return (true, "");
     }
 
     function _canExecute(uint proposalId) private view returns (bool, string memory) {
         if (_proposals[proposalId].info.executed) return (false, "Already executed");
-        if (getVoteResult(proposalId) == voteResult.pending) return (false, "Not enough votes");
+        if (getApproveResult(proposalId) == approveResult.pending) return (false, "Not enough approves");
         else return (true, "");
     }
 }

@@ -139,7 +139,7 @@ contract DataFetcher {
         uint sixMonthInterest
     ){
         expectedInterestRate = _filliquid.interestRateBorrow(amount);
-        sixMonthInterest = _filliquid.paybackAmount(amount, 518400, expectedInterestRate) - amount;
+        sixMonthInterest = _filliquid.paybackAmount(amount, 15552000, expectedInterestRate) - amount;
     }
 
     function getDepositExpecting(uint amountFIL) external view returns (uint expectedAmountFILTrust){

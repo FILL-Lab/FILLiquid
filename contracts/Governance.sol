@@ -452,6 +452,7 @@ contract Governance is Context {
         liquidate = amount * _liquidate;
         if (liquidate % _rateBase == 0) liquidate /= _rateBase;
         else liquidate = liquidate / _rateBase + 1;
+        if (liquidate > amount) liquidate = amount;
         remain = amount - liquidate;
     }
 

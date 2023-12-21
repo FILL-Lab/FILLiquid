@@ -61,7 +61,9 @@ contract DataFetcher {
         uint figTotalSupply,
         FILLiquid.FILLiquidInfo memory filLiquidInfo,
         FILStake.FILStakeInfo memory filStakeInfo,
-        Governance.GovernanceInfo memory governanceInfo
+        Governance.GovernanceInfo memory governanceInfo,
+        FiLLiquidGovernanceFactors memory fiLLiquidGovernanceFactors,
+        FiLStakeGovernanceFactors memory fiLStakeGovernanceFactors
     ) {
         blockHeight = block.number;
         blockTimeStamp = block.timestamp;
@@ -70,6 +72,7 @@ contract DataFetcher {
         filLiquidInfo = _filliquid.getStatus();
         filStakeInfo = _filStake.getStatus();
         governanceInfo = _governance.getStatus();
+        (fiLLiquidGovernanceFactors, fiLStakeGovernanceFactors) = fetchGovernanceFactors();
     }
 
     function fetchPersonalData(address player) external returns (
@@ -93,7 +96,7 @@ contract DataFetcher {
         filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 
-    function fetchGovernanceFactors() external view returns (
+    function fetchGovernanceFactors() public view returns (
         FiLLiquidGovernanceFactors memory fiLLiquidGovernanceFactors,
         FiLStakeGovernanceFactors memory fiLStakeGovernanceFactors
     ) {

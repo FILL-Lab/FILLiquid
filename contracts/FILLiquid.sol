@@ -314,7 +314,6 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     //Deposit & Redeem factors
     uint private _u_m;
-    uint private _j_n;
 
     uint constant DEFAULT_MIN_DEPOSIT = 1 ether;
     uint constant DEFAULT_MIN_BORROW = 10 ether;
@@ -329,7 +328,6 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_R_1 = 100000;
     uint constant DEFAULT_R_M = 600000;
     uint constant DEFAULT_U_M = 900000;
-    uint constant DEFAULT_J_N = 2500000;
     uint constant DEFAULT_MAX_LIQUIDATIONS = 10;
     uint constant DEFAULT_MIN_LIQUIDATE_INTERVAL = 12 hours;
     uint constant DEFAULT_ALERT_THRESHOLD = 750000;
@@ -369,7 +367,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         _r_1 = DEFAULT_R_1;
         _r_m = DEFAULT_R_M;
         _u_m = DEFAULT_U_M;
-        _j_n = DEFAULT_J_N;
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
@@ -955,14 +952,13 @@ contract FILLiquid is Context, FILLiquidInterface {
         _calculation.getN(values[0], _u_m, values[2], values[3], _rateBase);
     }
 
-    function getDepositRedeemFactors() external view returns (uint, uint) {
-        return (_u_m, _j_n);
+    function getDepositRedeemFactors() external view returns (uint) {
+        return (_u_m);
     }
 
-    /*function setDepositRedeemFactors(uint new_u_m, uint new_j_n) external onlyOwner {
+    /*function setDepositRedeemFactors(uint new_u_m) external onlyOwner {
         require(_u_1 < new_u_m && new_u_m <= _rateBase, "Invalid u_m");
         _u_m = new_u_m;
-        _j_n = new_j_n;
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }*/
 

@@ -181,7 +181,8 @@ contract DataFetcher {
         uint totalFIL,
         uint borrowing,
         uint borrowingAndPeriod,
-        uint accumulatedPayback
+        uint accumulatedPayback,
+        uint interestExp
     ) {
         blockHeight = block.number;
         blockTimeStamp = block.timestamp;
@@ -196,7 +197,9 @@ contract DataFetcher {
                 FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
                 totalPendingInterest += minerBorrowInfo.debtOutStanding - minerBorrowInfo.borrowSum;
                 for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
-                    borrowingAndPeriod += minerBorrowInfo.borrows[i].borrow.remainingOriginalAmount * (block.timestamp - minerBorrowInfo.borrows[i].borrow.initialTime);
+                    FILLiquid.BorrowInfo memory borrowInfo = minerBorrowInfo.borrows[i].borrow;
+                    borrowingAndPeriod += borrowInfo.remainingOriginalAmount * (block.timestamp - borrowInfo.initialTime);
+                    interestExp += _filliquid.paybackAmount(borrowInfo.borrowAmount, 31536000, borrowInfo.interestRate);
                 }
             }
         }
@@ -209,7 +212,7 @@ contract DataFetcher {
         return _filecoinAPI.getPendingBeneficiaryId(minerId);
     }
 
-    function filliquid() external view returns (address) {
-        return address(_filliquid);
+    function getAddresses() external view returns (address[6] memory) {
+        return [address(_filliquid), address(_filTrust), address(_filStake), address(_filGovernance), address(_governance), address(_filecoinAPI)];
     }
 }

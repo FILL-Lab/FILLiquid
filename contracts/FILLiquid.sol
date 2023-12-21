@@ -120,13 +120,16 @@ interface FILLiquidInterface {
     /// @param withdrawAmount maximum withdrawal amount
     /// @return principal repaid principal FIL
     /// @return interest repaid interest FIL
-    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint withdrawAmount) external payable returns (uint principal, uint interest);
+    /// @return withdrawn withdrawn FIL
+    /// @return mintedFIG FIG minted
+    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint withdrawAmount) external payable returns (uint principal, uint interest, uint withdrawn, uint mintedFIG);
 
     /// @dev payback principal and interest by anyone
     /// @param minerId miner id
     /// @return principal repaid principal FIL
     /// @return interest repaid interest FIL
-    function directPayback(uint64 minerId) external payable returns (uint principal, uint interest);
+    /// @return mintedFIG FIG minted
+    function directPayback(uint64 minerId) external payable returns (uint principal, uint interest, uint mintedFIG);
 
     /// @dev liquidate process
     /// @param minerIdPayee miner id being paid
@@ -208,8 +211,8 @@ interface FILLiquidInterface {
         uint initialTime
     );
     
-    /// @dev Emitted when user `account` repays `principal + interest` FIL for `minerIdPayee`,
-    /// with `withdrawn` withdrawn from `minerIdPayer` and `valueTx` from `account`
+    /// @dev Emitted when user `account` repays `principal` + `interest` FIL for `minerIdPayee`,
+    /// with `withdrawn` withdrawn from `minerIdPayer` and `principal` + `interest` - `withdrawn` from `account` and `mintedFIG` FIG minted
     event Payback(
         address indexed account,
         uint64 indexed minerIdPayee,
@@ -217,7 +220,7 @@ interface FILLiquidInterface {
         uint principal,
         uint interest,
         uint withdrawn,
-        uint valueTx
+        uint mintedFIG
     );
 
     /// @dev Emitted when user `account` liquidate `principal + interest + reward + fee` FIL for `minerId`
@@ -461,36 +464,34 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (fees[0], fees[1]);
     }
 
-    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint amount) external isBindMiner(minerIdPayee) isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) payable returns (uint, uint) {
+    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint amount) external isBindMiner(minerIdPayee) isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) payable returns (uint, uint, uint, uint) {
         uint available = _filecoinAPI.getAvailableBalance(minerIdPayer).bigInt2Uint();
         if (amount > available) {
             amount = available;
         }
         
         uint[3] memory r = paybackProcess(minerIdPayee, msg.value + amount);
-        uint sentBack = 0;
-        uint withdrawn = 0;
-        address sender = _msgSender();
+        uint[2] memory sentBack_withdrawn;
         if (r[0] > amount) {
-            sentBack = r[0] - amount;
-            payable(sender).transfer(sentBack);
+            sentBack_withdrawn[0] = r[0] - amount;
+            payable(_msgSender()).transfer(sentBack_withdrawn[0]);
         } else if (r[0] < amount) {
-            withdrawn = amount - r[0];
-            withdrawBalance(minerIdPayer, withdrawn);
+            sentBack_withdrawn[1] = amount - r[0];
+            withdrawBalance(minerIdPayer, sentBack_withdrawn[1]);
         }
-        _filStake.handleInterest(sender, r[1], r[2]);
+        uint mintedFIG = _filStake.handleInterest(_msgSender(), r[1], r[2]);
 
-        emit Payback(sender, minerIdPayee, minerIdPayer, r[1], r[2], withdrawn, msg.value - sentBack);
-        return (r[1], r[2]);
+        emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], sentBack_withdrawn[1], mintedFIG);
+        return (r[1], r[2], sentBack_withdrawn[1], mintedFIG);
     }
 
-    function directPayback(uint64 minerId) external isBorrower(minerId) payable returns (uint, uint) {
+    function directPayback(uint64 minerId) external isBorrower(minerId) payable returns (uint, uint, uint) {
         uint[3] memory r = paybackProcess(minerId, msg.value);
         address sender = _msgSender();
         if (r[0] > 0) payable(sender).transfer(r[0]);
-        _filStake.handleInterest(_minerBindsMap[minerId], r[1], r[2]);
-        emit Payback(sender, minerId, minerId, r[1], r[2], 0, msg.value - r[0]);
-        return (r[1], r[2]);
+        uint mintedFIG = _filStake.handleInterest(_minerBindsMap[minerId], r[1], r[2]);
+        emit Payback(sender, minerId, minerId, r[1], r[2], 0, mintedFIG);
+        return (r[1], r[2], mintedFIG);
     }
 
     function liquidate(uint64 minerIdPayee, uint64 minerIdPayer) external isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) returns (uint[4] memory result) {

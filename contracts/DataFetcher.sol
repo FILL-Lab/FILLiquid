@@ -199,7 +199,7 @@ contract DataFetcher {
                 for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
                     FILLiquid.BorrowInfo memory borrowInfo = minerBorrowInfo.borrows[i].borrow;
                     borrowingAndPeriod += borrowInfo.remainingOriginalAmount * (block.timestamp - borrowInfo.initialTime);
-                    interestExp += _filliquid.paybackAmount(borrowInfo.borrowAmount, 31536000, borrowInfo.interestRate);
+                    interestExp += _filliquid.paybackAmount(borrowInfo.borrowAmount, 31536000, borrowInfo.interestRate) - borrowInfo.borrowAmount;
                 }
             }
         }

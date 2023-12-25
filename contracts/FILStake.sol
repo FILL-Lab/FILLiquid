@@ -38,7 +38,8 @@ contract FILStake is Context{
     }
     event Interest(
         address indexed minter,
-        uint amount,
+        uint principal,
+        uint interest,
         uint minted
     );
     event Staked(
@@ -112,11 +113,11 @@ contract FILStake is Context{
         _stake_share = DEFAULT_STAKE_SHARE;
     }
 
-    function handleInterest(address minter, uint amount) onlyFiLLiquid external returns (uint minted) {
-        (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(amount);
-        _accumulatedInterest += amount;
+    function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquid external returns (uint minted) {
+        (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(interest);
+        _accumulatedInterest += interest;
         if (minted > 0) _tokenFILGovernance.mint(minter, minted);
-        emit Interest(minter, amount, minted);
+        emit Interest(minter, principal, interest, minted);
     }
 
     function stakeFilTrust(uint amount, uint maxStart, uint duration) external returns (uint minted) {

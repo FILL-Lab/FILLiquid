@@ -370,13 +370,13 @@ contract FILLiquid is Context, FILLiquidInterface {
         _liquidateDiscountRate = DEFAULT_LIQUIDATE_DISCOUNT_RATE;
         _liquidateFeeRate = DEFAULT_LIQUIDATE_FEE_RATE;
         //_u_1 = DEFAULT_U_1;
-        _u_1 = 800000;
+        _u_1 = 850000;
         //_r_0 = DEFAULT_R_0;
         _r_0 = 100000;
         //_r_1 = DEFAULT_R_1;
-        _r_1 = 137500;
+        _r_1 = 150000;
         //_r_m = DEFAULT_R_M;
-        _r_m = 170000;
+        _r_m = 230000;
         _u_m = DEFAULT_U_M;
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }

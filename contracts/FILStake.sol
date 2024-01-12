@@ -87,7 +87,6 @@ contract FILStake is Context{
     uint private _nextStakeID;
 
     FILTrust private _tokenFILTrust;
-    Calculation private _calculation;
     FILGovernance private _tokenFILGovernance;
 
     uint constant DEFAULT_N_INTEREST = 9e23;
@@ -266,21 +265,19 @@ contract FILStake is Context{
         return (_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share);
     }
 
-    function getContractAddrs() external view returns (address, address, address, address, address) {
-        return (_filLiquid, _governance, address(_tokenFILTrust), address(_calculation), address(_tokenFILGovernance));
+    function getContractAddrs() external view returns (address, address, address, address) {
+        return (_filLiquid, _governance, address(_tokenFILTrust), address(_tokenFILGovernance));
     }
 
     function setContractAddrs(
         address new_filLiquid,
         address new_governance,
         address new_tokenFILTrust,
-        address new_calculation,
         address new_tokenFILGovernance
     ) onlyOwner external {
         _filLiquid = new_filLiquid;
         _governance = new_governance;
         _tokenFILTrust = FILTrust(new_tokenFILTrust);
-        _calculation = Calculation(new_calculation);
         _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
     }
 
@@ -323,10 +320,10 @@ contract FILStake is Context{
     }
 
     function _getMintedFromInterest(uint interest, uint lastAccumulated) private view returns (uint, uint) {
-        return _calculation.getMinted(_accumulatedInterest, interest, _n_interest, _tokenFILGovernance.maxLiquid() * _interest_share / _rateBase, lastAccumulated);
+        return Calculation.getMinted(_accumulatedInterest, interest, _n_interest, _tokenFILGovernance.maxLiquid() * _interest_share / _rateBase, lastAccumulated);
     }
 
     function _getMintedFromStake(uint stakeDuration, uint lastAccumulated) private view returns (uint, uint) {
-        return _calculation.getMinted(_accumulatedStakeDuration, stakeDuration, _n_stake, _tokenFILGovernance.maxLiquid() * _stake_share / _rateBase, lastAccumulated);
+        return Calculation.getMinted(_accumulatedStakeDuration, stakeDuration, _n_stake, _tokenFILGovernance.maxLiquid() * _stake_share / _rateBase, lastAccumulated);
     }
 }

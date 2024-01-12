@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@zondax/filecoin-solidity/contracts/v0.8/MinerAPI.sol";
-import "@zondax/filecoin-solidity/contracts/v0.8/AccountAPI.sol";
-import "@zondax/filecoin-solidity/contracts/v0.8/PrecompilesAPI.sol";
-
 import "@openzeppelin/contracts/utils/Context.sol";
+
+import "./FilecoinAPI.sol";
 
 contract Validation is Context {
     mapping(bytes => uint256) private _nonces;
@@ -17,23 +15,18 @@ contract Validation is Context {
     ) external {
         if (signature.length == 97) signature = signature[1:];
         require (signature.length == 96, "Invalid signature length");
+
         CommonTypes.FilAddress memory ownerAddr = getOwner(minerID);
         bytes memory digest = getDigest(
             ownerAddr.data,
             minerID,
             sender
         );
-        AccountAPI.authenticateMessage(
-            CommonTypes.FilActorId.wrap(PrecompilesAPI.resolveAddress(ownerAddr)),
-            AccountTypes.AuthenticateMessageParams({
-                signature: signature,
-                message: digest
-            })
-        );
+        FilecoinAPI.authenticateMessage(ownerAddr, signature, digest);
         _nonces[ownerAddr.data] += 1;
     }
 
-    function getSigningMsg(uint64 minerID) external returns (bytes memory m) {
+    function getSigningMsg(uint64 minerID) external view returns (bytes memory m) {
         return getDigest(getOwner(minerID).data, minerID, _msgSender());
     }
 
@@ -57,8 +50,8 @@ contract Validation is Context {
         return bytes.concat(digest);
     }
 
-    function getOwner(uint64 minerID) private returns (CommonTypes.FilAddress memory) {
-        return MinerAPI.getOwner(CommonTypes.FilActorId.wrap(minerID)).owner;
+    function getOwner(uint64 minerID) private view returns (CommonTypes.FilAddress memory) {
+        return FilecoinAPI.getOwner(minerID).owner;
     }
 
     function getChainId() private view returns (uint256 chainId) {

@@ -7,8 +7,8 @@ import { uEXP2_MAX_INPUT, uUNIT } from "@prb/math/src/ud60x18/Constants.sol";
 uint256 constant ANNUM = 31536000;
 uint256 constant BASE = 1e18;
 
-contract Calculation {
-    function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) external pure returns (uint) {
+library Calculation {
+    function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) internal pure returns (uint) {
         require(u < rateBase, "Utilization rate cannot be bigger than 1");
         if (u <= u_1) return r_0 + ((r_1 - r_0) * u) / u_1;
         UD60x18 base = toUD60x18((rateBase * (rateBase - u_1)) / (rateBase - u), rateBase);
@@ -16,12 +16,12 @@ contract Calculation {
         return toUint(base.pow(exp), rateBase) * r_1 / rateBase;
     }
 
-    function getN(uint u_1, uint u_m, uint r_1, uint r_m, uint rateBase) external pure returns (uint n) {
+    function getN(uint u_1, uint u_m, uint r_1, uint r_m, uint rateBase) internal pure returns (uint n) {
         n = ((toUD60x18Direct(r_m).log2() - toUD60x18Direct(r_1).log2()) / (toUD60x18Direct(rateBase - u_1).log2() - toUD60x18Direct(rateBase - u_m).log2())).intoUint256();
         require(n >= uUNIT, "Invalid N");
     }
 
-    function getExchangeRate(uint u, uint u_m, uint rateBase, uint fitLiquidity, uint filLiquidity) external pure returns (uint) {
+    function getExchangeRate(uint u, uint u_m, uint rateBase, uint fitLiquidity, uint filLiquidity) internal pure returns (uint) {
         require(u <= rateBase, "Utilization rate cannot be bigger than 1");
         uint filFit = rateBase;
         if (fitLiquidity != 0 && fitLiquidity != filLiquidity) {
@@ -31,7 +31,7 @@ contract Calculation {
         return 2 * (rateBase - u) * filFit / rateBase;
     }
 
-    function getFitByDeposit(uint amountFil, uint u_m, uint rateBase, uint fitTotalSupply, uint filLiquidity, uint utilizedLiquidity) external pure returns (uint) {
+    function getFitByDeposit(uint amountFil, uint u_m, uint rateBase, uint fitTotalSupply, uint filLiquidity, uint utilizedLiquidity) internal pure returns (uint) {
         require(utilizedLiquidity < filLiquidity || filLiquidity == 0, "Utilization rate must be smaller than 1");
         if (amountFil == 0) return 0;
         if (fitTotalSupply == 0 || filLiquidity == 0) return amountFil;
@@ -57,7 +57,7 @@ contract Calculation {
     // The white paper outlines two types of redemption mechanisms for maintaining pool liquidity liveness:
     //   - Proportional Redemption when utilizationRate is less than or equal to u_m / rateBase
     //   - Discounted Redemption when utilizationRate is greater than u_m / rateBase
-    function getFilByRedeem(uint amountFit, uint u_m, uint rateBase, uint fitTotalSupply, uint filLiquidity, uint utilizedLiquidity) external pure returns (uint) {
+    function getFilByRedeem(uint amountFit, uint u_m, uint rateBase, uint fitTotalSupply, uint filLiquidity, uint utilizedLiquidity) internal pure returns (uint) {
         require(utilizedLiquidity < filLiquidity, "Utilization rate must be smaller than 1");
         require(amountFit < fitTotalSupply, "Invalid FIT amount");
         if (amountFit == 0) return 0;
@@ -88,13 +88,13 @@ contract Calculation {
         return amountFil4Redeem;
     }
 
-    function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) external pure returns (uint) {
+    function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) internal pure returns (uint) {
         if (borrowPeriod == 0 || borrowAmount == 0) return borrowAmount;
         UD60x18 x = ud(borrowPeriod * annualRate * conversionFactor(rateBase) / ANNUM);
         return x.exp().intoUint256() * borrowAmount / uUNIT;
     }
 
-    function getMinted(uint current, uint amount, uint n, uint total, uint lastAccumulated) external pure returns(uint, uint) {
+    function getMinted(uint current, uint amount, uint n, uint total, uint lastAccumulated) internal pure returns(uint, uint) {
         uint exp = (current + amount) * uUNIT / n;
         uint currentAccumulated = total;
         if (exp <= uEXP2_MAX_INPUT) currentAccumulated -= total * uUNIT / ud(exp).exp2().intoUint256();

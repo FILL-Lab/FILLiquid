@@ -5,12 +5,16 @@ import "@openzeppelin/contracts/utils/Context.sol";
 
 contract FILLiquidPool is Context {
     address private _owner;
-    address payable private _logic;
     bool private _switch;
+    address payable private _logic_deposit_redeem;
+    address payable private _logic_borrow_payback;
+    address private _logic_collateralize;
 
-    constructor(address payable logicAddr) {
+    constructor(address payable logic_deposit_redeem, address payable logic_borrow_payback, address logic_collateralize) {
         _owner = _msgSender();
-        _logic = logicAddr;
+        _logic_deposit_redeem = logic_deposit_redeem;
+        _logic_borrow_payback = logic_borrow_payback;
+        _logic_collateralize = logic_collateralize;
         _switch = true;
     }
 
@@ -19,20 +23,20 @@ contract FILLiquidPool is Context {
         bytes calldata beneficiary,
         uint quota,
         int64 expiration
-    ) onlyLogic switchOn external {
+    ) onlyLogicCollateralize switchOn external {
         _changeBeneficiary(minerId, beneficiary, quota, expiration);
     }
 
-    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyLogic switchOn external {
+    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyLogicBorrowPayback switchOn external {
         _withdrawBalance(minerId, withdrawnAmount);
     }
 
-    receive() onlyLogic switchOn external payable {
+    receive() onlyLogicReceiver switchOn external payable {
     }
 
-    function send(uint amount) onlyLogic switchOn external {
+    function send(uint amount) onlyLogicReceiver switchOn external {
         if (amount > 0) {
-            _send(amount);
+            _send(amount, payable(_msgSender()));
         }
     }
 
@@ -44,12 +48,18 @@ contract FILLiquidPool is Context {
         _owner = new_owner;
     }
 
-    function getAdministrativeFactors() external view returns (address payable) {
-        return _logic;
+    function getAdministrativeFactors() external view returns (address payable, address payable, address) {
+        return (_logic_deposit_redeem, _logic_borrow_payback, _logic_collateralize);
     }
 
-    function setAdministrativeFactors(address payable new_logic) onlyOwner external {
-        _logic = new_logic;
+    function setAdministrativeFactors(
+        address payable new_logic_deposit_redeem,
+        address payable new_logic_borrow_payback,
+        address new_logic_collateralize
+    ) onlyOwner external {
+        _logic_deposit_redeem = new_logic_deposit_redeem;
+        _logic_borrow_payback = new_logic_borrow_payback;
+        _logic_collateralize = new_logic_collateralize;
     }
 
     function getSwitch() external view returns (bool) {
@@ -65,8 +75,18 @@ contract FILLiquidPool is Context {
         _;
     }
 
-    modifier onlyLogic() {
-        require(_msgSender() == _logic, "Not logic");
+    modifier onlyLogicBorrowPayback() {
+        require(_msgSender() == _logic_borrow_payback, "Not logic_borrow_payback");
+        _;
+    }
+
+    modifier onlyLogicCollateralize() {
+        require(_msgSender() == _logic_collateralize, "Not logic_collateralize");
+        _;
+    }
+
+    modifier onlyLogicReceiver() {
+        require(_msgSender() == _logic_borrow_payback || _msgSender() == _logic_deposit_redeem, "Not logic_borrow_payback or logic_deposit_redeem");
         _;
     }
 
@@ -75,8 +95,8 @@ contract FILLiquidPool is Context {
         _;
     }
 
-    function _send(uint amount) private {
-        _logic.transfer(amount);
+    function _send(uint amount, address payable receiver) private {
+        receiver.transfer(amount);
     }
 
     function _changeBeneficiary(
@@ -85,15 +105,15 @@ contract FILLiquidPool is Context {
         uint quota,
         int64 expiration
     ) private {
-        (bool success, ) = _logic.delegatecall(
-            abi.encodeWithSignature("changeBeneficiary(uint64,(bytes),uint256,int64)", minerId, beneficiary, quota, expiration)
+        (bool success, ) = _logic_collateralize.delegatecall(
+            abi.encodeWithSignature("changeBeneficiary(uint64,bytes,uint256,int64)", minerId, beneficiary, quota, expiration)
         );
         require(success, "ChangeBeneficiary failed");
     }
 
     function _withdrawBalance(uint64 minerId, uint withdrawnAmount) private {
         if (withdrawnAmount > 0) {
-            (bool success, bytes memory data) = _logic.delegatecall(
+            (bool success, bytes memory data) = _logic_borrow_payback.delegatecall(
                 abi.encodeWithSignature("withdrawBalance(uint64,uint256)", minerId, withdrawnAmount)
             );
             require(success, "WithdrawBalance failed");

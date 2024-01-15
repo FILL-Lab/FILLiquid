@@ -158,7 +158,9 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
 
     //administrative factors
     address private _owner;
-    address private _logic;
+    address private _logic_deposit_redeem;
+    address private _logic_borrow_payback;
+    address private _logic_collateralize;
     address private _governance;
     address payable private _foundation;
     address private _tokenFILTrust;
@@ -217,10 +219,21 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     uint constant DEFAULT_REQUIRED_QUOTA = 1e68 - 1e18;
     int64 constant DEFAULT_REQUIRED_EXPIRATION = type(int64).max;
 
-    constructor(address logicAddr, address governanceAddr, address payable foundationAddr, address filTrustAddr, address validationAddr, address filStakeAddr) {
+    constructor(
+        address logic_deposit_redeem,
+        address logic_borrow_payback,
+        address logic_collateralize,
+        address governanceAddr,
+        address payable foundationAddr,
+        address filTrustAddr,
+        address validationAddr,
+        address filStakeAddr
+    ) {
         _switch = true;
         _owner = _msgSender();
-        _logic = logicAddr;
+        _logic_deposit_redeem = logic_deposit_redeem;
+        _logic_borrow_payback = logic_borrow_payback;
+        _logic_collateralize = logic_collateralize;
         _governance = governanceAddr;
         _foundation = foundationAddr;
         _tokenFILTrust = filTrustAddr;
@@ -250,57 +263,57 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _n = _getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
-    function recordDeposit(uint amountFIL, uint amountFILTrust) onlyLogic switchOn external {
+    function recordDeposit(uint amountFIL, uint amountFILTrust) onlyLogicDepositRedeem switchOn external {
         _accumulatedDepositFIL += amountFIL;
         _accumulatedMintFILTrust += amountFILTrust;
         _accumulatedDeposits++;
     }
 
-    function recordRedeem(uint amountFILTrust, uint redeemFIL, uint fee) onlyLogic switchOn external {
+    function recordRedeem(uint amountFILTrust, uint redeemFIL, uint fee) onlyLogicDepositRedeem switchOn external {
         _accumulatedBurntFILTrust += amountFILTrust;
         _accumulatedRedeemFIL += redeemFIL;
         _accumulatedRedeemFee += fee;
     }
 
-    function recordBorrow(uint64 minerId, uint borrowFIL, uint fee) onlyLogic switchOn external {
+    function recordBorrow(uint64 minerId, uint borrowFIL, uint fee) onlyLogicBorrowPayback switchOn external {
         if (_minerBorrows[minerId].length == 1) _minerWithBorrows++;
         _accumulatedBorrowFIL += borrowFIL;
         _accumulatedBorrowFee += fee;
         _accumulatedBorrows++;
     }
 
-    function recordLiquidate(uint bonus, uint fee) onlyLogic switchOn external {
+    function recordLiquidate(uint bonus, uint fee) onlyLogicBorrowPayback switchOn external {
         _accumulatedLiquidateFee += fee;
         _accumulatedLiquidateReward += bonus;
     }
 
-    function recordCollateralizingMiner() onlyLogic switchOn external {
-        _collateralizedMiner++;
-    }
-
-    function recordUncollateralizingMiner() onlyLogic switchOn external {
-        _collateralizedMiner--;
-    }
-
-    function recordPayback(uint64 minerId, uint principal, uint interest, uint new_accumulatedBadDebt) onlyLogic switchOn external {
+    function recordPayback(uint64 minerId, uint principal, uint interest, uint new_accumulatedBadDebt) onlyLogicBorrowPayback switchOn external {
         if (_minerBorrows[minerId].length == 0) _minerWithBorrows--;
         _accumulatedPaybackFIL += principal;
         _accumulatedInterestFIL += interest;
         _accumulatedBadDebt = new_accumulatedBadDebt;
     }
 
-    function updateMinerBorrows(uint64 minerId, BorrowInfo[] calldata borrows) onlyLogic switchOn external {
+    function updateMinerBorrows(uint64 minerId, BorrowInfo[] calldata borrows) onlyLogicBorrowPayback switchOn external {
         delete _minerBorrows[minerId];
         for (uint i = 0; i < borrows.length; i++) {
             _minerBorrows[minerId].push(borrows[i]);
         }
     }
 
-    function addUserMiner(address account, uint64 minerId) onlyLogic switchOn external {
+    function recordCollateralizingMiner() onlyLogicCollateralize switchOn external {
+        _collateralizedMiner++;
+    }
+
+    function recordUncollateralizingMiner() onlyLogicCollateralize switchOn external {
+        _collateralizedMiner--;
+    }
+
+    function addUserMiner(address account, uint64 minerId) onlyLogicCollateralize switchOn external {
         _userMinerPairs[account].push(minerId);
     }
 
-    function removeUserMiner(address account, uint64 minerId) onlyLogic switchOn external {
+    function removeUserMiner(address account, uint64 minerId) onlyLogicCollateralize switchOn external {
         uint64[] storage miners = _userMinerPairs[account];
         for (uint i = 0; i < miners.length; i++) {
             if (miners[i] == minerId) {
@@ -313,55 +326,55 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         }
     }
 
-    function updateMinerUser(uint64 minerId, address account) onlyLogic switchOn external {
+    function updateMinerUser(uint64 minerId, address account) onlyLogicCollateralize switchOn external {
         _minerBindsMap[minerId] = account;
     }
 
-    function updateCollateralizingMinerInfo(uint64 minerId, MinerCollateralizingInfo calldata info) onlyLogic switchOn external {
+    function updateCollateralizingMinerInfo(uint64 minerId, MinerCollateralizingInfo calldata info) onlyLogicHandle switchOn external {
         _minerCollateralizing[minerId] = info;
     }
 
-    function deleteCollateralizingMinerInfo(uint64 minerId) onlyLogic switchOn external {
+    function deleteCollateralizingMinerInfo(uint64 minerId) onlyLogicCollateralize switchOn external {
         delete _minerCollateralizing[minerId];
     }
 
-    function updateLiquidatedTimes(uint64 minerId, uint times) onlyLogic switchOn external {
+    function updateLiquidatedTimes(uint64 minerId, uint times) onlyLogicBorrowPayback switchOn external {
         _liquidatedTimes[minerId] = times;
     }
 
-    function updateLastLiquidate(uint64 minerId, uint time) onlyLogic switchOn external {
+    function updateLastLiquidate(uint64 minerId, uint time) onlyLogicBorrowPayback switchOn external {
         _lastLiquidate[minerId] = time;
     }
 
-    function updateMinerStatus(uint64 minerId, BindStatus calldata status) onlyLogic switchOn external {
+    function updateMinerStatus(uint64 minerId, BindStatus calldata status) onlyLogicCollateralize switchOn external {
         _binds[minerId] = status;
     }
 
-    function updateBadDebt(address account, uint debt) onlyLogic switchOn external {
+    function updateBadDebt(address account, uint debt) onlyLogicBorrowPayback switchOn external {
         _badDebt[account] = debt;
     }
 
-    function pushAllMiners(uint64 minerId) onlyLogic switchOn external {
+    function pushAllMiners(uint64 minerId) onlyLogicCollateralize switchOn external {
         _allMiners.push(minerId);
     }
 
-    function handleInterest(address minter, uint principal, uint interest) onlyLogic switchOn external returns (uint) {
-        (bool success, bytes memory data) = _logic.delegatecall(
+    function handleInterest(address minter, uint principal, uint interest) onlyLogicBorrowPayback switchOn external returns (uint) {
+        (bool success, bytes memory data) = _logic_borrow_payback.delegatecall(
             abi.encodeWithSignature("handleInterest(address,uint256,uint256)", minter, principal, interest)
         );
         require(success, "HandleInterest failed");
         return uint(bytes32(data));
     }
 
-    function mintFIT(address account, uint amount) onlyLogic switchOn external {
-        (bool success, ) = _logic.delegatecall(
+    function mintFIT(address account, uint amount) onlyLogicDepositRedeem switchOn external {
+        (bool success, ) = _logic_deposit_redeem.delegatecall(
             abi.encodeWithSignature("mintFIT(address,uint256)", account, amount)
         );
         require(success, "Mint failed");
     }
 
-    function burnFIT(address account, uint amount) onlyLogic switchOn external {
-        (bool success, ) = _logic.delegatecall(
+    function burnFIT(address account, uint amount) onlyLogicDepositRedeem switchOn external {
+        (bool success, ) = _logic_deposit_redeem.delegatecall(
             abi.encodeWithSignature("burnFIT(address,uint256)", account, amount)
         );
         require(success, "Burn failed");
@@ -580,9 +593,11 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _owner = new_owner;
     }
 
-    function getAdministrativeFactors() external view returns (address, address, address payable, address, address, address) {
+    function getAdministrativeFactors() external view returns (address, address, address, address, address payable, address, address, address) {
         return (
-            _logic,
+            _logic_deposit_redeem,
+            _logic_borrow_payback,
+            _logic_collateralize,
             _governance,
             _foundation,
             _tokenFILTrust,
@@ -591,14 +606,18 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function setAdministrativeFactors(
-        address new_logic,
+        address new_logic_deposit_redeem,
+        address new_logic_borrow_payback,
+        address new_logic_collateralize,
         address new_governance,
         address payable new_foundation,
         address new_tokenFILTrust,
         address new_validation,
         address new_filStake
     ) onlyOwner external {
-        _logic = new_logic;
+        _logic_deposit_redeem = new_logic_deposit_redeem;
+        _logic_borrow_payback = new_logic_borrow_payback;
+        _logic_collateralize = new_logic_collateralize;
         _governance = new_governance;
         _foundation = new_foundation;
         _tokenFILTrust= new_tokenFILTrust;
@@ -736,8 +755,23 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _;
     }
 
-    modifier onlyLogic() {
-        require(_msgSender() == _logic, "Not logic");
+    modifier onlyLogicDepositRedeem() {
+        require(_msgSender() == _logic_deposit_redeem, "Not logic_borrow_payback");
+        _;
+    }
+
+    modifier onlyLogicBorrowPayback() {
+        require(_msgSender() == _logic_borrow_payback, "Not logic_borrow_payback");
+        _;
+    }
+
+    modifier onlyLogicCollateralize() {
+        require(_msgSender() == _logic_collateralize, "Not logic_collateralize");
+        _;
+    }
+
+    modifier onlyLogicHandle() {
+        require(_msgSender() == _logic_borrow_payback || _msgSender() == _logic_collateralize, "Not logic_borrow_payback or logic_collateralize");
         _;
     }
 
@@ -759,7 +793,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function _getAvailableBalance(uint64 minerId) public view returns (uint, bool) {
-        (bool success, bytes memory data) = _logic.staticcall(
+        (bool success, bytes memory data) = _logic_borrow_payback.staticcall(
             abi.encodeWithSignature("getAvailableBalance(uint64)", minerId)
         );
         require(success, "GetAvailableBalance failed");
@@ -767,7 +801,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function _getBorrowable(uint64 minerId) private view returns (bool, string memory) {
-        (bool success, bytes memory data) = _logic.staticcall(
+        (bool success, bytes memory data) = _logic_borrow_payback.staticcall(
             abi.encodeWithSignature("getBorrowable(uint64)", minerId)
         );
         require(success, "GetBorrowable failed");
@@ -775,7 +809,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function _toAddress(uint64 actorId) private view returns (address) {
-        (bool success, bytes memory data) = _logic.staticcall(
+        (bool success, bytes memory data) = _logic_borrow_payback.staticcall(
             abi.encodeWithSignature("toAddress(uint64)", actorId)
         );
         require(success, "ToAddress failed");
@@ -783,7 +817,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function _getN(uint u_1, uint u_m, uint r_1, uint r_m, uint rateBase) private view returns (uint) {
-        (bool success, bytes memory data) = _logic.staticcall(
+        (bool success, bytes memory data) = _logic_borrow_payback.staticcall(
             abi.encodeWithSignature("getN(uint256,uint256,uint256,uint256,uint256)", u_1, u_m, r_1, r_m, rateBase)
         );
         require(success, "GetN failed");
@@ -791,7 +825,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function _exchangeRate() private view returns (uint) {
-        (bool success, bytes memory data) = _logic.staticcall(
+        (bool success, bytes memory data) = _logic_deposit_redeem.staticcall(
             abi.encodeWithSignature("exchangeRate()")
         );
         require(success, "ExchangeRate failed");
@@ -799,7 +833,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function _interestRate() private view returns (uint) {
-        (bool success, bytes memory data) = _logic.staticcall(
+        (bool success, bytes memory data) = _logic_borrow_payback.staticcall(
             abi.encodeWithSignature("interestRate()")
         );
         require(success, "ExchangeRate failed");
@@ -807,7 +841,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     }
 
     function _paybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate) private view returns (uint) {
-        (bool success, bytes memory data) = _logic.staticcall(
+        (bool success, bytes memory data) = _logic_borrow_payback.staticcall(
             abi.encodeWithSignature("paybackAmount(uint256,uint256,uint256)", borrowAmount, borrowPeriod, annualRate)
         );
         require(success, "PaybackAmount failed");

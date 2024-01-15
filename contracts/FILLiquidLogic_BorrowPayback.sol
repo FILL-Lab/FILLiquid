@@ -5,27 +5,11 @@ import "@openzeppelin/contracts/utils/Context.sol";
 
 import "./Utils/Conversion.sol";
 import "./Utils/Calculation.sol";
-import "./Utils/FilAddress.sol";
 import "./Utils/FilecoinAPI.sol";
-import "./Utils/Validation.sol";
 import "./FILLiquidData.sol";
 import "./FILLiquidPool.sol";
-import "./FILTrust.sol";
-import "./FILStake.sol";
 
-interface FILLiquidLogicInterface {
-    /// @dev deposit FIL to the contract, mint FILTrust
-    /// @param exchangeRate approximated exchange rate at the point of request
-    /// @return amount actual FILTrust minted
-    function deposit(uint exchangeRate) external payable returns (uint amount);
-
-    /// @dev redeem FILTrust to the contract, withdraw FIL
-    /// @param amountFILTrust the amount of FILTrust user would like to redeem
-    /// @param exchangeRate approximated exchange rate at the point of request
-    /// @return amount actual FIL withdrawal
-    /// @return fee fee deducted
-    function redeem(uint amountFILTrust, uint exchangeRate) external returns (uint amount, uint fee);
-
+interface FILLiquidLogicBorrowPaybackInterface {
     /// @dev borrow FIL from the contract
     /// @param minerId miner id
     /// @param amountFIL the amount of FIL user would like to borrow
@@ -57,32 +41,8 @@ interface FILLiquidLogicInterface {
     /// @return result liquidating result
     function liquidate(uint64 minerIdPayee, uint64 minerIdPayer) external returns (uint[4] memory result);
 
-    /// @dev collateralizing miner : change beneficiary to contract , need owner for miner propose change beneficiary first
-    /// @param minerId miner id
-    /// @param signature miner signature
-    function collateralizingMiner(uint64 minerId, bytes calldata signature) external;
-
-    /// @dev uncollateralizing miner : change beneficiary back to miner owner, need payback all first
-    /// @param minerId miner id
-    function uncollateralizingMiner(uint64 minerId) external;
-
-    /// @dev return FIL/FILTrust exchange rate: total amount of FIL liquidity divided by total amount of FILTrust outstanding
-    function exchangeRate() external view returns (uint);
-
     /// @dev return borrowing interest rate: a mathematical function of utilizatonRate
     function interestRate() external view returns (uint);
-
-    /// @dev Emitted when `account` deposits `amountFIL` and mints `amountFILTrust`
-    event Deposit(address indexed account, uint amountFIL, uint amountFILTrust);
-
-    /// @dev Emitted when `account` redeems `amountFILTrust` and withdraws `amountFIL`
-    event Redeem(address indexed account, uint amountFILTrust, uint amountFIL, uint fee);
-
-    /// @dev Emitted when collateralizing `minerId` : change beneficiary to `beneficiary` with info `quota`,`expiration` by `sender`
-    event CollateralizingMiner(uint64 indexed minerId, address indexed sender, bytes beneficiary, uint quota, uint64 expiration);
-
-    /// @dev Emitted when uncollateralizing `minerId` : change beneficiary to `beneficiary` with info `quota`,`expiration` by `sender`
-    event UncollateralizingMiner(uint64 indexed minerId, address indexed sender, bytes beneficiary, uint quota, uint64 expiration);
 
     /// @dev Emitted when user `account` borrows `amountFIL` with `minerId`
     event Borrow(
@@ -132,7 +92,7 @@ interface FILLiquidLogicInterface {
     );
 }
 
-contract FILLiquidLogic is Context, FILLiquidLogicInterface {
+contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInterface {
     using Conversion for *;
     struct Response {
         uint amount;
@@ -140,52 +100,23 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         string reason;
     }
 
-    //administrative factors
     address private _owner;
+    bool private _switch;
+
+    //administrative factors
     FILLiquidData private _data;
     FILLiquidPool private _pool;
+    FilecoinAPI private _filecoinAPI;
 
-    constructor(address filLiquidDataAddr, address payable filLiquidPoolAddr) {
+    constructor(address filLiquidDataAddr, address payable filLiquidPoolAddr, address filecoinAPIAddr) {
         _owner = _msgSender();
         _data = FILLiquidData(filLiquidDataAddr);
         _pool = FILLiquidPool(filLiquidPoolAddr);
+        _filecoinAPI = FilecoinAPI(filecoinAPIAddr);
+        _switch = true;
     }
 
-    function deposit(uint expectAmountFILTrust) external payable returns (uint) {
-        uint amountFIL = msg.value;
-        (,,,,uint minDepositAmount,,,,,) = _data.getComprehensiveFactors();
-        require(amountFIL >= minDepositAmount, "Value too small");
-        payable(_pool).transfer(amountFIL);
-        uint amountFILTrust = getFitByDeposit(amountFIL);
-        _isLower(expectAmountFILTrust, amountFILTrust);
-        
-        _data.recordDeposit(amountFIL, amountFILTrust);
-        address sender = _msgSender();
-        _data.mintFIT(sender, amountFILTrust);
-        
-        emit Deposit(sender, amountFIL, amountFILTrust);
-        return amountFILTrust;
-    }
-
-    function redeem(uint amountFILTrust, uint expectAmountFIL) external returns (uint, uint) {
-        uint amountFIL = getFilByRedeem(amountFILTrust);
-        _isLower(expectAmountFIL, amountFIL);
-        require(amountFIL < _data.availableFIL(), "Insufficient available FIL");
-
-        (,uint redeemFeeRate,,,,,,,,) = _data.getComprehensiveFactors();
-        uint[2] memory fees = _data.calculateFee(amountFIL, redeemFeeRate);
-        _data.recordRedeem(amountFILTrust, fees[0], fees[1]);
-        address sender = _msgSender();
-        _data.burnFIT(sender, amountFILTrust);
-        if (amountFIL > 0) _pool.send(amountFIL);
-        if (fees[1] > 0) _sendToFoundation(fees[1]);
-        if (fees[0] > 0) payable(sender).transfer(fees[0]);
-
-        emit Redeem(sender, amountFILTrust, fees[0], fees[1]);
-        return (fees[0], fees[1]);
-    }
-
-    function borrow(uint64 minerId, uint amount, uint expectInterestRate) external isBindMiner(minerId) haveCollateralizing(minerId) returns (uint, uint) {
+    function borrow(uint64 minerId, uint amount, uint expectInterestRate) isBindMiner(minerId) haveCollateralizing(minerId) switchOn external returns (uint, uint) {
         Response memory response = getBorrowable(minerId, amount);
         require(response.tag, response.reason);
         uint realInterestRate = interestRateBorrow(amount);
@@ -208,7 +139,7 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         return (fees[0], fees[1]);
     }
 
-    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint amount) external isBindMiner(minerIdPayee) isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) payable returns (uint, uint, uint, uint) {
+    function withdraw4Payback(uint64 minerIdPayee, uint64 minerIdPayer, uint amount) isBindMiner(minerIdPayee) isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) switchOn external payable returns (uint, uint, uint, uint) {
         Response memory response = _getAvailable(minerIdPayer);
         require(!response.tag, response.reason);
         if (amount > response.amount) {
@@ -223,22 +154,25 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
             sentBack_withdrawn[1] = amount - r[0];
             _pool.withdrawBalance(minerIdPayer, sentBack_withdrawn[1]);
         }
+        payable(_pool).transfer(r[1] + r[2]);
         uint mintedFIG = _data.handleInterest(_msgSender(), r[1], r[2]);
 
         emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], sentBack_withdrawn[1], mintedFIG);
         return (r[1], r[2], sentBack_withdrawn[1], mintedFIG);
     }
 
-    function directPayback(uint64 minerId) external isBorrower(minerId) payable returns (uint, uint, uint) {
+    function directPayback(uint64 minerId) isBorrower(minerId) switchOn external payable returns (uint, uint, uint) {
         uint[3] memory r = _paybackProcess(minerId, msg.value);
         address sender = _msgSender();
         if (r[0] > 0) payable(sender).transfer(r[0]);
+        payable(_pool).transfer(r[1] + r[2]);
         uint mintedFIG = _data.handleInterest(_data.minerUser(minerId), r[1], r[2]);
+
         emit Payback(sender, minerId, minerId, r[1], r[2], 0, mintedFIG);
         return (r[1], r[2], mintedFIG);
     }
 
-    function liquidate(uint64 minerIdPayee, uint64 minerIdPayer) external isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) returns (uint[4] memory result) {
+    function liquidate(uint64 minerIdPayee, uint64 minerIdPayer) isSameFamily(minerIdPayee, minerIdPayer) isBorrower(minerIdPayee) switchOn external returns (uint[4] memory result) {
         Response memory response = getLiquidatable(minerIdPayee, minerIdPayer);
         require(response.tag, response.reason);
 
@@ -256,82 +190,18 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         if (fees[1] > 0) _sendToFoundation(fees[1]);
         address sender = _msgSender();
         if (bonus > 0) payable(sender).transfer(bonus);
+        payable(_pool).transfer(r[1] + r[2]);
         result = [r[1], r[2], bonus, fees[1]];
 
         emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
     }
 
-    function collateralizingMiner(uint64 minerId, bytes calldata signature) external noCollateralizing(minerId) {
-        address sender = _msgSender();
-        (bool collateralizable, string memory reason) = getCollateralizable(minerId, sender);
-        require(collateralizable, reason);
-        
-        if (sender != toAddress(FilecoinAPI.getOwnerActorId(minerId))) {
-            (,,,,address validation,) = _data.getAdministrativeFactors();
-            Validation(validation).validateOwner(minerId, signature, sender);
-        }
-
-        MinerTypes.GetBeneficiaryReturn memory beneficiaryRet = FilecoinAPI.getBeneficiary(minerId);
-        MinerTypes.PendingBeneficiaryChange memory proposedBeneficiaryRet = beneficiaryRet.proposed;
-        require(uint(keccak256(abi.encode(FilecoinAPI.getOwner(minerId).owner.data))) == 
-        uint(keccak256(abi.encode(beneficiaryRet.active.beneficiary.data))), "Beneficiary is not owner");
-        
-        // new_quota check
-        uint quota = proposedBeneficiaryRet.new_quota.bigInt2Uint();
-        (,,,,,,,,uint requiredQuota, int64 requiredExpiration) = _data.getComprehensiveFactors();
-        require(quota == requiredQuota, "Invalid quota");
-        int64 expiration = CommonTypes.ChainEpoch.unwrap(proposedBeneficiaryRet.new_expiration);
-        uint64 uExpiration = uint64(expiration);
-        require(expiration == requiredExpiration && uExpiration > block.number, "Invalid expiration");
-
-        // change beneficiary to contract
-        _pool.changeBeneficiary(minerId, proposedBeneficiaryRet.new_beneficiary.data, quota, CommonTypes.ChainEpoch.unwrap(proposedBeneficiaryRet.new_expiration));
-        _updatecollateralizingMiner(minerId, sender, uExpiration, quota);
-        _data.recordCollateralizingMiner();
-
-        emit CollateralizingMiner(
-            minerId,
-            sender,
-            proposedBeneficiaryRet.new_beneficiary.data,
-            quota,
-            uExpiration
-        );
+    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyPool switchOn external {
+        _filecoinAPI.withdrawBalance(minerId, withdrawnAmount);
     }
 
-    function uncollateralizingMiner(uint64 minerId) external isBindMiner(minerId) haveCollateralizing(minerId) {
-        address sender = _msgSender();
-        (bool uncollateralizable, string memory reason) = getUncollateralizable(minerId, sender);
-        require(uncollateralizable, reason);
-
-        // change Beneficiary to owner
-        bytes memory minerOwner = FilecoinAPI.getOwner(minerId).owner.data;
-        _pool.changeBeneficiary(minerId, minerOwner, 0, 0);
-        _data.deleteCollateralizingMinerInfo(minerId);
-        _data.recordUncollateralizingMiner();
-
-        //unbindMiner
-        _data.updateMinerUser(minerId, address(0));
-        _data.removeUserMiner(sender, minerId);
-        _data.updateMinerStatus(minerId, FILLiquidDataInterface.BindStatus(true, false));
-
-        emit UncollateralizingMiner(minerId, sender, minerOwner, 0, 0);
-    }
-
-    function changeBeneficiary(
-        uint64 minerId,
-        bytes calldata beneficiary,
-        uint quota,
-        int64 expiration
-    ) onlyPool external {
-        FilecoinAPI.changeBeneficiary(minerId, CommonTypes.FilAddress(beneficiary), quota.uint2BigInt(), CommonTypes.ChainEpoch.wrap(expiration));
-    }
-
-    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyPool external {
-        FilecoinAPI.withdrawBalance(minerId, withdrawnAmount);
-    }
-
-    function handleInterest(address minter, uint principal, uint interest) onlyData external returns (uint) {
-        (,,,,,address filStake) = _data.getAdministrativeFactors();
+    function handleInterest(address minter, uint principal, uint interest) onlyData switchOn external returns (uint) {
+        (,,,,,,,address filStake) = _data.getAdministrativeFactors();
          (bool success, bytes memory data) = filStake.call(
             abi.encodeWithSignature("handleInterest(address,uint256,uint256)", minter, principal, interest)
         );
@@ -339,29 +209,16 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         return uint(bytes32(data));
     }
 
-    function mintFIT(address account, uint amount) onlyData external {
-        (,,,address tokenFILTrust,,) = _data.getAdministrativeFactors();
-        (bool success, ) = tokenFILTrust.call(
-            abi.encodeWithSignature("mint(address,uint256)", account, amount)
-        );
-        require(success, "Mint failed");
-    }
-
-    function burnFIT(address account, uint amount) onlyData external {
-        (,,,address tokenFILTrust,,) = _data.getAdministrativeFactors();
-        (bool success, ) = tokenFILTrust.call(
-            abi.encodeWithSignature("burn(address,uint256)", account, amount)
-        );
-        require(success, "Burn failed");
+    receive() onlyPool switchOn external payable {
     }
 
     function getAvailableBalance(uint64 minerId) public view returns (uint, bool) {
-        Conversion.Integer memory v = FilecoinAPI.getAvailableBalance(minerId).bigInt2Integer();
+        Conversion.Integer memory v = _filecoinAPI.getAvailableBalance(minerId).bigInt2Integer();
         return (v.value, v.neg);
     }
 
     function toAddress(uint64 minerId) public view returns (address) {
-        return FilAddress.toAddress(minerId);
+        return _filecoinAPI.toAddress(minerId);
     }
 
     function getBorrowable(uint64 minerId) external view returns (Response memory) {
@@ -395,48 +252,7 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         if (response.tag) return Response(0, false, response.reason);
         return Response(response.amount, true, "");
     }
-
-    function getCollateralizable(uint64 minerId, address sender) public view returns (bool, string memory) {
-        if (_data.minerUser(minerId) != address(0)) return (false, "Unbind first");
-        (,,,,,,,uint maxFamilySize,,) = _data.getComprehensiveFactors();
-        if (_data.userMiners(sender).length >= maxFamilySize) return (false, "Family size too big");
-        return (true, "");
-    }
-
-    function getUncollateralizable(uint64 minerId, address sender) public view returns (bool, string memory) {
-        if (_data.getCollateralizingMinerInfo(minerId).borrowAmount != 0) return (false, "Payback first");
-        if (_data.badDebt(sender) != 0) return (false, "Family with bad debt");
-        uint balanceSum = 0;
-        uint principalAndInterestSum = 0;
-        uint64[] memory miners = _data.userMiners(sender);
-        for (uint i = 0; i < miners.length; i++) {
-            if (miners[i] == minerId) continue;
-            balanceSum += toAddress(miners[i]).balance;
-            principalAndInterestSum += _data.minerBorrows(miners[i]).debtOutStanding;
-        }
-        (uint rateBase,,,uint collateralRate,,,,,,) = _data.getComprehensiveFactors();
-        if (collateralRate * balanceSum < rateBase * principalAndInterestSum) return (false, "Cannot exit family");
-        return (true, "");
-    }
-
-    function exchangeRate() public view returns (uint) {
-        (,,,address tokenFILTrust,,) = _data.getAdministrativeFactors();
-        (uint rateBase,,,,,,,,,) = _data.getComprehensiveFactors();
-        return Calculation.getExchangeRate(_data.utilizationRate(), _data.getDepositRedeemFactors(), rateBase, FILTrust(tokenFILTrust).totalSupply(), _data.totalFILLiquidity());
-    }
-
-    function getFitByDeposit(uint amountFil) public view returns (uint) {
-        (,,,address tokenFILTrust,,) = _data.getAdministrativeFactors();
-        (uint rateBase,,,,,,,,,) = _data.getComprehensiveFactors();
-        return Calculation.getFitByDeposit(amountFil, _data.getDepositRedeemFactors(), rateBase, FILTrust(tokenFILTrust).totalSupply(), _data.totalFILLiquidity(), _data.utilizedLiquidity());
-    }
-
-    function getFilByRedeem(uint amountFit) public view returns (uint) {
-        (,,,address tokenFILTrust,,) = _data.getAdministrativeFactors();
-        (uint rateBase,,,,,,,,,) = _data.getComprehensiveFactors();
-        return Calculation.getFilByRedeem(amountFit, _data.getDepositRedeemFactors(), rateBase, FILTrust(tokenFILTrust).totalSupply(), _data.totalFILLiquidity(), _data.utilizedLiquidity());
-    }
-
+    
     function interestRate() public view returns (uint) {
         (uint rateBase,,,,,,,,,) = _data.getComprehensiveFactors();
         (uint u_1, uint r_0, uint r_1,, uint n) = _data.getBorrowPayBackFactors();
@@ -466,16 +282,26 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         _owner = new_owner;
     }
 
-    function getAdministrativeFactors() external view returns (address, address) {
-        return (address(_data), address(_pool));
+    function getAdministrativeFactors() external view returns (address, address, address) {
+        return (address(_data), address(_pool), address(_filecoinAPI));
     }
 
     function setAdministrativeFactors(
         address new_data,
-        address payable new_pool
+        address payable new_pool,
+        address new_filecoinAPI
     ) onlyOwner external {
         _data = FILLiquidData(new_data);
         _pool = FILLiquidPool(new_pool);
+        _filecoinAPI = FilecoinAPI(new_filecoinAPI);
+    }
+
+    function getSwitch() external view returns (bool) {
+        return _switch;
+    }
+
+    function turnSwitch(bool new_switch) onlyOwner external {
+        _switch = new_switch;
     }
 
     modifier onlyOwner() {
@@ -509,33 +335,29 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         _;
     }
 
-    modifier noCollateralizing(uint64 _id) {
-        require(_data.getCollateralizingMinerInfo(_id).quota == 0, "Collateralized");
-        _;
-    }
-
     modifier haveCollateralizing(uint64 _id) {
         require(_data.getCollateralizingMinerInfo(_id).quota > 0, "Uncollateralized");
         _;
     }
 
-    function _getAvailable(uint64 minerId) public view returns (Response memory) {
+    modifier switchOn() {
+        require(_switch, "Switch is off");
+        _;
+    }
+
+    function _getAvailable(uint64 minerId) private view returns (Response memory) {
         (uint available, bool neg) = getAvailableBalance(minerId);
         if (neg) return Response(0, neg, "Negtive available balance");
         else return Response(available, neg, "");
     }
 
     function _sendToFoundation(uint amount) private {
-        (,,address payable foundation,,,) = _data.getAdministrativeFactors();
+        (,,,,address payable foundation,,,) = _data.getAdministrativeFactors();
         foundation.transfer(amount);
     }
 
     function _send(uint64 actorId, uint amount) private {
-        FilecoinAPI.send(actorId, amount);
-    }
-
-    function _isLower(uint expect, uint realtime) private pure {
-        require(expect <= realtime, "Too high");
+        _filecoinAPI.send(actorId, amount);
     }
 
     function _isHigher(uint expect, uint realtime) private pure {
@@ -579,20 +401,6 @@ contract FILLiquidLogic is Context, FILLiquidLogicInterface {
         FILLiquidDataInterface.MinerCollateralizingInfo memory info = _data.getCollateralizingMinerInfo(minerIdPayee);
         info.liquidatedAmount += totalWithdraw;
         _data.updateCollateralizingMinerInfo(minerIdPayee, info);
-    }
-
-    function _updatecollateralizingMiner(uint64 minerId, address sender, uint64 uExpiration, uint quota) private {
-        _data.updateMinerUser(minerId, sender);
-        _data.addUserMiner(sender, minerId);
-        if (!_data.minerStatus(minerId).onceBound) _data.pushAllMiners(minerId);
-        _data.updateMinerStatus(minerId, FILLiquidDataInterface.BindStatus(true, true));
-        _data.updateCollateralizingMinerInfo(minerId, FILLiquidDataInterface.MinerCollateralizingInfo({
-            minerId: minerId,
-            expiration: uExpiration,
-            quota: quota,
-            borrowAmount: 0,
-            liquidatedAmount: 0
-        }));
     }
 
     function _paybackProcess(uint64 minerId, uint amount) private returns (uint[3] memory r) {

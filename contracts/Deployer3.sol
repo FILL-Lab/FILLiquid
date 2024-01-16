@@ -33,9 +33,7 @@ contract Deployer3 {
     constructor(address deployer1, address deployer2) {
         _deployer1 = Deployer1(deployer1);
         (
-            Validation _validation,
-            FilecoinAPI _filecoinAPI,
-            FILTrust _filTrust,
+            ,,FILTrust _filTrust,
             FILGovernance _filGovernance,
             address _ownerDeployer1
         ) = _deployer1.getAddrs();
@@ -73,10 +71,6 @@ contract Deployer3 {
         );
         emit ContractPublishing("FILLiquidPool", address(_filLiquidPool));
 
-        _logic_deposit_redeem.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool));
-        _logic_borrow_payback.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool), address(_filecoinAPI));
-        _logic_collateralize.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool), address(_filecoinAPI), address(_validation));
-
         _filStake.setContractAddrs(
             address(_filLiquidData),
             address(_governance),
@@ -92,7 +86,12 @@ contract Deployer3 {
 
     function setting() external payable {
         require (msg.sender == _owner, "only owner allowed");
-        (,,FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
+        (
+            Validation _validation,
+            FilecoinAPI _filecoinAPI,
+            FILTrust _filTrust,
+            FILGovernance _filGovernance,
+        ) = _deployer1.getAddrs();
         (
             FILLiquidLogicDepositRedeem _logic_deposit_redeem,
             FILLiquidLogicBorrowPayback _logic_borrow_payback,
@@ -100,6 +99,9 @@ contract Deployer3 {
         ) = _deployer2.getAddrs();
         _filTrust.addManager(address(_filLiquidData));
         _filTrust.addManager(address(_filStake));
+        _logic_deposit_redeem.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool));
+        _logic_borrow_payback.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool), address(_filecoinAPI));
+        _logic_collateralize.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool), address(_filecoinAPI), address(_validation));
         _logic_deposit_redeem.deposit{value: msg.value}(msg.value);
         uint filTrustBalance = _filTrust.balanceOf(address(this));
         assert(filTrustBalance == msg.value);

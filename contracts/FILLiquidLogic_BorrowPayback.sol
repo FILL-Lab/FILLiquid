@@ -8,6 +8,7 @@ import "./Utils/Calculation.sol";
 import "./Utils/FilecoinAPI.sol";
 import "./FILLiquidData.sol";
 import "./FILLiquidPool.sol";
+import "./FILStake.sol";
 
 interface FILLiquidLogicBorrowPaybackInterface {
     /// @dev borrow FIL from the contract
@@ -196,7 +197,7 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
     }
 
-    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyPool switchOn external {
+    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyPoolDelegate external {
         if (withdrawnAmount > 0) {
             (bool success, bytes memory data) = address(_filecoinAPI).delegatecall(
                 abi.encodeCall(FilecoinAPI.withdrawBalance, (minerId, withdrawnAmount))
@@ -206,13 +207,8 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         }
     }
 
-    function handleInterest(address minter, uint principal, uint interest) onlyData switchOn external returns (uint) {
-        (,,,,,,address filStake) = _data.getAdministrativeFactors();
-         (bool success, bytes memory data) = filStake.delegatecall(
-            abi.encodeWithSignature("handleInterest(address,uint256,uint256)", minter, principal, interest)
-        );
-        require(success, "HandleInterest failed");
-        return uint(bytes32(data));
+    function handleInterest(address filStake, address minter, uint principal, uint interest) onlyDataDelegate external returns (uint) {
+        return FILStake(filStake).handleInterest(minter, principal, interest);
     }
 
     receive() onlyPool switchOn external payable {
@@ -227,9 +223,10 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         return _filecoinAPI.toAddress(minerId);
     }
 
-    function getBorrowable(uint64 minerId) external view returns (Response memory) {
+    function getBorrowable(uint64 minerId) external view returns (bool, string memory) {
         (,,,,,uint minBorrowAmount,,,,) = _data.getComprehensiveFactors();
-        return getBorrowable(minerId, minBorrowAmount);
+        Response memory v = getBorrowable(minerId, minBorrowAmount);
+        return (v.tag, v.reason);
     }
 
     function getBorrowable(uint64 minerId, uint amount) public view returns (Response memory) {
@@ -315,12 +312,17 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         _;
     }
 
-    modifier onlyData() {
-        require(_msgSender() == address(_data), "Not data");
+    modifier onlyDataDelegate() {
+        require(address(this) == address(_data), "Not data");
         _;
     }
 
     modifier onlyPool() {
+        require(_msgSender() == address(_pool), "Not pool");
+        _;
+    }
+
+    modifier onlyPoolDelegate() {
         require(_msgSender() == address(_pool), "Not pool");
         _;
     }

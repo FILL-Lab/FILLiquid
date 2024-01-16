@@ -357,7 +357,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
 
     function handleInterest(address minter, uint principal, uint interest) onlyLogicBorrowPayback switchOn external returns (uint) {
         (bool success, bytes memory data) = _logic_borrow_payback.delegatecall(
-            abi.encodeWithSignature("handleInterest(address,uint256,uint256)", minter, principal, interest)
+            abi.encodeWithSignature("handleInterest(address,address,uint256,uint256)", _filStake, minter, principal, interest)
         );
         require(success, "HandleInterest failed");
         return uint(bytes32(data));
@@ -365,16 +365,16 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
 
     function mintFIT(address account, uint amount) onlyLogicDepositRedeem switchOn external {
         (bool success, ) = _logic_deposit_redeem.delegatecall(
-            abi.encodeWithSignature("mintFIT(address,uint256)", account, amount)
+            abi.encodeWithSignature("mintFIT(address,address,uint256)", _tokenFILTrust, account, amount)
         );
-        require(success, "Mint failed");
+        require(success, "MintFIT failed");
     }
 
     function burnFIT(address account, uint amount) onlyLogicDepositRedeem switchOn external {
         (bool success, ) = _logic_deposit_redeem.delegatecall(
-            abi.encodeWithSignature("burnFIT(address,uint256)", account, amount)
+            abi.encodeWithSignature("burnFIT(address,address,uint256)", _tokenFILTrust, account, amount)
         );
-        require(success, "Burn failed");
+        require(success, "BurnFIT failed");
     }
 
     function getStatus() external view returns (FILLiquidInfo memory) {
@@ -786,7 +786,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         else return (a - b) / (_rateBase - _collateralRate);
     }
 
-    function _getAvailableBalance(uint64 minerId) public view returns (uint, bool) {
+    function _getAvailableBalance(uint64 minerId) private view returns (uint, bool) {
         (bool success, bytes memory data) = _logic_borrow_payback.staticcall(
             abi.encodeWithSignature("getAvailableBalance(uint64)", minerId)
         );

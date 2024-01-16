@@ -31,11 +31,11 @@ contract Deployer1 {
         emit ContractPublishing("FILGovernance", address(_filGovernance));
     }
 
-    function setting(address deployer2) external {
+    function setting(address deployer3) external {
         require (msg.sender == _owner, "only owner allowed");
-        _filTrust.setOwner(deployer2);
-        _filGovernance.setOwner(deployer2);
-        _filGovernance.transfer(deployer2, _filGovernance.balanceOf(address(this)));
+        _filTrust.setOwner(deployer3);
+        _filGovernance.setOwner(deployer3);
+        _filGovernance.transfer(deployer3, _filGovernance.balanceOf(address(this)));
     }
 
     function getAddrs() external view returns (Validation, FilecoinAPI, FILTrust, FILGovernance, address) {

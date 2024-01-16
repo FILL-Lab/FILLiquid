@@ -23,8 +23,9 @@ library Calculation {
 
     function getExchangeRate(uint u, uint u_m, uint rateBase, uint fitLiquidity, uint filLiquidity) internal pure returns (uint) {
         require(u <= rateBase, "Utilization rate cannot be bigger than 1");
+        if (fitLiquidity == 0) return rateBase;
         uint filFit = rateBase;
-        if (fitLiquidity != 0 && fitLiquidity != filLiquidity) {
+        if (fitLiquidity != filLiquidity) {
             filFit = filLiquidity * rateBase / fitLiquidity;
         }
         if (u <= u_m) return filFit;

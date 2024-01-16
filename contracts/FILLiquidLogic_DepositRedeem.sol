@@ -80,20 +80,12 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
         return (fees[0], fees[1]);
     }
 
-    function mintFIT(address account, uint amount) onlyData switchOn external {
-        address tokenFILTrust = _getTokenFILTrust();
-        (bool success, ) = tokenFILTrust.delegatecall(
-            abi.encodeWithSignature("mint(address,uint256)", account, amount)
-        );
-        require(success, "Mint failed");
+    function mintFIT(address tokenFILTrust, address account, uint amount) onlyDataDelegate external {
+        FILTrust(tokenFILTrust).mint(account, amount);
     }
 
-    function burnFIT(address account, uint amount) onlyData switchOn external {
-        address tokenFILTrust = _getTokenFILTrust();
-        (bool success, ) = tokenFILTrust.delegatecall(
-            abi.encodeWithSignature("burn(address,uint256)", account, amount)
-        );
-        require(success, "Burn failed");
+    function burnFIT(address tokenFILTrust, address account, uint amount) onlyDataDelegate external {
+        FILTrust(tokenFILTrust).burn(account, amount);
     }
 
     receive() onlyPool switchOn external payable {
@@ -150,8 +142,8 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
         _;
     }
 
-    modifier onlyData() {
-        require(_msgSender() == address(_data), "Not data");
+    modifier onlyDataDelegate() {
+        require(address(this) == address(_data), "Not data");
         _;
     }
 

@@ -31,11 +31,11 @@ contract Deployer2 {
         emit ContractPublishing("FILLiquidLogicCollateralize", address(_logic_collateralize));
     }
 
-    function setting(address deployer2) external {
+    function setting(address deployer3) external {
         require (msg.sender == _owner, "only owner allowed");
-        _logic_deposit_redeem.setOwner(deployer2);
-        _logic_borrow_payback.setOwner(deployer2);
-        _logic_collateralize.setOwner(deployer2);
+        _logic_deposit_redeem.setOwner(deployer3);
+        _logic_borrow_payback.setOwner(deployer3);
+        _logic_collateralize.setOwner(deployer3);
     }
 
     function getAddrs() external view returns (FILLiquidLogicDepositRedeem, FILLiquidLogicBorrowPayback, FILLiquidLogicCollateralize, address) {

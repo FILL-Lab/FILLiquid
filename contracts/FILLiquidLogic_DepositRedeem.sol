@@ -82,7 +82,7 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
 
     function mintFIT(address account, uint amount) onlyData switchOn external {
         address tokenFILTrust = _getTokenFILTrust();
-        (bool success, ) = tokenFILTrust.call(
+        (bool success, ) = tokenFILTrust.delegatecall(
             abi.encodeWithSignature("mint(address,uint256)", account, amount)
         );
         require(success, "Mint failed");
@@ -90,7 +90,7 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
 
     function burnFIT(address account, uint amount) onlyData switchOn external {
         address tokenFILTrust = _getTokenFILTrust();
-        (bool success, ) = tokenFILTrust.call(
+        (bool success, ) = tokenFILTrust.delegatecall(
             abi.encodeWithSignature("burn(address,uint256)", account, amount)
         );
         require(success, "Burn failed");
@@ -166,12 +166,12 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
     }
 
     function _sendToFoundation(uint amount) private {
-        (,,,,address payable foundation,,,) = _data.getAdministrativeFactors();
+        (,,,,address payable foundation,,) = _data.getAdministrativeFactors();
         foundation.transfer(amount);
     }
 
     function _getTokenFILTrust() private view returns (address) {
-        (,,,,,address tokenFILTrust,,) = _data.getAdministrativeFactors();
+        (,,,,,address tokenFILTrust,) = _data.getAdministrativeFactors();
         return tokenFILTrust;
     }
 

@@ -9,7 +9,6 @@ import "./FILGovernance.sol";
 
 contract Deployer1 {
     Validation private _validation;
-    Calculation private _calculation;
     FilecoinAPI private _filecoinAPI;
     FILTrust private _filTrust;
     FILGovernance private _filGovernance;
@@ -24,8 +23,6 @@ contract Deployer1 {
         _owner = msg.sender;
         _validation = new Validation();
         emit ContractPublishing("Validation", address(_validation));
-        _calculation = new Calculation();
-        emit ContractPublishing("Calculation", address(_calculation));
         _filecoinAPI = new FilecoinAPI();
         emit ContractPublishing("FilecoinAPI", address(_filecoinAPI));
         _filTrust = new FILTrust("FILTrust", "FIT");
@@ -41,10 +38,9 @@ contract Deployer1 {
         _filGovernance.transfer(deployer2, _filGovernance.balanceOf(address(this)));
     }
 
-    function getAddrs() external view returns (Validation, Calculation, FilecoinAPI, FILTrust, FILGovernance, address) {
+    function getAddrs() external view returns (Validation, FilecoinAPI, FILTrust, FILGovernance, address) {
         return (
             _validation,
-            _calculation,
             _filecoinAPI,
             _filTrust,
             _filGovernance,

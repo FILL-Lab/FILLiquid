@@ -164,7 +164,6 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
     address private _governance;
     address payable private _foundation;
     address private _tokenFILTrust;
-    address private _validation;
     address private _filStake;
 
     //comprehensive factors
@@ -226,7 +225,6 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         address governanceAddr,
         address payable foundationAddr,
         address filTrustAddr,
-        address validationAddr,
         address filStakeAddr
     ) {
         _switch = true;
@@ -237,7 +235,6 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _governance = governanceAddr;
         _foundation = foundationAddr;
         _tokenFILTrust = filTrustAddr;
-        _validation = validationAddr;
         _filStake = filStakeAddr;
         _rateBase = DEFAULT_RATE_BASE;
         _redeemFeeRate = DEFAULT_REDEEM_FEE_RATE;
@@ -593,7 +590,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _owner = new_owner;
     }
 
-    function getAdministrativeFactors() external view returns (address, address, address, address, address payable, address, address, address) {
+    function getAdministrativeFactors() external view returns (address, address, address, address, address payable, address, address) {
         return (
             _logic_deposit_redeem,
             _logic_borrow_payback,
@@ -601,7 +598,6 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
             _governance,
             _foundation,
             _tokenFILTrust,
-            _validation,
             _filStake);
     }
 
@@ -612,7 +608,6 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         address new_governance,
         address payable new_foundation,
         address new_tokenFILTrust,
-        address new_validation,
         address new_filStake
     ) onlyOwner external {
         _logic_deposit_redeem = new_logic_deposit_redeem;
@@ -621,7 +616,6 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _governance = new_governance;
         _foundation = new_foundation;
         _tokenFILTrust= new_tokenFILTrust;
-        _validation = new_validation;
         _filStake = new_filStake;
     }
 

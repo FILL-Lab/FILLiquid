@@ -197,12 +197,18 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
     }
 
     function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyPool switchOn external {
-        _filecoinAPI.withdrawBalance(minerId, withdrawnAmount);
+        if (withdrawnAmount > 0) {
+            (bool success, bytes memory data) = address(_filecoinAPI).delegatecall(
+                abi.encodeCall(FilecoinAPI.withdrawBalance, (minerId, withdrawnAmount))
+            );
+            require(success, "WithdrawBalance failed");
+            require(uint(bytes32(data)) == withdrawnAmount, "Invalid withdrawal");
+        }
     }
 
     function handleInterest(address minter, uint principal, uint interest) onlyData switchOn external returns (uint) {
-        (,,,,,,,address filStake) = _data.getAdministrativeFactors();
-         (bool success, bytes memory data) = filStake.call(
+        (,,,,,,address filStake) = _data.getAdministrativeFactors();
+         (bool success, bytes memory data) = filStake.delegatecall(
             abi.encodeWithSignature("handleInterest(address,uint256,uint256)", minter, principal, interest)
         );
         require(success, "HandleInterest failed");
@@ -352,7 +358,7 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
     }
 
     function _sendToFoundation(uint amount) private {
-        (,,,,address payable foundation,,,) = _data.getAdministrativeFactors();
+        (,,,,address payable foundation,,) = _data.getAdministrativeFactors();
         foundation.transfer(amount);
     }
 

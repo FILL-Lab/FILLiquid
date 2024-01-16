@@ -6,16 +6,14 @@ import "./Utils/Calculation.sol";
 import "./Utils/FilecoinAPI.sol";
 import "./FILTrust.sol";
 import "./FILGovernance.sol";
-import "./Deployer1.sol";
-import "./FILStake.sol";
-import "./Governance.sol";
-import "./FILLiquid.sol";
+import "./FILLiquidLogic_BorrowPayback.sol";
+import "./FILLiquidLogic_Collateralize.sol";
+import "./FILLiquidLogic_DepositRedeem.sol";
 
 contract Deployer2 {
-    FILStake private _filStake;
-    Governance private _governance;
-    FILLiquid private _filLiquid;
-    Deployer1 private _deployer1;
+    FILLiquidLogicDepositRedeem private _logic_deposit_redeem;
+    FILLiquidLogicBorrowPayback private _logic_borrow_payback;
+    FILLiquidLogicCollateralize private _logic_collateralize;
     address private _owner;
 
     event ContractPublishing (
@@ -23,75 +21,28 @@ contract Deployer2 {
         address addr
     );
 
-    constructor(address deployer1) {
-        _deployer1 = Deployer1(deployer1);
-        (
-            Validation _validation,
-            Calculation _calculation,
-            FilecoinAPI _filecoinAPI,
-            FILTrust _filTrust,
-            FILGovernance _filGovernance,
-            address _ownerDeployer1
-        ) = _deployer1.getAddrs();
-        require (msg.sender == _ownerDeployer1, "only owner allowed");
+    constructor() {
         _owner = msg.sender;
-
-        _filStake = new FILStake();
-        emit ContractPublishing("FILStake", address(_filStake));
-        _governance = new Governance();
-        emit ContractPublishing("Governance", address(_governance));
-        _filLiquid = new FILLiquid(
-            address(_filTrust),
-            address(_validation),
-            address(_calculation),
-            address(_filecoinAPI),
-            address(_filStake),
-            address(_governance),
-            payable(msg.sender)
-        );
-        emit ContractPublishing("FILLiquid", address(_filLiquid));
-
-        _filStake.setContractAddrs(
-            address(_filLiquid),
-            address(_governance),
-            address(_filTrust),
-            address(_calculation),
-            address(_filGovernance)
-        );
-        _governance.setContractAddrs(
-            address(_filLiquid),
-            address(_filStake),
-            address(_filGovernance)
-        );
+        _logic_deposit_redeem = new FILLiquidLogicDepositRedeem(address(0), payable(0));
+        emit ContractPublishing("FILLiquidLogicDepositRedeem", address(_logic_deposit_redeem));
+        _logic_borrow_payback = new FILLiquidLogicBorrowPayback(address(0), payable(0), address(0));
+        emit ContractPublishing("FILLiquidLogicBorrowPayback", address(_logic_borrow_payback));
+        _logic_collateralize = new FILLiquidLogicCollateralize(address(0), payable(0), address(0), address(0));
+        emit ContractPublishing("FILLiquidLogicCollateralize", address(_logic_collateralize));
     }
 
-    function setting() external payable {
+    function setting(address deployer2) external {
         require (msg.sender == _owner, "only owner allowed");
-        (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
-        _filTrust.addManager(address(_filLiquid));
-        _filTrust.addManager(address(_filStake));
-        _filLiquid.deposit{value: msg.value}(msg.value);
-        uint filTrustBalance = _filTrust.balanceOf(address(this));
-        assert(filTrustBalance == msg.value);
-        _filTrust.transfer(msg.sender, filTrustBalance);
-        
-        _filGovernance.addManager(address(_filStake));
-        _filGovernance.addManager(address(_governance));
-
-        _filTrust.setOwner(msg.sender);
-        _filGovernance.setOwner(msg.sender);
-        _filStake.setOwner(msg.sender);
-        _governance.setOwner(msg.sender);
-        _filLiquid.setOwner(msg.sender);
-        _filGovernance.transfer(msg.sender, _filGovernance.balanceOf(address(this)));
+        _logic_deposit_redeem.setOwner(deployer2);
+        _logic_borrow_payback.setOwner(deployer2);
+        _logic_collateralize.setOwner(deployer2);
     }
 
-    function getAddrs() external view returns (FILStake, Governance, FILLiquid, Deployer1, address) {
+    function getAddrs() external view returns (FILLiquidLogicDepositRedeem, FILLiquidLogicBorrowPayback, FILLiquidLogicCollateralize, address) {
         return (
-            _filStake,
-            _governance,
-            _filLiquid,
-            _deployer1,
+            _logic_deposit_redeem,
+            _logic_borrow_payback,
+            _logic_collateralize,
             _owner
         );
     }

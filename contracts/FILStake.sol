@@ -65,7 +65,7 @@ contract FILStake is Context{
     mapping(uint => address) private _idStaker;
     address[] private _stakers;
     address private _owner;
-    address private _filLiquid;
+    address private _filLiquidData;
     address private _governance;
 
     uint private _accumulatedInterest;
@@ -266,16 +266,16 @@ contract FILStake is Context{
     }
 
     function getContractAddrs() external view returns (address, address, address, address) {
-        return (_filLiquid, _governance, address(_tokenFILTrust), address(_tokenFILGovernance));
+        return (_filLiquidData, _governance, address(_tokenFILTrust), address(_tokenFILGovernance));
     }
 
     function setContractAddrs(
-        address new_filLiquid,
+        address new_filLiquidData,
         address new_governance,
         address new_tokenFILTrust,
         address new_tokenFILGovernance
     ) onlyOwner external {
-        _filLiquid = new_filLiquid;
+        _filLiquidData = new_filLiquidData;
         _governance = new_governance;
         _tokenFILTrust = FILTrust(new_tokenFILTrust);
         _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
@@ -300,7 +300,7 @@ contract FILStake is Context{
     }
 
     modifier onlyFiLLiquid() {
-        require(_msgSender() == _filLiquid, "Only filLiquid allowed");
+        require(_msgSender() == _filLiquidData, "Only filLiquidData allowed");
         _;
     }
 

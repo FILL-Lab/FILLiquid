@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "./FILLiquid.sol";
+import "./FILLiquidData.sol";
+import "./FILLiquidLogic_BorrowPayback.sol";
+import "./FILLiquidLogic_DepositRedeem.sol";
 import "./FILTrust.sol";
 import "./FILStake.sol";
 import "./FILGovernance.sol";
@@ -38,15 +40,15 @@ contract DataFetcher {
         uint n_stake;
     }
 
-    FILLiquid private _filliquid;
+    FILLiquidData private _filliquidData;
     FILTrust private _filTrust;
     FILStake private _filStake;
     FILGovernance private _filGovernance;
     Governance private _governance;
     FilecoinAPI private _filecoinAPI;
 
-    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FILStake filStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr, FilecoinAPI filecoinAPIAddr) {
-        _filliquid = filLiquidAddr;
+    constructor(FILLiquidData filLiquidDataAddr, FILTrust filTrustAddr, FILStake filStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr, FilecoinAPI filecoinAPIAddr) {
+        _filliquidData = filLiquidDataAddr;
         _filTrust = filTrustAddr;
         _filStake = filStakeAddr;
         _filGovernance = filGovernanceAddr;
@@ -59,7 +61,7 @@ contract DataFetcher {
         uint blockTimeStamp,
         uint fitTotalSupply,
         uint figTotalSupply,
-        FILLiquid.FILLiquidInfo memory filLiquidInfo,
+        FILLiquidData.FILLiquidInfo memory filLiquidInfo,
         FILStake.FILStakeInfo memory filStakeInfo,
         Governance.GovernanceInfo memory governanceInfo,
         FiLLiquidGovernanceFactors memory fiLLiquidGovernanceFactors,
@@ -69,20 +71,20 @@ contract DataFetcher {
         blockTimeStamp = block.timestamp;
         fitTotalSupply = _filTrust.totalSupply();
         figTotalSupply = _filGovernance.totalSupply();
-        filLiquidInfo = _filliquid.getStatus();
+        filLiquidInfo = _filliquidData.getStatus();
         filStakeInfo = _filStake.getStatus();
         governanceInfo = _governance.getStatus();
         (fiLLiquidGovernanceFactors, fiLStakeGovernanceFactors) = fetchGovernanceFactors();
     }
 
-    function fetchPersonalData(address player) external returns (
+    function fetchPersonalData(address player) external view returns (
         uint filTrustBalance,
         uint filBalance,
-        FILLiquid.UserInfo memory userInfo
+        FILLiquidData.UserInfo memory userInfo
     ) {
         filTrustBalance = _filTrust.balanceOf(player);
         filBalance = player.balance;
-        userInfo = _filliquid.userBorrows(player);
+        userInfo = _filliquidData.userBorrows(player);
     }
 
     function fetchStakerData(address staker) external view returns (
@@ -106,7 +108,7 @@ contract DataFetcher {
             fiLLiquidGovernanceFactors.r_1,
             fiLLiquidGovernanceFactors.r_m,
             fiLLiquidGovernanceFactors.n
-        ) = _filliquid.getBorrowPayBackFactors();
+        ) = _filliquidData.getBorrowPayBackFactors();
         (
             ,,,
             fiLLiquidGovernanceFactors.collateralRate,
@@ -115,7 +117,7 @@ contract DataFetcher {
             fiLLiquidGovernanceFactors.maxExistingBorrows,
             fiLLiquidGovernanceFactors.maxFamilySize,
             ,
-        ) = _filliquid.getComprehensiveFactors();
+        ) = _filliquidData.getComprehensiveFactors();
         (
             fiLLiquidGovernanceFactors.maxLiquidations,
             fiLLiquidGovernanceFactors.minLiquidateInterval,
@@ -123,17 +125,18 @@ contract DataFetcher {
             fiLLiquidGovernanceFactors.liquidateThreshold,
             fiLLiquidGovernanceFactors.liquidateDiscountRate,
             fiLLiquidGovernanceFactors.liquidateFeeRate
-        ) = _filliquid.getLiquidatingFactors();
+        ) = _filliquidData.getLiquidatingFactors();
         (fiLStakeGovernanceFactors.n_interest, fiLStakeGovernanceFactors.n_stake,,,,,,,) = _filStake.getAllFactors();
     }
 
-    function maxBorrowAllowed(uint64 minerId) external returns (uint amount) {
-        (bool borrowable,) = _filliquid.getBorrowable(minerId);
-        if (!borrowable) return 0;
-        amount = _filliquid.maxBorrowAllowedByUtilization();
-        uint amountByMinerId = _filliquid.maxBorrowAllowed(minerId);
+    function maxBorrowAllowed(uint64 minerId) external view returns (uint amount) {
+        (,address logic_borrow_payback,,,,,) = _filliquidData.getAdministrativeFactors();
+        FILLiquidLogicBorrowPayback.Response memory response = FILLiquidLogicBorrowPayback(payable(logic_borrow_payback)).getBorrowable(minerId);
+        if (!response.tag) return 0;
+        amount = _filliquidData.maxBorrowAllowedByUtilization();
+        uint amountByMinerId = _filliquidData.maxBorrowAllowed(minerId);
         if (amount > amountByMinerId) amount = amountByMinerId;
-        (,,,,,uint minBorrowAmount,,,,) = _filliquid.getComprehensiveFactors();
+        (,,,,,uint minBorrowAmount,,,,) = _filliquidData.getComprehensiveFactors();
         if (amount < minBorrowAmount) amount = 0;
     }
 
@@ -141,43 +144,51 @@ contract DataFetcher {
         uint expectedInterestRate,
         uint sixMonthInterest
     ){
-        expectedInterestRate = _filliquid.interestRateBorrow(amount);
-        sixMonthInterest = _filliquid.paybackAmount(amount, 15552000, expectedInterestRate) - amount;
+        (,address logic_borrow_payback,,,,,) = _filliquidData.getAdministrativeFactors();
+        FILLiquidLogicBorrowPayback logic = FILLiquidLogicBorrowPayback(payable(logic_borrow_payback));
+        expectedInterestRate = logic.interestRateBorrow(amount);
+        sixMonthInterest = logic.paybackAmount(amount, 15552000, expectedInterestRate) - amount;
     }
 
     function getDepositExpecting(uint amountFIL) external view returns (uint expectedAmountFILTrust){
-        expectedAmountFILTrust = _filliquid.getFitByDeposit(amountFIL);
+        (address logic_deposit_redeem,,,,,,) = _filliquidData.getAdministrativeFactors();
+        expectedAmountFILTrust = FILLiquidLogicDepositRedeem(payable(logic_deposit_redeem)).getFitByDeposit(amountFIL);
     }
 
     function getRedeemExpecting(uint amountFILTrust) external view returns (uint expectedAmountFIL){
-        expectedAmountFIL = _filliquid.getFilByRedeem(amountFILTrust);
+        (address logic_deposit_redeem,,,,,,) = _filliquidData.getAdministrativeFactors();
+        expectedAmountFIL = FILLiquidLogicDepositRedeem(payable(logic_deposit_redeem)).getFilByRedeem(amountFILTrust);
     }
 
-    function getBatchedUserBorrows(address[] calldata accounts) external returns (FILLiquid.UserInfo[] memory infos) {
-        infos = new FILLiquid.UserInfo[](accounts.length);
+    function getBatchedUserBorrows(address[] calldata accounts) external view returns (FILLiquidData.UserInfo[] memory infos) {
+        infos = new FILLiquidData.UserInfo[](accounts.length);
         for (uint i = 0; i < infos.length; i++) {
-            infos[i] = _filliquid.userBorrows(accounts[i]);
+            infos[i] = _filliquidData.userBorrows(accounts[i]);
         }
     }
 
-    function getUserBorrowsByMiner(uint64 minerId) external returns (FILLiquid.UserInfo memory infos) {
-        return _filliquid.userBorrows(_filliquid.minerUser(minerId));
+    function getUserBorrowsByMiner(uint64 minerId) external view returns (FILLiquidData.UserInfo memory infos) {
+        return _filliquidData.userBorrows(_filliquidData.minerUser(minerId));
     }
 
-    function getUserBorrowsAndBorrowable(address account) external returns (FILLiquid.UserInfo memory info, MinerBorrowable[] memory borrowables) {
-        info = _filliquid.userBorrows(account);
+    function getUserBorrowsAndBorrowable(address account) external view returns (FILLiquidData.UserInfo memory info, MinerBorrowable[] memory borrowables) {
+        info = _filliquidData.userBorrows(account);
         borrowables = getBorrowable(account);
     }
 
-    function getBorrowable(address account) public returns (MinerBorrowable[] memory result) {
-        uint64[] memory miners = _filliquid.userMiners(account);
+    function getBorrowable(address account) public view returns (MinerBorrowable[] memory result) {
+        uint64[] memory miners = _filliquidData.userMiners(account);
         result = new MinerBorrowable[](miners.length);
+        (,address logic_borrow_payback,,,,,) = _filliquidData.getAdministrativeFactors();
+        FILLiquidLogicBorrowPayback logic = FILLiquidLogicBorrowPayback(payable(logic_borrow_payback));
         for (uint i = 0; i < miners.length; i++) {
-            (result[i].borrowable, result[i].reason) = _filliquid.getBorrowable(miners[i]);
+            FILLiquidLogicBorrowPayback.Response memory response = logic.getBorrowable(miners[i]);
+            result[i].borrowable = response.tag;
+            result[i].reason = response.reason;
         }
     }
 
-    function getTotalPendingInterest() external returns (
+    function getTotalPendingInterest() external view returns (
         uint blockHeight,
         uint blockTimeStamp,
         uint totalPendingInterest,
@@ -190,19 +201,21 @@ contract DataFetcher {
         blockHeight = block.number;
         blockTimeStamp = block.timestamp;
         uint start = 0;
-        uint end = _filliquid.allMinersCount();
-        FILLiquid.FILLiquidInfo memory filLiquidInfo = _filliquid.getStatus();
+        uint end = _filliquidData.allMinersCount();
+        FILLiquidData.FILLiquidInfo memory filLiquidInfo = _filliquidData.getStatus();
         if (start != end) {
-            FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
+            (,address logic_borrow_payback,,,,,) = _filliquidData.getAdministrativeFactors();
+            FILLiquidLogicBorrowPayback logic = FILLiquidLogicBorrowPayback(payable(logic_borrow_payback));
+            FILLiquidData.BindStatusInfo[] memory allMiners = _filliquidData.allMinersSubset(start, end);
             for (uint j = 0; j < allMiners.length; j++) {
-                FILLiquid.BindStatusInfo memory info = allMiners[j];
+                FILLiquidData.BindStatusInfo memory info = allMiners[j];
                 if (!info.status.stillBound) continue;
-                FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
+                FILLiquidData.MinerBorrowInfo memory minerBorrowInfo = _filliquidData.minerBorrows(info.minerId);
                 totalPendingInterest += minerBorrowInfo.debtOutStanding - minerBorrowInfo.borrowSum;
                 for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
-                    FILLiquid.BorrowInfo memory borrowInfo = minerBorrowInfo.borrows[i].borrow;
+                    FILLiquidData.BorrowInfo memory borrowInfo = minerBorrowInfo.borrows[i].borrow;
                     borrowingAndPeriod += borrowInfo.remainingOriginalAmount * (block.timestamp - borrowInfo.initialTime);
-                    interestExp += _filliquid.paybackAmount(borrowInfo.borrowAmount, 31536000, borrowInfo.interestRate) - borrowInfo.borrowAmount;
+                    interestExp += logic.paybackAmount(borrowInfo.borrowAmount, 31536000, borrowInfo.interestRate) - borrowInfo.borrowAmount;
                 }
             }
         }
@@ -211,11 +224,11 @@ contract DataFetcher {
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
     }
 
-    function getPendingBeneficiary(uint64 minerId) external returns (address, bool) {
+    function getPendingBeneficiary(uint64 minerId) external view returns (address, bool) {
         return _filecoinAPI.getPendingBeneficiaryId(minerId);
     }
 
     function getAddresses() external view returns (address[6] memory) {
-        return [address(_filliquid), address(_filTrust), address(_filStake), address(_filGovernance), address(_governance), address(_filecoinAPI)];
+        return [address(_filliquidData), address(_filTrust), address(_filStake), address(_filGovernance), address(_governance), address(_filecoinAPI)];
     }
 }

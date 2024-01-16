@@ -41,12 +41,14 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
     FILLiquidData private _data;
     FILLiquidPool private _pool;
     FilecoinAPI private _filecoinAPI;
+    Validation private _validation;
 
-    constructor(address filLiquidDataAddr, address payable filLiquidPoolAddr, address filecoinAPIAddr) {
+    constructor(address filLiquidDataAddr, address payable filLiquidPoolAddr, address filecoinAPIAddr, address validationAddr) {
         _owner = _msgSender();
         _data = FILLiquidData(filLiquidDataAddr);
         _pool = FILLiquidPool(filLiquidPoolAddr);
         _filecoinAPI = FilecoinAPI(filecoinAPIAddr);
+        _validation = Validation(validationAddr);
         _switch = true;
     }
 
@@ -56,8 +58,7 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
         require(collateralizable, reason);
         
         if (sender != _toAddress(_filecoinAPI.getOwnerActorId(minerId))) {
-            (,,,,,,address validation,) = _data.getAdministrativeFactors();
-            Validation(validation).validateOwner(minerId, signature, sender);
+            _validation.validateOwner(minerId, signature, sender);
         }
 
         MinerTypes.GetBeneficiaryReturn memory beneficiaryRet = _filecoinAPI.getBeneficiary(minerId);
@@ -144,18 +145,20 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
         _owner = new_owner;
     }
 
-    function getAdministrativeFactors() external view returns (address, address, address) {
-        return (address(_data), address(_pool), address(_filecoinAPI));
+    function getAdministrativeFactors() external view returns (address, address, address, address) {
+        return (address(_data), address(_pool), address(_filecoinAPI), address(_validation));
     }
 
     function setAdministrativeFactors(
         address new_data,
         address payable new_pool,
-        address new_filecoinAPI
+        address new_filecoinAPI,
+        address new_validation
     ) onlyOwner external {
         _data = FILLiquidData(new_data);
         _pool = FILLiquidPool(new_pool);
         _filecoinAPI = FilecoinAPI(new_filecoinAPI);
+        _validation = Validation(new_validation);
     }
 
     function getSwitch() external view returns (bool) {
@@ -222,7 +225,7 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
         _data.deleteCollateralizingMinerInfo(minerId);
     }
 
-    function _toAddress(uint64 minerId) public view returns (address) {
+    function _toAddress(uint64 minerId) private view returns (address) {
         return _filecoinAPI.toAddress(minerId);
     }
 }

@@ -19,16 +19,17 @@ contract FILLiquidPool is Context {
     }
 
     function changeBeneficiary(
+        address filecoinAPI,
         uint64 minerId,
         bytes calldata beneficiary,
         uint quota,
         int64 expiration
     ) onlyLogicCollateralize switchOn external {
-        _changeBeneficiary(minerId, beneficiary, quota, expiration);
+        _changeBeneficiary(filecoinAPI, minerId, beneficiary, quota, expiration);
     }
 
-    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyLogicBorrowPayback switchOn external {
-        _withdrawBalance(minerId, withdrawnAmount);
+    function withdrawBalance(address filecoinAPI, uint64 minerId, uint withdrawnAmount) onlyLogicBorrowPayback switchOn external {
+        _withdrawBalance(filecoinAPI, minerId, withdrawnAmount);
     }
 
     receive() onlyLogicReceiver switchOn external payable {
@@ -100,20 +101,21 @@ contract FILLiquidPool is Context {
     }
 
     function _changeBeneficiary(
+        address filecoinAPI,
         uint64 minerId,
         bytes calldata beneficiary,
         uint quota,
         int64 expiration
     ) private {
-        (bool success, ) = _logic_collateralize.delegatecall(
+        (bool success, ) = filecoinAPI.delegatecall(
             abi.encodeWithSignature("changeBeneficiary(uint64,bytes,uint256,int64)", minerId, beneficiary, quota, expiration)
         );
         require(success, "ChangeBeneficiary failed");
     }
 
-    function _withdrawBalance(uint64 minerId, uint withdrawnAmount) private {
+    function _withdrawBalance(address filecoinAPI, uint64 minerId, uint withdrawnAmount) private {
         if (withdrawnAmount > 0) {
-            (bool success, bytes memory data) = _logic_borrow_payback.delegatecall(
+            (bool success, bytes memory data) = filecoinAPI.delegatecall(
                 abi.encodeWithSignature("withdrawBalance(uint64,uint256)", minerId, withdrawnAmount)
             );
             require(success, "WithdrawBalance failed");

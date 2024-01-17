@@ -51,16 +51,16 @@ contract FilecoinAPI{
 
     function changeBeneficiary(
         uint64 minerId,
-        CommonTypes.FilAddress memory beneficiary,
-        CommonTypes.BigInt memory quota,
-        CommonTypes.ChainEpoch expiration
+        bytes calldata beneficiary,
+        uint quota,
+        int64 expiration
     ) external {
         int256 exitCode = MinerAPI.changeBeneficiary(
             _wrapId(minerId),
             MinerTypes.ChangeBeneficiaryParams({
-                new_beneficiary: beneficiary,
-                new_quota: quota,
-                new_expiration: expiration
+                new_beneficiary: CommonTypes.FilAddress(beneficiary),
+                new_quota: quota.uint2BigInt(),
+                new_expiration: CommonTypes.ChainEpoch.wrap(expiration)
             })
         );
         require(exitCode == 0, err);

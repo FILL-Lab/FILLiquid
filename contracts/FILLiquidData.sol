@@ -44,7 +44,7 @@ interface FILLiquidDataInterface {
     }
     struct MinerCollateralizingInfo {
         uint64 minerId;
-        uint64 expiration;
+        int64 expiration;
         uint quota;
         uint borrowAmount;
         uint liquidatedAmount;
@@ -353,28 +353,6 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
 
     function pushAllMiners(uint64 minerId) onlyLogicCollateralize switchOn external {
         _allMiners.push(minerId);
-    }
-
-    function handleInterest(address minter, uint principal, uint interest) onlyLogicBorrowPayback switchOn external returns (uint) {
-        (bool success, bytes memory data) = _logic_borrow_payback.delegatecall(
-            abi.encodeWithSignature("handleInterest(address,address,uint256,uint256)", _filStake, minter, principal, interest)
-        );
-        require(success, "HandleInterest failed");
-        return uint(bytes32(data));
-    }
-
-    function mintFIT(address account, uint amount) onlyLogicDepositRedeem switchOn external {
-        (bool success, ) = _logic_deposit_redeem.delegatecall(
-            abi.encodeWithSignature("mintFIT(address,address,uint256)", _tokenFILTrust, account, amount)
-        );
-        require(success, "MintFIT failed");
-    }
-
-    function burnFIT(address account, uint amount) onlyLogicDepositRedeem switchOn external {
-        (bool success, ) = _logic_deposit_redeem.delegatecall(
-            abi.encodeWithSignature("burnFIT(address,address,uint256)", _tokenFILTrust, account, amount)
-        );
-        require(success, "BurnFIT failed");
     }
 
     function getStatus() external view returns (FILLiquidInfo memory) {

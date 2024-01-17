@@ -65,7 +65,7 @@ contract FILStake is Context{
     mapping(uint => address) private _idStaker;
     address[] private _stakers;
     address private _owner;
-    address private _filLiquidData;
+    address private _filLiquidLogicBorrowPayback;
     address private _governance;
 
     uint private _accumulatedInterest;
@@ -112,7 +112,7 @@ contract FILStake is Context{
         _stake_share = DEFAULT_STAKE_SHARE;
     }
 
-    function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquidData external returns (uint minted) {
+    function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquidLogicBorrowPayback external returns (uint minted) {
         (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(interest);
         _accumulatedInterest += interest;
         if (minted > 0) _tokenFILGovernance.mint(minter, minted);
@@ -266,16 +266,16 @@ contract FILStake is Context{
     }
 
     function getContractAddrs() external view returns (address, address, address, address) {
-        return (_filLiquidData, _governance, address(_tokenFILTrust), address(_tokenFILGovernance));
+        return (_filLiquidLogicBorrowPayback, _governance, address(_tokenFILTrust), address(_tokenFILGovernance));
     }
 
     function setContractAddrs(
-        address new_filLiquidData,
+        address new_filLiquidLogicBorrowPayback,
         address new_governance,
         address new_tokenFILTrust,
         address new_tokenFILGovernance
     ) onlyOwner external {
-        _filLiquidData = new_filLiquidData;
+        _filLiquidLogicBorrowPayback = new_filLiquidLogicBorrowPayback;
         _governance = new_governance;
         _tokenFILTrust = FILTrust(new_tokenFILTrust);
         _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
@@ -299,8 +299,8 @@ contract FILStake is Context{
         _;
     }
 
-    modifier onlyFiLLiquidData() {
-        require(_msgSender() == _filLiquidData, "Only filLiquidData allowed");
+    modifier onlyFiLLiquidLogicBorrowPayback() {
+        require(_msgSender() == _filLiquidLogicBorrowPayback, "Only filLiquidLogicBorrowPayback allowed");
         _;
     }
 

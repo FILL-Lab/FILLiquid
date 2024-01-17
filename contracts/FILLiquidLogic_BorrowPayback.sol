@@ -153,10 +153,10 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
             payable(_msgSender()).transfer(sentBack_withdrawn[0]);
         } else if (r[0] < amount) {
             sentBack_withdrawn[1] = amount - r[0];
-            _pool.withdrawBalance(minerIdPayer, sentBack_withdrawn[1]);
+            _pool.withdrawBalance(address(_filecoinAPI), minerIdPayer, sentBack_withdrawn[1]);
         }
         payable(_pool).transfer(r[1] + r[2]);
-        uint mintedFIG = _data.handleInterest(_msgSender(), r[1], r[2]);
+        uint mintedFIG = _handleInterest(_msgSender(), r[1], r[2]);
 
         emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], sentBack_withdrawn[1], mintedFIG);
         return (r[1], r[2], sentBack_withdrawn[1], mintedFIG);
@@ -167,7 +167,7 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         address sender = _msgSender();
         if (r[0] > 0) payable(sender).transfer(r[0]);
         payable(_pool).transfer(r[1] + r[2]);
-        uint mintedFIG = _data.handleInterest(_data.minerUser(minerId), r[1], r[2]);
+        uint mintedFIG = _handleInterest(_data.minerUser(minerId), r[1], r[2]);
 
         emit Payback(sender, minerId, minerId, r[1], r[2], 0, mintedFIG);
         return (r[1], r[2], mintedFIG);
@@ -187,7 +187,7 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         uint bonus = fees[0] - (r[1] + r[2]);
         _updateLiquidate(minerIdPayee, totalWithdraw, bonus, fees[1]);
 
-        if (totalWithdraw > 0) _pool.withdrawBalance(minerIdPayer, totalWithdraw);
+        if (totalWithdraw > 0) _pool.withdrawBalance(address(_filecoinAPI), minerIdPayer, totalWithdraw);
         if (fees[1] > 0) _sendToFoundation(fees[1]);
         address sender = _msgSender();
         if (bonus > 0) payable(sender).transfer(bonus);
@@ -195,20 +195,6 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         result = [r[1], r[2], bonus, fees[1]];
 
         emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
-    }
-
-    function withdrawBalance(uint64 minerId, uint withdrawnAmount) external {
-        if (withdrawnAmount > 0) {
-            (bool success, bytes memory data) = address(_filecoinAPI).delegatecall(
-                abi.encodeCall(FilecoinAPI.withdrawBalance, (minerId, withdrawnAmount))
-            );
-            require(success, "WithdrawBalance failed");
-            require(uint(bytes32(data)) == withdrawnAmount, "Invalid withdrawal");
-        }
-    }
-
-    function handleInterest(address filStake, address minter, uint principal, uint interest) external returns (uint) {
-        return FILStake(filStake).handleInterest(minter, principal, interest);
     }
 
     receive() onlyPool switchOn external payable {
@@ -341,6 +327,11 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
     modifier switchOn() {
         require(_switch, "Switch is off");
         _;
+    }
+
+    function _handleInterest(address minter, uint principal, uint interest) private returns (uint) {
+        (,,,,,,address filStake) = _data.getAdministrativeFactors();
+        return FILStake(filStake).handleInterest(minter, principal, interest);
     }
 
     function _getAvailable(uint64 minerId) private view returns (Response memory) {

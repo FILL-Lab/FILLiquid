@@ -56,7 +56,7 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
         
         _data.recordDeposit(amountFIL, amountFILTrust);
         address sender = _msgSender();
-        _data.mintFIT(sender, amountFILTrust);
+        _mintFIT(sender, amountFILTrust);
         
         emit Deposit(sender, amountFIL, amountFILTrust);
         return amountFILTrust;
@@ -71,21 +71,13 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
         uint[2] memory fees = _data.calculateFee(amountFIL, redeemFeeRate);
         _data.recordRedeem(amountFILTrust, fees[0], fees[1]);
         address sender = _msgSender();
-        _data.burnFIT(sender, amountFILTrust);
+        _burnFIT(sender, amountFILTrust);
         if (amountFIL > 0) _pool.send(amountFIL);
         if (fees[1] > 0) _sendToFoundation(fees[1]);
         if (fees[0] > 0) payable(sender).transfer(fees[0]);
 
         emit Redeem(sender, amountFILTrust, fees[0], fees[1]);
         return (fees[0], fees[1]);
-    }
-
-    function mintFIT(address tokenFILTrust, address account, uint amount) external {
-        FILTrust(tokenFILTrust).mint(account, amount);
-    }
-
-    function burnFIT(address tokenFILTrust, address account, uint amount) external {
-        FILTrust(tokenFILTrust).burn(account, amount);
     }
 
     receive() onlyPool switchOn external payable {
@@ -150,6 +142,14 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
     modifier switchOn() {
         require(_switch, "Switch is off");
         _;
+    }
+
+    function _mintFIT(address account, uint amount) private {
+        FILTrust(_getTokenFILTrust()).mint(account, amount);
+    }
+
+    function _burnFIT(address account, uint amount) private {
+        FILTrust(_getTokenFILTrust()).burn(account, amount);
     }
 
     function _sendToFoundation(uint amount) private {

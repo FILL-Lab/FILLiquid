@@ -20,10 +20,10 @@ interface FILLiquidLogicCollateralizeInterface {
     function uncollateralizingMiner(uint64 minerId) external;
 
     /// @dev Emitted when collateralizing `minerId` : change beneficiary to `beneficiary` with info `quota`,`expiration` by `sender`
-    event CollateralizingMiner(uint64 indexed minerId, address indexed sender, bytes beneficiary, uint quota, uint64 expiration);
+    event CollateralizingMiner(uint64 indexed minerId, address indexed sender, bytes beneficiary, uint quota, int64 expiration);
 
     /// @dev Emitted when uncollateralizing `minerId` : change beneficiary to `beneficiary` with info `quota`,`expiration` by `sender`
-    event UncollateralizingMiner(uint64 indexed minerId, address indexed sender, bytes beneficiary, uint quota, uint64 expiration);
+    event UncollateralizingMiner(uint64 indexed minerId, address indexed sender, bytes beneficiary, uint quota, int64 expiration);
 }
 
 contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInterface {
@@ -71,12 +71,11 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
         (,,,,,,,,uint requiredQuota, int64 requiredExpiration) = _data.getComprehensiveFactors();
         require(quota == requiredQuota, "Invalid quota");
         int64 expiration = CommonTypes.ChainEpoch.unwrap(proposedBeneficiaryRet.new_expiration);
-        uint64 uExpiration = uint64(expiration);
-        require(expiration == requiredExpiration && uExpiration > block.number, "Invalid expiration");
+        require(expiration == requiredExpiration && uint64(requiredExpiration) > block.number, "Invalid expiration");
 
         // change beneficiary to contract
-        _pool.changeBeneficiary(minerId, proposedBeneficiaryRet.new_beneficiary.data, quota, CommonTypes.ChainEpoch.unwrap(proposedBeneficiaryRet.new_expiration));
-        _updateCollateralizingMiner(minerId, sender, uExpiration, quota);
+        _pool.changeBeneficiary(address(_filecoinAPI), minerId, proposedBeneficiaryRet.new_beneficiary.data, quota, expiration);
+        _updateCollateralizingMiner(minerId, sender, expiration, quota);
         _data.recordCollateralizingMiner();
 
         emit CollateralizingMiner(
@@ -84,7 +83,7 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
             sender,
             proposedBeneficiaryRet.new_beneficiary.data,
             quota,
-            uExpiration
+            expiration
         );
     }
 
@@ -95,23 +94,11 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
 
         // change Beneficiary to owner
         bytes memory minerOwner = _filecoinAPI.getOwner(minerId).owner.data;
-        _pool.changeBeneficiary(minerId, minerOwner, 0, 0);
+        _pool.changeBeneficiary(address(_filecoinAPI), minerId, minerOwner, 0, 0);
         _updateUncollateralizingMiner(minerId, sender);
         _data.recordUncollateralizingMiner();
 
         emit UncollateralizingMiner(minerId, sender, minerOwner, 0, 0);
-    }
-
-    function changeBeneficiary(
-        uint64 minerId,
-        bytes calldata beneficiary,
-        uint quota,
-        int64 expiration
-    ) external {
-        (bool success, ) = address(_filecoinAPI).delegatecall(
-            abi.encodeCall(FilecoinAPI.changeBeneficiary, (minerId,CommonTypes.FilAddress(beneficiary), quota.uint2BigInt(), CommonTypes.ChainEpoch.wrap(expiration)))
-        );
-        require(success, "ChangeBeneficiary failed");
     }
 
     function getCollateralizable(uint64 minerId, address sender) public view returns (bool, string memory) {
@@ -194,14 +181,14 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
         _;
     }
     
-    function _updateCollateralizingMiner(uint64 minerId, address sender, uint64 uExpiration, uint quota) private {
+    function _updateCollateralizingMiner(uint64 minerId, address sender, int64 expiration, uint quota) private {
         _data.updateMinerUser(minerId, sender);
         _data.addUserMiner(sender, minerId);
         if (!_data.minerStatus(minerId).onceBound) _data.pushAllMiners(minerId);
         _data.updateMinerStatus(minerId, FILLiquidDataInterface.BindStatus(true, true));
         _data.updateCollateralizingMinerInfo(minerId, FILLiquidDataInterface.MinerCollateralizingInfo({
             minerId: minerId,
-            expiration: uExpiration,
+            expiration: expiration,
             quota: quota,
             borrowAmount: 0,
             liquidatedAmount: 0

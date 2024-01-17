@@ -72,7 +72,7 @@ contract Deployer3 {
         emit ContractPublishing("FILLiquidPool", address(_filLiquidPool));
 
         _filStake.setContractAddrs(
-            address(_filLiquidData),
+            address(_logic_borrow_payback),
             address(_governance),
             address(_filTrust),
             address(_filGovernance)
@@ -97,7 +97,7 @@ contract Deployer3 {
             FILLiquidLogicBorrowPayback _logic_borrow_payback,
             FILLiquidLogicCollateralize _logic_collateralize,
         ) = _deployer2.getAddrs();
-        _filTrust.addManager(address(_filLiquidData));
+        _filTrust.addManager(address(_logic_deposit_redeem));
         _filTrust.addManager(address(_filStake));
         _logic_deposit_redeem.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool));
         _logic_borrow_payback.setAdministrativeFactors(address(_filLiquidData), payable(_filLiquidPool), address(_filecoinAPI));

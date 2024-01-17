@@ -80,11 +80,11 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
         return (fees[0], fees[1]);
     }
 
-    function mintFIT(address tokenFILTrust, address account, uint amount) onlyDataDelegate external {
+    function mintFIT(address tokenFILTrust, address account, uint amount) external {
         FILTrust(tokenFILTrust).mint(account, amount);
     }
 
-    function burnFIT(address tokenFILTrust, address account, uint amount) onlyDataDelegate external {
+    function burnFIT(address tokenFILTrust, address account, uint amount) external {
         FILTrust(tokenFILTrust).burn(account, amount);
     }
 
@@ -139,11 +139,6 @@ contract FILLiquidLogicDepositRedeem is Context, FILLiquidLogicDepositRedeemInte
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Not owner");
-        _;
-    }
-
-    modifier onlyDataDelegate() {
-        require(address(this) == address(_data), "Not data");
         _;
     }
 

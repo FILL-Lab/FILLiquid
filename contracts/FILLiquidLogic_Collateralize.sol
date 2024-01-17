@@ -107,7 +107,7 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
         bytes calldata beneficiary,
         uint quota,
         int64 expiration
-    ) onlyPoolDelegate external {
+    ) external {
         (bool success, ) = address(_filecoinAPI).delegatecall(
             abi.encodeCall(FilecoinAPI.changeBeneficiary, (minerId,CommonTypes.FilAddress(beneficiary), quota.uint2BigInt(), CommonTypes.ChainEpoch.wrap(expiration)))
         );
@@ -171,11 +171,6 @@ contract FILLiquidLogicCollateralize is Context, FILLiquidLogicCollateralizeInte
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Not owner");
-        _;
-    }
-
-    modifier onlyPoolDelegate() {
-        require(address(this) == address(_pool), "Not pool");
         _;
     }
 

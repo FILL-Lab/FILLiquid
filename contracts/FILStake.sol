@@ -112,7 +112,7 @@ contract FILStake is Context{
         _stake_share = DEFAULT_STAKE_SHARE;
     }
 
-    function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquid external returns (uint minted) {
+    function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquidData external returns (uint minted) {
         (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(interest);
         _accumulatedInterest += interest;
         if (minted > 0) _tokenFILGovernance.mint(minter, minted);
@@ -299,7 +299,7 @@ contract FILStake is Context{
         _;
     }
 
-    modifier onlyFiLLiquid() {
+    modifier onlyFiLLiquidData() {
         require(_msgSender() == _filLiquidData, "Only filLiquidData allowed");
         _;
     }

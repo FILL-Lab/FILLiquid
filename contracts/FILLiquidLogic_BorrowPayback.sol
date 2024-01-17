@@ -197,7 +197,7 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
     }
 
-    function withdrawBalance(uint64 minerId, uint withdrawnAmount) onlyPoolDelegate external {
+    function withdrawBalance(uint64 minerId, uint withdrawnAmount) external {
         if (withdrawnAmount > 0) {
             (bool success, bytes memory data) = address(_filecoinAPI).delegatecall(
                 abi.encodeCall(FilecoinAPI.withdrawBalance, (minerId, withdrawnAmount))
@@ -207,7 +207,7 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         }
     }
 
-    function handleInterest(address filStake, address minter, uint principal, uint interest) onlyDataDelegate external returns (uint) {
+    function handleInterest(address filStake, address minter, uint principal, uint interest) external returns (uint) {
         return FILStake(filStake).handleInterest(minter, principal, interest);
     }
 
@@ -312,17 +312,7 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         _;
     }
 
-    modifier onlyDataDelegate() {
-        require(address(this) == address(_data), "Not data");
-        _;
-    }
-
     modifier onlyPool() {
-        require(_msgSender() == address(_pool), "Not pool");
-        _;
-    }
-
-    modifier onlyPoolDelegate() {
         require(_msgSender() == address(_pool), "Not pool");
         _;
     }

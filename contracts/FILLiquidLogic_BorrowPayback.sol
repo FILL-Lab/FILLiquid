@@ -155,7 +155,6 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
             sentBack_withdrawn[1] = amount - r[0];
             _pool.withdrawBalance(address(_filecoinAPI), minerIdPayer, sentBack_withdrawn[1]);
         }
-        payable(_pool).transfer(r[1] + r[2]);
         uint mintedFIG = _handleInterest(_msgSender(), r[1], r[2]);
 
         emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], sentBack_withdrawn[1], mintedFIG);
@@ -188,10 +187,11 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
         _updateLiquidate(minerIdPayee, totalWithdraw, bonus, fees[1]);
 
         if (totalWithdraw > 0) _pool.withdrawBalance(address(_filecoinAPI), minerIdPayer, totalWithdraw);
+        uint discount = fees[1] + bonus;
+        if (discount > 0) _pool.send(discount);
         if (fees[1] > 0) _sendToFoundation(fees[1]);
         address sender = _msgSender();
         if (bonus > 0) payable(sender).transfer(bonus);
-        payable(_pool).transfer(r[1] + r[2]);
         result = [r[1], r[2], bonus, fees[1]];
 
         emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
@@ -346,7 +346,10 @@ contract FILLiquidLogicBorrowPayback is Context, FILLiquidLogicBorrowPaybackInte
     }
 
     function _send(uint64 actorId, uint amount) private {
-        _filecoinAPI.send(actorId, amount);
+        (bool success, ) = address(_filecoinAPI).delegatecall(
+            abi.encodeCall(FilecoinAPI.send, (actorId, amount))
+        );
+        require(success, "Sending failed");
     }
 
     function _isHigher(uint expect, uint realtime) private pure {

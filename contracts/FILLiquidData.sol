@@ -600,7 +600,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
             _tokenFILTrust,
             _filStake);
     }
-
+    
     function setAdministrativeFactors(
         address new_logic_deposit_redeem,
         address new_logic_borrow_payback,
@@ -634,7 +634,8 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         );
     }
 
-    /*function setComprehensiveFactors(
+    //Test
+    function setComprehensiveFactors(
         uint new_rateBase,
         uint new_redeemFeeRate,
         uint new_borrowFeeRate,
@@ -665,7 +666,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _requiredQuota = new_requiredQuota;
         _requiredExpiration = new_requiredExpiration;
         _n = _getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
-    }*/
+    }
 
     function getLiquidatingFactors() external view returns (uint, uint, uint, uint, uint, uint) {
         return (
@@ -678,7 +679,8 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         );
     }
 
-    /*function setLiquidatingFactors(
+    //Test
+    function setLiquidatingFactors(
         uint new_maxLiquidations,
         uint new_minLiquidateInterval,
         uint new_alertThreshold,
@@ -697,7 +699,7 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         _liquidateThreshold = new_liquidateThreshold;
         _liquidateDiscountRate = new_liquidateDiscountRate;
         _liquidateFeeRate = new_liquidateFeeRate;
-    }*/
+    }
 
     function getBorrowPayBackFactors() external view returns (uint, uint, uint, uint, uint) {
         return (_u_1, _r_0, _r_1, _r_m, _n);
@@ -738,11 +740,12 @@ contract FILLiquidData is FILLiquidDataInterface, Context {
         return _u_m;
     }
 
-    /*function setDepositRedeemFactors(uint new_u_m) onlyOwner external {
+    //Test
+    function setDepositRedeemFactors(uint new_u_m) onlyOwner external {
         require(_u_1 < new_u_m && new_u_m <= _rateBase, "Invalid u_m");
         _u_m = new_u_m;
         _n = _getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
-    }*/
+    }
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Not owner");

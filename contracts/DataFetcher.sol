@@ -131,8 +131,8 @@ contract DataFetcher {
 
     function maxBorrowAllowed(uint64 minerId) external view returns (uint amount) {
         (,address logic_borrow_payback,,,,,) = _filliquidData.getAdministrativeFactors();
-        FILLiquidLogicBorrowPayback.Response memory response = FILLiquidLogicBorrowPayback(payable(logic_borrow_payback)).getBorrowable(minerId);
-        if (!response.tag) return 0;
+        (bool borrowable,) = FILLiquidLogicBorrowPayback(payable(logic_borrow_payback)).getBorrowable(minerId);
+        if (!borrowable) return 0;
         amount = _filliquidData.maxBorrowAllowedByUtilization();
         uint amountByMinerId = _filliquidData.maxBorrowAllowed(minerId);
         if (amount > amountByMinerId) amount = amountByMinerId;
@@ -182,9 +182,7 @@ contract DataFetcher {
         (,address logic_borrow_payback,,,,,) = _filliquidData.getAdministrativeFactors();
         FILLiquidLogicBorrowPayback logic = FILLiquidLogicBorrowPayback(payable(logic_borrow_payback));
         for (uint i = 0; i < miners.length; i++) {
-            FILLiquidLogicBorrowPayback.Response memory response = logic.getBorrowable(miners[i]);
-            result[i].borrowable = response.tag;
-            result[i].reason = response.reason;
+            (result[i].borrowable, result[i].reason) = logic.getBorrowable(miners[i]);
         }
     }
 

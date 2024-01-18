@@ -304,7 +304,7 @@ contract FILStake is Context{
         _;
     }
 
-    function _getStakePos(address staker, uint stakeId) public view returns (uint p) {
+    function _getStakePos(address staker, uint stakeId) private view returns (uint p) {
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         for (; p < stakes.length; p++) {
             if (stakes[p].id == stakeId) break;

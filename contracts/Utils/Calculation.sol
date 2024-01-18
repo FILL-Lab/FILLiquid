@@ -11,13 +11,13 @@ library Calculation {
     function getInterestRate(uint u, uint u_1, uint r_0, uint r_1, uint rateBase, uint n) internal pure returns (uint) {
         require(u < rateBase, "Utilization rate cannot be bigger than 1");
         if (u <= u_1) return r_0 + ((r_1 - r_0) * u) / u_1;
-        UD60x18 base = toUD60x18((rateBase * (rateBase - u_1)) / (rateBase - u), rateBase);
+        UD60x18 base = _toUD60x18((rateBase * (rateBase - u_1)) / (rateBase - u), rateBase);
         UD60x18 exp = ud(n);
-        return toUint(base.pow(exp), rateBase) * r_1 / rateBase;
+        return _toUint(base.pow(exp), rateBase) * r_1 / rateBase;
     }
 
     function getN(uint u_1, uint u_m, uint r_1, uint r_m, uint rateBase) internal pure returns (uint n) {
-        n = ((toUD60x18Direct(r_m).log2() - toUD60x18Direct(r_1).log2()) / (toUD60x18Direct(rateBase - u_1).log2() - toUD60x18Direct(rateBase - u_m).log2())).intoUint256();
+        n = ((_toUD60x18Direct(r_m).log2() - _toUD60x18Direct(r_1).log2()) / (_toUD60x18Direct(rateBase - u_1).log2() - _toUD60x18Direct(rateBase - u_m).log2())).intoUint256();
         require(n >= uUNIT, "Invalid N");
     }
 
@@ -40,7 +40,7 @@ library Calculation {
 
         uint amountFilLeft = amountFil;
         uint amountFit = 0;
-        uint[2] memory amountFilCurved = divideWithUpperRound(rateBase * utilizedLiquidity, u_m);
+        uint[2] memory amountFilCurved = _divideWithUpperRound(rateBase * utilizedLiquidity, u_m);
         amountFilCurved[0] -= filLiquidity;
         amountFilCurved[1] -= filLiquidity;
         if (amountFilCurved[1] > amountFil) {
@@ -72,7 +72,7 @@ library Calculation {
             // utilizedLiquidity / (filLiquidity - maxAmountFil4PropRedeem) = u_m / rateBase
             uint maxAmountFil4PropRedeem = filLiquidity - utilizedLiquidity * rateBase / u_m;
 
-            uint maxAmountFit2PropRedeem = divideWithUpperRound(maxAmountFil4PropRedeem * fitTotalSupply, filLiquidity)[1];
+            uint maxAmountFit2PropRedeem = _divideWithUpperRound(maxAmountFil4PropRedeem * fitTotalSupply, filLiquidity)[1];
             if (amountFit <= maxAmountFit2PropRedeem) {
                 // All redemption could be proportional
                 return (amountFit * filLiquidity) / fitTotalSupply;
@@ -91,7 +91,7 @@ library Calculation {
 
     function getPaybackAmount(uint borrowAmount, uint borrowPeriod, uint annualRate, uint rateBase) internal pure returns (uint) {
         if (borrowPeriod == 0 || borrowAmount == 0) return borrowAmount;
-        UD60x18 x = ud(borrowPeriod * annualRate * conversionFactor(rateBase) / ANNUM);
+        UD60x18 x = ud(borrowPeriod * annualRate * _conversionFactor(rateBase) / ANNUM);
         return x.exp().intoUint256() * borrowAmount / uUNIT;
     }
 
@@ -103,23 +103,23 @@ library Calculation {
         else return (0, lastAccumulated);
     }
 
-    function toUD60x18(uint input, uint rateBase) private pure returns (UD60x18){
-        return ud(input * conversionFactor(rateBase));
+    function _toUD60x18(uint input, uint rateBase) private pure returns (UD60x18){
+        return ud(input * _conversionFactor(rateBase));
     }
 
-    function toUD60x18Direct(uint input) private pure returns (UD60x18){
+    function _toUD60x18Direct(uint input) private pure returns (UD60x18){
         return ud(input * uUNIT);
     }
 
-    function toUint(UD60x18 input, uint rateBase) private pure returns (uint) {
-        return input.intoUint256() / conversionFactor(rateBase);
+    function _toUint(UD60x18 input, uint rateBase) private pure returns (uint) {
+        return input.intoUint256() / _conversionFactor(rateBase);
     }
 
-    function conversionFactor(uint rateBase) private pure returns (uint) {
+    function _conversionFactor(uint rateBase) private pure returns (uint) {
         return uUNIT / rateBase;
     }
 
-    function divideWithUpperRound(uint dividend, uint divisor) private pure returns (uint[2] memory r) {
+    function _divideWithUpperRound(uint dividend, uint divisor) private pure returns (uint[2] memory r) {
         r[0] = dividend / divisor;
         if (dividend % divisor == 0) r[1] = r[0];
         else r[1] = r[0] + 1;

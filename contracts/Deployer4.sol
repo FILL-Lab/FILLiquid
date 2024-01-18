@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import "./FILTrust.sol";
 import "./FILGovernance.sol";
 import "./Deployer1.sol";
-import "./Deployer2.sol";
 import "./Deployer3.sol";
 import "./FILStake.sol";
 import "./Governance.sol";

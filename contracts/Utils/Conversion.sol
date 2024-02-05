@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@zondax/filecoin-solidity/contracts/v0.8/types/CommonTypes.sol";
+import "filecoin-solidity-api/contracts/v0.8/types/CommonTypes.sol";
 
 library Conversion {
     struct Integer {

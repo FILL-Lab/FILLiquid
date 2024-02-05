@@ -75,7 +75,7 @@ contract DataFetcher {
         (fiLLiquidGovernanceFactors, fiLStakeGovernanceFactors) = fetchGovernanceFactors();
     }
 
-    function fetchPersonalData(address player) external returns (
+    function fetchPersonalData(address player) external view returns (
         uint filTrustBalance,
         uint filBalance,
         FILLiquid.UserInfo memory userInfo
@@ -127,7 +127,7 @@ contract DataFetcher {
         (fiLStakeGovernanceFactors.n_interest, fiLStakeGovernanceFactors.n_stake,,,,,,,) = _filStake.getAllFactors();
     }
 
-    function maxBorrowAllowed(uint64 minerId) external returns (uint amount) {
+    function maxBorrowAllowed(uint64 minerId) external view returns (uint amount) {
         (bool borrowable,) = _filliquid.getBorrowable(minerId);
         if (!borrowable) return 0;
         amount = _filliquid.maxBorrowAllowedByUtilization();
@@ -153,23 +153,23 @@ contract DataFetcher {
         expectedAmountFIL = _filliquid.getFilByRedeem(amountFILTrust);
     }
 
-    function getBatchedUserBorrows(address[] calldata accounts) external returns (FILLiquid.UserInfo[] memory infos) {
+    function getBatchedUserBorrows(address[] calldata accounts) external view returns (FILLiquid.UserInfo[] memory infos) {
         infos = new FILLiquid.UserInfo[](accounts.length);
         for (uint i = 0; i < infos.length; i++) {
             infos[i] = _filliquid.userBorrows(accounts[i]);
         }
     }
 
-    function getUserBorrowsByMiner(uint64 minerId) external returns (FILLiquid.UserInfo memory infos) {
+    function getUserBorrowsByMiner(uint64 minerId) external view returns (FILLiquid.UserInfo memory infos) {
         return _filliquid.userBorrows(_filliquid.minerUser(minerId));
     }
 
-    function getUserBorrowsAndBorrowable(address account) external returns (FILLiquid.UserInfo memory info, MinerBorrowable[] memory borrowables) {
+    function getUserBorrowsAndBorrowable(address account) external view returns (FILLiquid.UserInfo memory info, MinerBorrowable[] memory borrowables) {
         info = _filliquid.userBorrows(account);
         borrowables = getBorrowable(account);
     }
 
-    function getBorrowable(address account) public returns (MinerBorrowable[] memory result) {
+    function getBorrowable(address account) public view returns (MinerBorrowable[] memory result) {
         uint64[] memory miners = _filliquid.userMiners(account);
         result = new MinerBorrowable[](miners.length);
         for (uint i = 0; i < miners.length; i++) {
@@ -177,7 +177,7 @@ contract DataFetcher {
         }
     }
 
-    function getTotalPendingInterest() external returns (
+    function getTotalPendingInterest() external view returns (
         uint blockHeight,
         uint blockTimeStamp,
         uint totalPendingInterest,
@@ -211,7 +211,7 @@ contract DataFetcher {
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
     }
 
-    function getPendingBeneficiary(uint64 minerId) external returns (address, bool) {
+    function getPendingBeneficiary(uint64 minerId) external view returns (address, bool) {
         return _filecoinAPI.getPendingBeneficiaryId(minerId);
     }
 

@@ -7,7 +7,7 @@ contract FILTrust is ERC20 {
     address private _owner;
     mapping(address => bool) private _manageAddresses;
 
-    constructor(string memory name, string memory symbol) ERC20(name, symbol){
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
         _owner = _msgSender();
     }
 

@@ -322,7 +322,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_MAX_EXISTING_BORROWS = 5;
     uint constant DEFAULT_MAX_FAMILY_SIZE = 5;
     uint constant DEFAULT_RATE_BASE = 1000000;
-    uint constant DEFAULT_REDEEM_FEE_RATE = 5000;
+    uint constant DEFAULT_REDEEM_FEE_RATE = 1000;
     uint constant DEFAULT_BORROW_FEE_RATE = 10000;
     uint constant DEFAULT_COLLATERAL_RATE = 500000;
     uint constant DEFAULT_U_1 = 500000;

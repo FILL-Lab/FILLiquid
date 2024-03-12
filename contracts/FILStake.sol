@@ -172,8 +172,8 @@ contract FILStake is Context{
         if (realEnd > stake.end) minted = _mintedFromStake(staker, stake.amount, realEnd - stake.end);
         uint unwithdrawnFig = stake.totalFig - stake.releasedFig;
         if (unwithdrawnFig > 0) {
-            _tokenFILGovernance.transfer(staker, unwithdrawnFig);
             _releasedFigStake += unwithdrawnFig;
+            _tokenFILGovernance.transfer(staker, unwithdrawnFig);
             emit WithdrawnFig(staker, stake.id, unwithdrawnFig);
         }
         _stakerStakes[staker].stakeSum -= stake.amount;
@@ -190,10 +190,12 @@ contract FILStake is Context{
         uint pos = _getStakePos(staker, stakeId);
         Stake storage stake = _stakerStakes[staker].stakes[pos];
         withdrawn = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
-        stake.releasedFig += withdrawn;
-        _releasedFigStake += withdrawn;
-        if (withdrawn > 0) _tokenFILGovernance.transfer(staker, withdrawn);
-        emit WithdrawnFig(staker, stake.id, withdrawn);
+        if (withdrawn > 0) {
+            stake.releasedFig += withdrawn;
+            _releasedFigStake += withdrawn;
+            _tokenFILGovernance.transfer(staker, withdrawn);
+            emit WithdrawnFig(staker, stake.id, withdrawn);
+        }
     }
 
     function canWithDrawFig(address staker, uint stakeId) external view returns(uint canWithdraw) {
@@ -209,10 +211,10 @@ contract FILStake is Context{
         for (uint pos = 0; pos < stakes.length; pos++) {
             Stake storage stake = _stakerStakes[staker].stakes[pos];
             uint canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
-            stake.releasedFig += canWithdraw;
-            _releasedFigStake += canWithdraw;
-            withdrawn += canWithdraw;
             if (canWithdraw > 0) {
+                stake.releasedFig += canWithdraw;
+                _releasedFigStake += canWithdraw;
+                withdrawn += canWithdraw;
                 emit WithdrawnFig(staker, stake.id, canWithdraw);
             }
         }

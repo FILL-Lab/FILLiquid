@@ -162,7 +162,7 @@ contract FILStake is Context{
         emit Staked(staker, _nextStakeID - 1, amount, start, end, minted);
     }
 
-    function unStakeFilTrust(uint stakeId) external returns (uint minted) {
+    function unStakeFilTrust(uint stakeId) external returns (uint minted, uint withdrawnFig) {
         address staker = _msgSender();
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         uint pos = _getStakePos(staker, stakeId);
@@ -173,6 +173,7 @@ contract FILStake is Context{
         uint unwithdrawnFig = stake.totalFig - stake.releasedFig;
         if (unwithdrawnFig > 0) {
             _releasedFigStake += unwithdrawnFig;
+            withdrawnFig = unwithdrawnFig;
             _tokenFILGovernance.transfer(staker, unwithdrawnFig);
             emit WithdrawnFig(staker, stake.id, unwithdrawnFig);
         }
@@ -330,8 +331,8 @@ contract FILStake is Context{
         require(params.length == 2, "Invalid input length");
     }
 
-    function getAllFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint, uint) {
-        return (_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share, _stakeSum, _totalFigInterest, _totalFigStake, _releasedFigStake);
+    function getAllFactors() external view returns (uint[13] memory result) {
+        result = [_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share, _stakeSum, _totalFigInterest, _totalFigStake, _releasedFigStake];
     }
 
     function getContractAddrs() external view returns (address, address, address, address, address) {

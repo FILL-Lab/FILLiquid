@@ -124,7 +124,9 @@ contract DataFetcher {
             fiLLiquidGovernanceFactors.liquidateDiscountRate,
             fiLLiquidGovernanceFactors.liquidateFeeRate
         ) = _filliquid.getLiquidatingFactors();
-        (fiLStakeGovernanceFactors.n_interest, fiLStakeGovernanceFactors.n_stake,,,,,,,) = _filStake.getAllFactors();
+        uint[13] memory r = _filStake.getAllFactors();
+        fiLStakeGovernanceFactors.n_interest = r[0];
+        fiLStakeGovernanceFactors.n_stake = r[1];
     }
 
     function maxBorrowAllowed(uint64 minerId) external view returns (uint amount) {

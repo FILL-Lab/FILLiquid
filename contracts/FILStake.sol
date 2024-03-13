@@ -214,12 +214,14 @@ contract FILStake is Context{
             uint canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
             if (canWithdraw > 0) {
                 stake.releasedFig += canWithdraw;
-                _releasedFigStake += canWithdraw;
                 withdrawn += canWithdraw;
                 emit WithdrawnFig(staker, stake.id, canWithdraw);
             }
         }
-        if (withdrawn > 0) _tokenFILGovernance.transfer(staker, withdrawn);
+        if (withdrawn > 0) {
+            _releasedFigStake += withdrawn;
+            _tokenFILGovernance.transfer(staker, withdrawn);
+        }
     }
 
     function canWithdrawFigAll(address staker) external view returns (uint withdrawn) {

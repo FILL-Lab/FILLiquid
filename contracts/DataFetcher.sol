@@ -137,6 +137,16 @@ contract DataFetcher {
         if (amount < minBorrowAmount) amount = 0;
     }
 
+    function maxBorrowAllowedInAdvance(uint64 minerId, uint afterBlocks) external view returns (uint amount) {
+        (bool borrowable,) = _filliquid.getBorrowable(minerId);
+        if (!borrowable) return 0;
+        amount = _filliquid.maxBorrowAllowedByUtilization();
+        uint amountByMinerId = _maxBorrowAllowedInAdvance(minerId, afterBlocks);
+        if (amount > amountByMinerId) amount = amountByMinerId;
+        (,,,,,uint minBorrowAmount,,,,) = _filliquid.getComprehensiveFactors();
+        if (amount < minBorrowAmount) amount = 0;
+    }
+
     function getBorrowExpecting(uint amount) external view returns (
         uint expectedInterestRate,
         uint sixMonthInterest
@@ -217,5 +227,36 @@ contract DataFetcher {
 
     function getAddresses() external view returns (address[6] memory) {
         return [address(_filliquid), address(_filTrust), address(_filStake), address(_filGovernance), address(_governance), address(_filecoinAPI)];
+    }
+
+    function _toAddress(uint64 minerId) private view returns (address) {
+        return _filecoinAPI.toAddress(minerId);
+    }
+
+    function _maxBorrowAllowedInAdvance(uint64 minerId, uint afterBlocks) private view returns (uint) {
+        uint64[] memory miners = _filliquid.userMiners(_filliquid.minerUser(minerId));
+        (uint balanceSum, uint principalAndInterestSum) = (0, 0);
+        for (uint j = 0; j < miners.length; j++) {
+            FILLiquid.BorrowInterestInfo[] memory borrows = _filliquid.minerBorrows(miners[j]).borrows;
+            balanceSum += _toAddress(miners[j]).balance;
+            for (uint i = 0; i < borrows.length; i++) {
+                FILLiquid.BorrowInfo memory info = borrows[i].borrow;
+                principalAndInterestSum += _filliquid.paybackAmount(info.borrowAmount, block.timestamp + 30 * afterBlocks - info.datedTime, info.interestRate);
+            }
+        }
+        return _maxBorrowAllowedByFamilyStatus(balanceSum, principalAndInterestSum);
+    }
+
+    function _maxBorrowAllowedByFamilyStatus(uint balanceSum, uint principalAndInterestSum) private view returns (uint) {
+        (
+            uint rateBase,
+            ,,
+            uint collateralRate,
+            ,,,,,
+        ) = _filliquid.getComprehensiveFactors();
+        uint a = balanceSum * collateralRate;
+        uint b = principalAndInterestSum * rateBase;
+        if (a <= b) return 0;
+        else return (a - b) / (rateBase - collateralRate);
     }
 }

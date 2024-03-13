@@ -13,6 +13,8 @@ contract FILStake is Context{
         uint amount;
         uint start;
         uint end;
+        uint totalFig;
+        uint releasedFig;
     }
     struct StakerStatus {
         uint stakeSum;
@@ -59,6 +61,11 @@ contract FILStake is Context{
         uint realEnd,
         uint minted
     );
+    event WithdrawnFig(
+        address indexed staker,
+        uint indexed id,
+        uint amount
+    );
 
     mapping(address => StakerStatus) private _stakerStakes;
     mapping(address => bool) private _onceStaked;
@@ -85,6 +92,10 @@ contract FILStake is Context{
     uint private _interest_share;
     uint private _stake_share;
     uint private _nextStakeID;
+    uint private _stakeSum;
+    uint private _totalFigInterest;
+    uint private _totalFigStake;
+    uint private _releasedFigStake;
 
     FILTrust private _tokenFILTrust;
     Calculation private _calculation;
@@ -116,6 +127,7 @@ contract FILStake is Context{
     function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquid external returns (uint minted) {
         (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(interest);
         _accumulatedInterest += interest;
+        _totalFigInterest += minted;
         if (minted > 0) _tokenFILGovernance.mint(minter, minted);
         emit Interest(minter, principal, interest, minted);
     }
@@ -131,22 +143,26 @@ contract FILStake is Context{
         Stake[] storage stakes = status.stakes;
         require(stakes.length < _maxStakes, "Exceed max stakes");
         status.stakeSum += amount;
+        _stakeSum += amount;
         _idStaker[_nextStakeID] = staker;
+        if (!_onceStaked[staker]) _stakers.push(staker);
+        _onceStaked[staker] = true;
+        minted = _mintedFromStake(address(this), amount, duration);
         stakes.push(
             Stake({
                 id: _nextStakeID++,
                 amount: amount,
                 start: start,
-                end: end
+                end: end,
+                totalFig: minted,
+                releasedFig: 0
             })
         );
-        if (!_onceStaked[staker]) _stakers.push(staker);
-        _onceStaked[staker] = true;
-        minted = _mintedFromStake(staker, amount, duration);
+        _totalFigStake += minted;
         emit Staked(staker, _nextStakeID - 1, amount, start, end, minted);
     }
 
-    function unStakeFilTrust(uint stakeId) external returns (uint minted) {
+    function unStakeFilTrust(uint stakeId) external returns (uint minted, uint withdrawnFig) {
         address staker = _msgSender();
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         uint pos = _getStakePos(staker, stakeId);
@@ -154,12 +170,67 @@ contract FILStake is Context{
         uint realEnd = block.number;
         require(realEnd >= stake.end, "Stake not withdrawable");
         if (realEnd > stake.end) minted = _mintedFromStake(staker, stake.amount, realEnd - stake.end);
+        uint unwithdrawnFig = stake.totalFig - stake.releasedFig;
+        if (unwithdrawnFig > 0) {
+            _releasedFigStake += unwithdrawnFig;
+            withdrawnFig = unwithdrawnFig;
+            _tokenFILGovernance.transfer(staker, unwithdrawnFig);
+            emit WithdrawnFig(staker, stake.id, unwithdrawnFig);
+        }
         _stakerStakes[staker].stakeSum -= stake.amount;
+        _stakeSum -= stake.amount;
         _tokenFILTrust.transfer(staker, stake.amount);
         _accumulatedWithdrawn += stake.amount;
         emit Unstaked(staker, stake.id, stake.amount, stake.start, stake.end, realEnd, minted);
         stakes[pos] = stakes[stakes.length - 1];
         stakes.pop();
+    }
+
+    function withdrawFig(uint stakeId) external returns (uint withdrawn) {
+        address staker = _msgSender();
+        uint pos = _getStakePos(staker, stakeId);
+        Stake storage stake = _stakerStakes[staker].stakes[pos];
+        withdrawn = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
+        if (withdrawn > 0) {
+            stake.releasedFig += withdrawn;
+            _releasedFigStake += withdrawn;
+            _tokenFILGovernance.transfer(staker, withdrawn);
+            emit WithdrawnFig(staker, stake.id, withdrawn);
+        }
+    }
+
+    function canWithDrawFig(address staker, uint stakeId) external view returns(uint canWithdraw) {
+        uint pos = _getStakePos(staker, stakeId);
+        Stake storage stake = _stakerStakes[staker].stakes[pos];
+        canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
+    }
+
+    function withdrawFigAll() external returns (uint withdrawn) {
+        address staker = _msgSender();
+        Stake[] storage stakes = _stakerStakes[staker].stakes;
+        uint current = block.number;
+        for (uint pos = 0; pos < stakes.length; pos++) {
+            Stake storage stake = _stakerStakes[staker].stakes[pos];
+            uint canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
+            if (canWithdraw > 0) {
+                stake.releasedFig += canWithdraw;
+                withdrawn += canWithdraw;
+                emit WithdrawnFig(staker, stake.id, canWithdraw);
+            }
+        }
+        if (withdrawn > 0) {
+            _releasedFigStake += withdrawn;
+            _tokenFILGovernance.transfer(staker, withdrawn);
+        }
+    }
+
+    function canWithdrawFigAll(address staker) external view returns (uint withdrawn) {
+        Stake[] storage stakes = _stakerStakes[staker].stakes;
+        uint current = block.number;
+        for (uint pos = 0; pos < stakes.length; pos++) {
+            Stake storage stake = _stakerStakes[staker].stakes[pos];
+            withdrawn += stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
+        }
     }
 
     function onceStaked(address staker) external view returns (bool) {
@@ -262,8 +333,8 @@ contract FILStake is Context{
         require(params.length == 2, "Invalid input length");
     }
 
-    function getAllFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint) {
-        return (_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share);
+    function getAllFactors() external view returns (uint[13] memory result) {
+        result = [_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share, _stakeSum, _totalFigInterest, _totalFigStake, _releasedFigStake];
     }
 
     function getContractAddrs() external view returns (address, address, address, address, address) {
@@ -328,5 +399,11 @@ contract FILStake is Context{
 
     function _getMintedFromStake(uint stakeDuration, uint lastAccumulated) private view returns (uint, uint) {
         return _calculation.getMinted(_accumulatedStakeDuration, stakeDuration, _n_stake, _tokenFILGovernance.maxLiquid() * _stake_share / _rateBase, lastAccumulated);
+    }
+
+    function _getLocked(uint initialAmount, uint startHeight, uint totallyReleasedHeight, uint height) private pure returns (uint) {
+        if (totallyReleasedHeight <= startHeight || height >= totallyReleasedHeight) return 0;
+        else if (height <= startHeight) return initialAmount;
+        else return (totallyReleasedHeight - height) * initialAmount / (totallyReleasedHeight - startHeight);
     }
 }

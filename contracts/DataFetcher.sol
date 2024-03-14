@@ -124,7 +124,7 @@ contract DataFetcher {
             fiLLiquidGovernanceFactors.liquidateDiscountRate,
             fiLLiquidGovernanceFactors.liquidateFeeRate
         ) = _filliquid.getLiquidatingFactors();
-        uint[13] memory r = _filStake.getAllFactors();
+        uint[9] memory r = _filStake.getAllFactors();
         fiLStakeGovernanceFactors.n_interest = r[0];
         fiLStakeGovernanceFactors.n_stake = r[1];
     }

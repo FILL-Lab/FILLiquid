@@ -37,6 +37,7 @@ contract FILStake is Context{
         uint accumulatedStakeMint;
         uint accumulatedWithdrawn;
         uint nextStakeID;
+        uint releasedFigStake;
     }
     event Interest(
         address indexed minter,
@@ -81,6 +82,8 @@ contract FILStake is Context{
     uint private _accumulatedInterestMint;
     uint private _accumulatedStakeMint;
     uint private _accumulatedWithdrawn;
+    uint private _nextStakeID;
+    uint private _releasedFigStake;
 
     uint private _n_interest;
     uint private _n_stake;
@@ -91,11 +94,6 @@ contract FILStake is Context{
     uint private _rateBase;
     uint private _interest_share;
     uint private _stake_share;
-    uint private _nextStakeID;
-    uint private _stakeSum;
-    uint private _totalFigInterest;
-    uint private _totalFigStake;
-    uint private _releasedFigStake;
 
     FILTrust private _tokenFILTrust;
     Calculation private _calculation;
@@ -127,7 +125,6 @@ contract FILStake is Context{
     function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquid external returns (uint minted) {
         (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(interest);
         _accumulatedInterest += interest;
-        _totalFigInterest += minted;
         if (minted > 0) _tokenFILGovernance.mint(minter, minted);
         emit Interest(minter, principal, interest, minted);
     }
@@ -143,7 +140,6 @@ contract FILStake is Context{
         Stake[] storage stakes = status.stakes;
         require(stakes.length < _maxStakes, "Exceed max stakes");
         status.stakeSum += amount;
-        _stakeSum += amount;
         _idStaker[_nextStakeID] = staker;
         if (!_onceStaked[staker]) _stakers.push(staker);
         _onceStaked[staker] = true;
@@ -158,7 +154,6 @@ contract FILStake is Context{
                 releasedFig: 0
             })
         );
-        _totalFigStake += minted;
         emit Staked(staker, _nextStakeID - 1, amount, start, end, minted);
     }
 
@@ -178,7 +173,6 @@ contract FILStake is Context{
             emit WithdrawnFig(staker, stake.id, unwithdrawnFig);
         }
         _stakerStakes[staker].stakeSum -= stake.amount;
-        _stakeSum -= stake.amount;
         _tokenFILTrust.transfer(staker, stake.amount);
         _accumulatedWithdrawn += stake.amount;
         emit Unstaked(staker, stake.id, stake.amount, stake.start, stake.end, realEnd, minted);
@@ -307,7 +301,7 @@ contract FILStake is Context{
     }
 
     function getStatus() external view returns (FILStakeInfo memory) {
-        return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID);
+        return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID,  _releasedFigStake);
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {
@@ -333,8 +327,8 @@ contract FILStake is Context{
         require(params.length == 2, "Invalid input length");
     }
 
-    function getAllFactors() external view returns (uint[13] memory result) {
-        result = [_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share, _stakeSum, _totalFigInterest, _totalFigStake, _releasedFigStake];
+    function getAllFactors() external view returns (uint[9] memory result) {
+        result = [_n_interest, _n_stake, _minStakePeriod, _maxStakePeriod, _minStake, _maxStakes, _rateBase, _interest_share, _stake_share];
     }
 
     function getContractAddrs() external view returns (address, address, address, address, address) {

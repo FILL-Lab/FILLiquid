@@ -140,8 +140,8 @@ contract DataFetcher {
     function maxBorrowAllowedInAdvance(uint64 minerId, uint afterBlocks) external view returns (uint amount) {
         (bool borrowable,) = _filliquid.getBorrowable(minerId);
         if (!borrowable) return 0;
-        amountAvailable = _filliquid.maxBorrowAllowedByUtilization();
-        uint amount = _maxBorrowAllowedInAdvance(minerId, afterBlocks);
+        uint amountAvailable = _filliquid.maxBorrowAllowedByUtilization();
+        amount = _maxBorrowAllowedInAdvance(minerId, afterBlocks);
         if (amount > amountAvailable) amount = amountAvailable;
         (,,,,,uint minBorrowAmount,,,,) = _filliquid.getComprehensiveFactors();
         if (amount < minBorrowAmount) amount = 0;

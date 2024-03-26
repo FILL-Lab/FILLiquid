@@ -22,7 +22,8 @@ contract FILStake is Context{
     }
     struct StakeInfo {
         Stake stake;
-        bool canWithdraw;
+        bool canWithdrawFIT;
+        uint canWithdrawFIG;
     }
     struct StakerInfo {
         address staker;
@@ -184,7 +185,7 @@ contract FILStake is Context{
         address staker = _msgSender();
         uint pos = _getStakePos(staker, stakeId);
         Stake storage stake = _stakerStakes[staker].stakes[pos];
-        withdrawn = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
+        withdrawn = _canWithdrawFig(stake);
         if (withdrawn > 0) {
             stake.releasedFig += withdrawn;
             _releasedFigStake += withdrawn;
@@ -196,16 +197,15 @@ contract FILStake is Context{
     function canWithDrawFig(address staker, uint stakeId) external view returns(uint canWithdraw) {
         uint pos = _getStakePos(staker, stakeId);
         Stake storage stake = _stakerStakes[staker].stakes[pos];
-        canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
+        canWithdraw = _canWithdrawFig(stake);
     }
 
     function withdrawFigAll() external returns (uint withdrawn) {
         address staker = _msgSender();
         Stake[] storage stakes = _stakerStakes[staker].stakes;
-        uint current = block.number;
         for (uint pos = 0; pos < stakes.length; pos++) {
             Stake storage stake = _stakerStakes[staker].stakes[pos];
-            uint canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
+            uint canWithdraw = _canWithdrawFig(stake);
             if (canWithdraw > 0) {
                 stake.releasedFig += canWithdraw;
                 withdrawn += canWithdraw;
@@ -220,10 +220,9 @@ contract FILStake is Context{
 
     function canWithdrawFigAll(address staker) external view returns (uint withdrawn) {
         Stake[] storage stakes = _stakerStakes[staker].stakes;
-        uint current = block.number;
         for (uint pos = 0; pos < stakes.length; pos++) {
             Stake storage stake = _stakerStakes[staker].stakes[pos];
-            withdrawn += stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
+            withdrawn += _canWithdrawFig(stake);
         }
     }
 
@@ -252,7 +251,8 @@ contract FILStake is Context{
         uint height = block.number;
         for (uint i = 0; i < stakes.length; i++) {
             result.stakeInfos[i].stake = stakes[i];
-            result.stakeInfos[i].canWithdraw = height >= stakes[i].end;
+            result.stakeInfos[i].canWithdrawFIT = height >= stakes[i].end;
+            result.stakeInfos[i].canWithdrawFIG = _canWithdrawFig(stakes[i]);
         }
     }
 
@@ -285,7 +285,8 @@ contract FILStake is Context{
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         uint pos = _getStakePos(staker, stakeId);
         result.stake = stakes[pos];
-        result.canWithdraw = block.number >= stakes[pos].end;
+        result.canWithdrawFIT = block.number >= stakes[pos].end;
+        result.canWithdrawFIG = _canWithdrawFig(stakes[pos]);
     }
 
     function getStakerSum(address staker) external view returns (uint) {
@@ -399,5 +400,9 @@ contract FILStake is Context{
         if (totallyReleasedHeight <= startHeight || height >= totallyReleasedHeight) return 0;
         else if (height <= startHeight) return initialAmount;
         else return (totallyReleasedHeight - height) * initialAmount / (totallyReleasedHeight - startHeight);
+    }
+
+    function _canWithdrawFig(Stake storage stake) private view returns (uint) {
+        return stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
     }
 }

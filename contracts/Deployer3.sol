@@ -5,7 +5,7 @@ import "./FILTrust.sol";
 import "./FILGovernance.sol";
 import "./Deployer1.sol";
 import "./Deployer2.sol";
-import "./FITStake.sol";
+import "./FILStake.sol";
 import "./Governance.sol";
 import "./FILLiquid.sol";
 import "./DataFetcher.sol";
@@ -24,7 +24,7 @@ contract Deployer3 {
     constructor(address deployer2) {
         _deployer2 = Deployer2(deployer2);
         (
-            FITStake _fitStake,
+            FILStake _filStake,
             Governance _governance,
             FILLiquid _filLiquid,
             Deployer1 _deployer1,
@@ -34,7 +34,7 @@ contract Deployer3 {
         require (msg.sender == _ownerDeployer2, "only owner allowed");
         _owner = msg.sender;
 
-        _dataFetcher = new DataFetcher(_filLiquid, _filTrust, _fitStake, _filGovernance, _governance, _filecoinAPI);
+        _dataFetcher = new DataFetcher(_filLiquid, _filTrust, _filStake, _filGovernance, _governance, _filecoinAPI);
         emit ContractPublishing("DataFetcher", address(_dataFetcher));
     }
 

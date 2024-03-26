@@ -10,7 +10,7 @@ import "./Utils/Conversion.sol";
 import "./Utils/Calculation.sol";
 import "./Utils/FilecoinAPI.sol";
 import "./FILTrust.sol";
-import "./FITStake.sol";
+import "./FILStake.sol";
 
 interface FILLiquidInterface {
     struct BorrowInfo {
@@ -285,7 +285,7 @@ contract FILLiquid is Context, FILLiquidInterface {
     Validation private _validation;
     Calculation private _calculation;
     FilecoinAPI private _filecoinAPI;
-    FITStake private _fitStake;
+    FILStake private _filStake;
 
     //comprehensive factors
     uint private _rateBase;
@@ -339,12 +339,12 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_REQUIRED_QUOTA = 1e68 - 1e18;
     int64 constant DEFAULT_REQUIRED_EXPIRATION = type(int64).max;
 
-    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address fitStakeAddr, address governanceAddr, address payable foundationAddr) {
+    constructor(address filTrustAddr, address validationAddr, address calculationAddr, address filecoinAPIAddr, address filStakeAddr, address governanceAddr, address payable foundationAddr) {
         _tokenFILTrust = FILTrust(filTrustAddr);
         _validation = Validation(validationAddr);
         _calculation = Calculation(calculationAddr);
         _filecoinAPI = FilecoinAPI(filecoinAPIAddr);
-        _fitStake = FITStake(fitStakeAddr);
+        _filStake = FILStake(filStakeAddr);
         _owner = _msgSender();
         _governance = governanceAddr;
         _foundation = foundationAddr;
@@ -475,7 +475,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             sentBack_withdrawn[1] = amount - r[0];
             withdrawBalance(minerIdPayer, sentBack_withdrawn[1]);
         }
-        uint mintedFIG = _fitStake.handleInterest(_msgSender(), r[1], r[2]);
+        uint mintedFIG = _filStake.handleInterest(_msgSender(), r[1], r[2]);
 
         emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], sentBack_withdrawn[1], mintedFIG);
         return (r[1], r[2], sentBack_withdrawn[1], mintedFIG);
@@ -485,7 +485,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint[3] memory r = paybackProcess(minerId, msg.value);
         address sender = _msgSender();
         if (r[0] > 0) payable(sender).transfer(r[0]);
-        uint mintedFIG = _fitStake.handleInterest(_minerBindsMap[minerId], r[1], r[2]);
+        uint mintedFIG = _filStake.handleInterest(_minerBindsMap[minerId], r[1], r[2]);
         emit Payback(sender, minerId, minerId, r[1], r[2], 0, mintedFIG);
         return (r[1], r[2], mintedFIG);
     }
@@ -812,7 +812,7 @@ contract FILLiquid is Context, FILLiquidInterface {
             address(_validation),
             address(_calculation),
             address(_filecoinAPI),
-            address(_fitStake),
+            address(_filStake),
             _governance,
             _foundation)
         ;
@@ -823,7 +823,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         address new_validation,
         address new_calculation,
         address new_filecoinAPI,
-        address new_fitStake,
+        address new_filStake,
         address new_governance,
         address payable new_foundation
     ) onlyOwner external {
@@ -831,7 +831,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         _validation = Validation(new_validation);
         _calculation = Calculation(new_calculation);
         _filecoinAPI = FilecoinAPI(new_filecoinAPI);
-        _fitStake = FITStake(new_fitStake);
+        _filStake = FILStake(new_filStake);
         _governance = new_governance;
         _foundation = new_foundation;
     }

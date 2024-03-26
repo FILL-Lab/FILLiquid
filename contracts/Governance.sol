@@ -4,13 +4,13 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/utils/Context.sol";
 
 import "./FILLiquid.sol";
-import "./FITStake.sol";
+import "./FILStake.sol";
 import "./FILGovernance.sol";
 
 contract Governance is Context {
     enum proposolCategory {
         filLiquid,
-        fitStake,
+        filStake,
         general
     }
     enum voteCategory {
@@ -107,7 +107,7 @@ contract Governance is Context {
     address private _owner;
 
     FILLiquid private _filLiquid;
-    FITStake private _fitStake;
+    FILStake private _filStake;
     FILGovernance private _tokenFILGovernance;
 
     uint constant DEFAULT_RATEBASE = 1000000;
@@ -233,8 +233,8 @@ contract Governance is Context {
                 // according to the white paper, the execution can be done anytime after the voting process.
                 if (info.category == proposolCategory.filLiquid) {
                     _filLiquid.setGovernanceFactors(info.values);
-                } else if (info.category == proposolCategory.fitStake) {
-                    _fitStake.setGovernanceFactors(info.values);
+                } else if (info.category == proposolCategory.filStake) {
+                    _filStake.setGovernanceFactors(info.values);
                 }
             }
             if (info.deadline + _executionPeriod >= block.number) {
@@ -388,16 +388,16 @@ contract Governance is Context {
     }
 
     function getContractAddrs() external view returns (address, address, address) {
-        return (address(_filLiquid), address(_fitStake), address(_tokenFILGovernance));
+        return (address(_filLiquid), address(_filStake), address(_tokenFILGovernance));
     }
 
     function setContractAddrs(
         address new_filLiquid,
-        address new_fitStake,
+        address new_filStake,
         address new_tokenFILGovernance
     ) onlyOwner external {
         _filLiquid = FILLiquid(new_filLiquid);
-        _fitStake = FITStake(new_fitStake);
+        _filStake = FILStake(new_filStake);
         _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
     }
 
@@ -423,8 +423,8 @@ contract Governance is Context {
     function _checkParameter(proposolCategory category, uint[] calldata params) private view {
         if (category == proposolCategory.filLiquid) {
             _filLiquid.checkGovernanceFactors(params);
-        } else if (category == proposolCategory.fitStake) {
-            _fitStake.checkGovernanceFactors(params);
+        } else if (category == proposolCategory.filStake) {
+            _filStake.checkGovernanceFactors(params);
         } else {
             require(params.length == 0, "Invalid input length");
         }

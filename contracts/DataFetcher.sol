@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "./FILLiquid.sol";
 import "./FILTrust.sol";
-import "./FITStake.sol";
+import "./FILStake.sol";
 import "./FILGovernance.sol";
 import "./Governance.sol";
 import "./Utils/FilecoinAPI.sol";
@@ -33,22 +33,22 @@ contract DataFetcher {
         uint n;
     }
 
-    struct FITStakeGovernanceFactors {
+    struct FiLStakeGovernanceFactors {
         uint n_interest;
         uint n_stake;
     }
 
     FILLiquid private _filliquid;
     FILTrust private _filTrust;
-    FITStake private _fitStake;
+    FILStake private _filStake;
     FILGovernance private _filGovernance;
     Governance private _governance;
     FilecoinAPI private _filecoinAPI;
 
-    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FITStake fitStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr, FilecoinAPI filecoinAPIAddr) {
+    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FILStake filStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr, FilecoinAPI filecoinAPIAddr) {
         _filliquid = filLiquidAddr;
         _filTrust = filTrustAddr;
-        _fitStake = fitStakeAddr;
+        _filStake = filStakeAddr;
         _filGovernance = filGovernanceAddr;
         _governance = governanceAddr;
         _filecoinAPI = filecoinAPIAddr;
@@ -60,19 +60,19 @@ contract DataFetcher {
         uint fitTotalSupply,
         uint figTotalSupply,
         FILLiquid.FILLiquidInfo memory filLiquidInfo,
-        FITStake.FITStakeInfo memory fitStakeInfo,
+        FILStake.FILStakeInfo memory filStakeInfo,
         Governance.GovernanceInfo memory governanceInfo,
         FiLLiquidGovernanceFactors memory fiLLiquidGovernanceFactors,
-        FITStakeGovernanceFactors memory fitStakeGovernanceFactors
+        FiLStakeGovernanceFactors memory fiLStakeGovernanceFactors
     ) {
         blockHeight = block.number;
         blockTimeStamp = block.timestamp;
         fitTotalSupply = _filTrust.totalSupply();
         figTotalSupply = _filGovernance.totalSupply();
         filLiquidInfo = _filliquid.getStatus();
-        fitStakeInfo = _fitStake.getStatus();
+        filStakeInfo = _filStake.getStatus();
         governanceInfo = _governance.getStatus();
-        (fiLLiquidGovernanceFactors, fitStakeGovernanceFactors) = fetchGovernanceFactors();
+        (fiLLiquidGovernanceFactors, fiLStakeGovernanceFactors) = fetchGovernanceFactors();
     }
 
     function fetchPersonalData(address player) external view returns (
@@ -92,13 +92,13 @@ contract DataFetcher {
         uint filGovernanceBalance
     ) {
         filTrustBalance = _filTrust.balanceOf(staker);
-        (filTrustFixed, filTrustVariable) = _fitStake.getStakerTerms(staker);
+        (filTrustFixed, filTrustVariable) = _filStake.getStakerTerms(staker);
         filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 
     function fetchGovernanceFactors() public view returns (
         FiLLiquidGovernanceFactors memory fiLLiquidGovernanceFactors,
-        FITStakeGovernanceFactors memory fitStakeGovernanceFactors
+        FiLStakeGovernanceFactors memory fiLStakeGovernanceFactors
     ) {
         (
             fiLLiquidGovernanceFactors.u_1,
@@ -124,9 +124,9 @@ contract DataFetcher {
             fiLLiquidGovernanceFactors.liquidateDiscountRate,
             fiLLiquidGovernanceFactors.liquidateFeeRate
         ) = _filliquid.getLiquidatingFactors();
-        uint[9] memory r = _fitStake.getAllFactors();
-        fitStakeGovernanceFactors.n_interest = r[0];
-        fitStakeGovernanceFactors.n_stake = r[1];
+        uint[9] memory r = _filStake.getAllFactors();
+        fiLStakeGovernanceFactors.n_interest = r[0];
+        fiLStakeGovernanceFactors.n_stake = r[1];
     }
 
     function maxBorrowAllowed(uint64 minerId) external view returns (uint amount) {
@@ -228,7 +228,7 @@ contract DataFetcher {
     }
 
     function getAddresses() external view returns (address[6] memory) {
-        return [address(_filliquid), address(_filTrust), address(_fitStake), address(_filGovernance), address(_governance), address(_filecoinAPI)];
+        return [address(_filliquid), address(_filTrust), address(_filStake), address(_filGovernance), address(_governance), address(_filecoinAPI)];
     }
 
     function _toAddress(uint64 minerId) private view returns (address) {

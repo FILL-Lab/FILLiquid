@@ -100,8 +100,8 @@ contract FITStake is Context{
     Calculation private _calculation;
     FILGovernance private _tokenFILGovernance;
 
-    uint constant DEFAULT_N_INTEREST = 9e23;
-    uint constant DEFAULT_N_STAKE = 5.7024e30;
+    uint constant DEFAULT_N_INTEREST = 1e25;
+    uint constant DEFAULT_N_STAKE = 1.36449194112e31;
     uint constant DEFAULT_MIN_STAKE_PERIOD = 86400; //30 days
     uint constant DEFAULT_MAX_STAKE_PERIOD = 1036800; //360 days
     uint constant DEFAULT_MIN_STAKE = 1 ether;
@@ -194,7 +194,8 @@ contract FITStake is Context{
         }
     }
 
-    function canWithDrawFig(address staker, uint stakeId) external view returns(uint canWithdraw) {
+    function canWithDrawFig(uint stakeId) external view returns(uint canWithdraw) {
+        address staker = _idStaker[stakeId];
         uint pos = _getStakePos(staker, stakeId);
         Stake storage stake = _stakerStakes[staker].stakes[pos];
         canWithdraw = _canWithdrawFig(stake);

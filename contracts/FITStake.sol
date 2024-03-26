@@ -7,29 +7,36 @@ import "./FILTrust.sol";
 import "./FILGovernance.sol";
 import "./Utils/Calculation.sol";
 
-contract FILStake is Context{
+contract FITStake is Context{
     struct Stake {
         uint id;
         uint amount;
         uint start;
         uint end;
-        uint totalFig;
-        uint releasedFig;
+        uint totalFIG;
+        uint releasedFIG;
     }
     struct StakerStatus {
         uint stakeSum;
+        uint totalFIGSum;
+        uint releasedFIGSum;
         Stake[] stakes;
     }
     struct StakeInfo {
         Stake stake;
-        bool canWithdraw;
+        bool canWithdrawFIT;
+        uint canWithdrawFIG;
     }
     struct StakerInfo {
         address staker;
         uint stakeSum;
+        uint totalFIGSum;
+        uint releasedFIGSum;
+        uint canWithdrawFITSum;
+        uint canWithdrawFIGSum;
         StakeInfo[] stakeInfos;
     }
-    struct FILStakeInfo {
+    struct FITStakeInfo {
         uint accumulatedInterest;
         uint accumulatedStake;
         uint accumulatedStakeDuration;
@@ -37,7 +44,7 @@ contract FILStake is Context{
         uint accumulatedStakeMint;
         uint accumulatedWithdrawn;
         uint nextStakeID;
-        uint releasedFigStake;
+        uint releasedFIGStake;
     }
     event Interest(
         address indexed minter,
@@ -62,7 +69,7 @@ contract FILStake is Context{
         uint realEnd,
         uint minted
     );
-    event WithdrawnFig(
+    event WithdrawnFIG(
         address indexed staker,
         uint indexed id,
         uint amount
@@ -83,7 +90,7 @@ contract FILStake is Context{
     uint private _accumulatedStakeMint;
     uint private _accumulatedWithdrawn;
     uint private _nextStakeID;
-    uint private _releasedFigStake;
+    uint private _releasedFIGStake;
 
     uint private _n_interest;
     uint private _n_stake;
@@ -144,20 +151,21 @@ contract FILStake is Context{
         if (!_onceStaked[staker]) _stakers.push(staker);
         _onceStaked[staker] = true;
         minted = _mintedFromStake(address(this), amount, duration);
+        status.totalFIGSum += minted;
         stakes.push(
             Stake({
                 id: _nextStakeID++,
                 amount: amount,
                 start: start,
                 end: end,
-                totalFig: minted,
-                releasedFig: 0
+                totalFIG: minted,
+                releasedFIG: 0
             })
         );
         emit Staked(staker, _nextStakeID - 1, amount, start, end, minted);
     }
 
-    function unStakeFilTrust(uint stakeId) external returns (uint minted, uint withdrawnFig) {
+    function unStakeFilTrust(uint stakeId) external returns (uint minted, uint withdrawnFIG) {
         address staker = _msgSender();
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         uint pos = _getStakePos(staker, stakeId);
@@ -165,14 +173,17 @@ contract FILStake is Context{
         uint realEnd = block.number;
         require(realEnd >= stake.end, "Stake not withdrawable");
         if (realEnd > stake.end) minted = _mintedFromStake(staker, stake.amount, realEnd - stake.end);
-        uint unwithdrawnFig = stake.totalFig - stake.releasedFig;
-        if (unwithdrawnFig > 0) {
-            _releasedFigStake += unwithdrawnFig;
-            withdrawnFig = unwithdrawnFig;
-            _tokenFILGovernance.transfer(staker, unwithdrawnFig);
-            emit WithdrawnFig(staker, stake.id, unwithdrawnFig);
+        uint unwithdrawnFIG = stake.totalFIG - stake.releasedFIG;
+        if (unwithdrawnFIG > 0) {
+            _releasedFIGStake += unwithdrawnFIG;
+            withdrawnFIG = unwithdrawnFIG;
+            _tokenFILGovernance.transfer(staker, unwithdrawnFIG);
+            emit WithdrawnFIG(staker, stake.id, unwithdrawnFIG);
         }
-        _stakerStakes[staker].stakeSum -= stake.amount;
+        StakerStatus storage status = _stakerStakes[staker];
+        status.stakeSum -= stake.amount;
+        status.totalFIGSum -= stake.totalFIG;
+        status.releasedFIGSum -= stake.releasedFIG;
         _tokenFILTrust.transfer(staker, stake.amount);
         _accumulatedWithdrawn += stake.amount;
         emit Unstaked(staker, stake.id, stake.amount, stake.start, stake.end, realEnd, minted);
@@ -180,51 +191,53 @@ contract FILStake is Context{
         stakes.pop();
     }
 
-    function withdrawFig(uint stakeId) external returns (uint withdrawn) {
+    function withdrawFIG(uint stakeId) external returns (uint withdrawn) {
         address staker = _msgSender();
         uint pos = _getStakePos(staker, stakeId);
-        Stake storage stake = _stakerStakes[staker].stakes[pos];
-        withdrawn = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
+        StakerStatus storage status = _stakerStakes[staker];
+        Stake storage stake = status.stakes[pos];
+        withdrawn = _canWithdrawFIG(stake);
         if (withdrawn > 0) {
-            stake.releasedFig += withdrawn;
-            _releasedFigStake += withdrawn;
+            status.releasedFIGSum += withdrawn;
+            stake.releasedFIG += withdrawn;
+            _releasedFIGStake += withdrawn;
             _tokenFILGovernance.transfer(staker, withdrawn);
-            emit WithdrawnFig(staker, stake.id, withdrawn);
+            emit WithdrawnFIG(staker, stake.id, withdrawn);
         }
     }
 
-    function canWithDrawFig(uint stakeId) external view returns(uint canWithdraw) {
+    function canWithDrawFIG(uint stakeId) external view returns(uint canWithdraw) {
         address staker = _idStaker[stakeId];
         uint pos = _getStakePos(staker, stakeId);
         Stake storage stake = _stakerStakes[staker].stakes[pos];
-        canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, block.number) - stake.releasedFig;
+        canWithdraw = _canWithdrawFIG(stake);
     }
 
-    function withdrawFigAll() external returns (uint withdrawn) {
+    function withdrawFIGAll() external returns (uint withdrawn) {
         address staker = _msgSender();
-        Stake[] storage stakes = _stakerStakes[staker].stakes;
-        uint current = block.number;
+        StakerStatus storage status = _stakerStakes[staker];
+        Stake[] storage stakes = status.stakes;
         for (uint pos = 0; pos < stakes.length; pos++) {
             Stake storage stake = _stakerStakes[staker].stakes[pos];
-            uint canWithdraw = stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
+            uint canWithdraw = _canWithdrawFIG(stake);
             if (canWithdraw > 0) {
-                stake.releasedFig += canWithdraw;
+                stake.releasedFIG += canWithdraw;
                 withdrawn += canWithdraw;
-                emit WithdrawnFig(staker, stake.id, canWithdraw);
+                emit WithdrawnFIG(staker, stake.id, canWithdraw);
             }
         }
         if (withdrawn > 0) {
-            _releasedFigStake += withdrawn;
+            status.releasedFIGSum += withdrawn;
+            _releasedFIGStake += withdrawn;
             _tokenFILGovernance.transfer(staker, withdrawn);
         }
     }
 
-    function canWithdrawFigAll(address staker) external view returns (uint withdrawn) {
+    function canWithdrawFIGAll(address staker) external view returns (uint withdrawn) {
         Stake[] storage stakes = _stakerStakes[staker].stakes;
-        uint current = block.number;
         for (uint pos = 0; pos < stakes.length; pos++) {
             Stake storage stake = _stakerStakes[staker].stakes[pos];
-            withdrawn += stake.totalFig - _getLocked(stake.totalFig, stake.start, stake.end, current) - stake.releasedFig;
+            withdrawn += _canWithdrawFIG(stake);
         }
     }
 
@@ -249,22 +262,38 @@ contract FILStake is Context{
         Stake[] storage stakes = status.stakes;
         result.staker = staker;
         result.stakeSum = status.stakeSum;
+        result.totalFIGSum = status.totalFIGSum;
+        result.releasedFIGSum = status.releasedFIGSum;
         result.stakeInfos = new StakeInfo[](stakes.length);
         uint height = block.number;
         for (uint i = 0; i < stakes.length; i++) {
             result.stakeInfos[i].stake = stakes[i];
-            result.stakeInfos[i].canWithdraw = height >= stakes[i].end;
+            bool canWithdrawFIT = height >= stakes[i].end;
+            if (canWithdrawFIT) {
+                result.stakeInfos[i].canWithdrawFIT = true;
+                result.canWithdrawFITSum += stakes[i].amount;
+            }
+            uint canWithdrawFIG = _canWithdrawFIG(stakes[i]);
+            if (canWithdrawFIG > 0) {
+                result.stakeInfos[i].canWithdrawFIG = canWithdrawFIG;
+                result.canWithdrawFIGSum += canWithdrawFIG;
+            }
         }
     }
 
-    function getStakerTerms(address staker) public view returns (uint fitFixed, uint fitVariable) {
+    function getStakerTerms(address staker) external view returns (uint stakeSum, uint totalFIGSum, uint releasedFIGSum, uint canWithdrawFITSum, uint canWithdrawFIGSum) {
         StakerStatus storage status = _stakerStakes[staker];
         Stake[] storage stakes = status.stakes;
+        stakeSum = status.stakeSum;
+        totalFIGSum = status.totalFIGSum;
+        releasedFIGSum = status.releasedFIGSum;
         uint height = block.number;
         for (uint i = 0; i < stakes.length; i++) {
-            if (height >= stakes[i].end) fitVariable += stakes[i].amount;
+            if (height >= stakes[i].end) {
+                canWithdrawFITSum += stakes[i].amount;
+            }
+            canWithdrawFIGSum += _canWithdrawFIG(stakes[i]);
         }
-        fitFixed = status.stakeSum - fitVariable;
     }
 
     /*function getStakeInfoByPos(address staker, uint pos) external view returns (StakeInfo memory result) {
@@ -286,7 +315,8 @@ contract FILStake is Context{
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         uint pos = _getStakePos(staker, stakeId);
         result.stake = stakes[pos];
-        result.canWithdraw = block.number >= stakes[pos].end;
+        result.canWithdrawFIT = block.number >= stakes[pos].end;
+        result.canWithdrawFIG = _canWithdrawFIG(stakes[pos]);
     }
 
     function getStakerSum(address staker) external view returns (uint) {
@@ -301,8 +331,8 @@ contract FILStake is Context{
         return _getMintedFromStake(stake * duration, _accumulatedStakeMint);
     }
 
-    function getStatus() external view returns (FILStakeInfo memory) {
-        return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID,  _releasedFigStake);
+    function getStatus() external view returns (FITStakeInfo memory) {
+        return FITStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID,  _releasedFIGStake);
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {
@@ -400,5 +430,9 @@ contract FILStake is Context{
         if (totallyReleasedHeight <= startHeight || height >= totallyReleasedHeight) return 0;
         else if (height <= startHeight) return initialAmount;
         else return (totallyReleasedHeight - height) * initialAmount / (totallyReleasedHeight - startHeight);
+    }
+
+    function _canWithdrawFIG(Stake storage stake) private view returns (uint) {
+        return stake.totalFIG - _getLocked(stake.totalFIG, stake.start, stake.end, block.number) - stake.releasedFIG;
     }
 }

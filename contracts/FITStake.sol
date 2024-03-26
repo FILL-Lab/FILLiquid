@@ -7,7 +7,7 @@ import "./FILTrust.sol";
 import "./FILGovernance.sol";
 import "./Utils/Calculation.sol";
 
-contract FILStake is Context{
+contract FITStake is Context{
     struct Stake {
         uint id;
         uint amount;
@@ -30,7 +30,7 @@ contract FILStake is Context{
         uint stakeSum;
         StakeInfo[] stakeInfos;
     }
-    struct FILStakeInfo {
+    struct FITStakeInfo {
         uint accumulatedInterest;
         uint accumulatedStake;
         uint accumulatedStakeDuration;
@@ -301,8 +301,8 @@ contract FILStake is Context{
         return _getMintedFromStake(stake * duration, _accumulatedStakeMint);
     }
 
-    function getStatus() external view returns (FILStakeInfo memory) {
-        return FILStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID,  _releasedFigStake);
+    function getStatus() external view returns (FITStakeInfo memory) {
+        return FITStakeInfo(_accumulatedInterest, _accumulatedStake, _accumulatedStakeDuration, _accumulatedInterestMint, _accumulatedStakeMint, _accumulatedWithdrawn, _nextStakeID,  _releasedFigStake);
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {

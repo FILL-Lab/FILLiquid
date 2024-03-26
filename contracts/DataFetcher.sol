@@ -87,12 +87,17 @@ contract DataFetcher {
 
     function fetchStakerData(address staker) external view returns (
         uint filTrustBalance,
-        uint filTrustFixed,
+        uint stakeSum,
+        uint totalFIGSum,
+        uint releasedFIGSum,
         uint filTrustVariable,
+        uint canWithdrawFIGSum,
+        uint filTrustFixed,
         uint filGovernanceBalance
     ) {
         filTrustBalance = _filTrust.balanceOf(staker);
-        (filTrustFixed, filTrustVariable) = _fitStake.getStakerTerms(staker);
+        (stakeSum, totalFIGSum, releasedFIGSum, filTrustVariable, canWithdrawFIGSum) = _fitStake.getStakerTerms(staker);
+        filTrustFixed = stakeSum - filTrustVariable;
         filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 

@@ -92,12 +92,12 @@ contract DataFetcher {
         uint releasedFIGSum,
         uint filTrustVariable,
         uint canWithdrawFIGSum,
-        uint filTrustFixed,
+        uint filTrustLocked,
         uint filGovernanceBalance
     ) {
         filTrustBalance = _filTrust.balanceOf(staker);
         (stakeSum, totalFIGSum, releasedFIGSum, filTrustVariable, canWithdrawFIGSum) = _fitStake.getStakerTerms(staker);
-        filTrustFixed = stakeSum - filTrustVariable;
+        filTrustLocked = stakeSum - filTrustVariable;
         filGovernanceBalance = _filGovernance.balanceOf(staker);
     }
 

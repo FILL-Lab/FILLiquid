@@ -6457,8 +6457,8 @@ undici-types@~5.26.4:
   resolved "https://registry.npmmirror.com/undici-types/-/undici-types-5.26.5.tgz"
 
 undici@^5.14.0:
-  version "5.28.3"
-  resolved "https://registry.yarnpkg.com/undici/-/undici-5.28.3.tgz#a731e0eff2c3fcfd41c1169a869062be222d1e5b"
+  version "5.28.4"
+  resolved "https://registry.yarnpkg.com/undici/-/undici-5.28.4.tgz#6b280408edb6a1a604a9b20340f45b422e373068"
   dependencies:
     "@fastify/busboy" "^2.0.0"
 

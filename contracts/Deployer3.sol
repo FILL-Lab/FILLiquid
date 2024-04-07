@@ -30,7 +30,7 @@ contract Deployer3 {
             Deployer1 _deployer1,
             address _ownerDeployer2
         ) = _deployer2.getAddrs();
-        (,,FilecoinAPI _filecoinAPI, FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
+        (,,FilecoinAPI _filecoinAPI, FILTrust _filTrust, FILGovernance _filGovernance,,,) = _deployer1.getAddrs();
         require (msg.sender == _ownerDeployer2, "only owner allowed");
         _owner = msg.sender;
 

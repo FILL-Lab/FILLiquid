@@ -6,6 +6,8 @@ import "./Utils/Calculation.sol";
 import "./Utils/FilecoinAPI.sol";
 import "./FILTrust.sol";
 import "./FILGovernance.sol";
+import "./MultiSignFactory.sol";
+import "./ERC20Pot.sol";
 
 contract Deployer1 {
     Validation private _validation;
@@ -13,6 +15,8 @@ contract Deployer1 {
     FilecoinAPI private _filecoinAPI;
     FILTrust private _filTrust;
     FILGovernance private _filGovernance;
+    MultiSignFactory private _multiSignFactory;
+    ERC20Pot private _erc20Pot;
     address private _owner;
 
     event ContractPublishing (
@@ -20,7 +24,7 @@ contract Deployer1 {
         address addr
     );
 
-    constructor() {
+    constructor(address[] memory signers, uint approvalThreshold, uint startHeight, uint totallyReleasedHeight) {
         _owner = msg.sender;
         _validation = new Validation();
         emit ContractPublishing("Validation", address(_validation));
@@ -32,22 +36,29 @@ contract Deployer1 {
         emit ContractPublishing("FILTrust", address(_filTrust));
         _filGovernance = new FILGovernance("FILGovernance", "FIG");
         emit ContractPublishing("FILGovernance", address(_filGovernance));
+        _multiSignFactory = new MultiSignFactory(signers, approvalThreshold);
+        emit ContractPublishing("MultiSignFactory", address(_multiSignFactory));
+        uint figBalance = _filGovernance.balanceOf(address(this));
+        _erc20Pot = new ERC20Pot(address(_multiSignFactory), _filGovernance, figBalance, startHeight, totallyReleasedHeight);
+        emit ContractPublishing("ERC20Pot", address(_erc20Pot));
+        _filGovernance.transfer(address(_erc20Pot), figBalance);
     }
 
     function setting(address deployer2) external {
         require (msg.sender == _owner, "only owner allowed");
         _filTrust.setOwner(deployer2);
         _filGovernance.setOwner(deployer2);
-        _filGovernance.transfer(deployer2, _filGovernance.balanceOf(address(this)));
     }
 
-    function getAddrs() external view returns (Validation, Calculation, FilecoinAPI, FILTrust, FILGovernance, address) {
+    function getAddrs() external view returns (Validation, Calculation, FilecoinAPI, FILTrust, FILGovernance, MultiSignFactory, ERC20Pot, address) {
         return (
             _validation,
             _calculation,
             _filecoinAPI,
             _filTrust,
             _filGovernance,
+            _multiSignFactory,
+            _erc20Pot,
             _owner
         );
     }

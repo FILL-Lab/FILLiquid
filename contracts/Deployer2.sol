@@ -10,6 +10,7 @@ import "./Deployer1.sol";
 import "./FITStake.sol";
 import "./Governance.sol";
 import "./FILLiquid.sol";
+import "./MultiSignFactory.sol";
 
 contract Deployer2 {
     FITStake private _fitStake;
@@ -30,7 +31,7 @@ contract Deployer2 {
             Calculation _calculation,
             FilecoinAPI _filecoinAPI,
             FILTrust _filTrust,
-            FILGovernance _filGovernance,
+            FILGovernance _filGovernance,,,
             address _ownerDeployer1
         ) = _deployer1.getAddrs();
         require (msg.sender == _ownerDeployer1, "only owner allowed");
@@ -67,7 +68,7 @@ contract Deployer2 {
 
     function setting() external payable {
         require (msg.sender == _owner, "only owner allowed");
-        (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs();
+        (, , , FILTrust _filTrust, FILGovernance _filGovernance, MultiSignFactory _multiSignFactory, ,) = _deployer1.getAddrs();
         _filTrust.addManager(address(_filLiquid));
         _filTrust.addManager(address(_fitStake));
         _filLiquid.deposit{value: msg.value}(msg.value);
@@ -78,12 +79,11 @@ contract Deployer2 {
         _filGovernance.addManager(address(_fitStake));
         _filGovernance.addManager(address(_governance));
 
-        _filTrust.setOwner(msg.sender);
-        _filGovernance.setOwner(msg.sender);
-        _fitStake.setOwner(msg.sender);
-        _governance.setOwner(msg.sender);
-        _filLiquid.setOwner(msg.sender);
-        _filGovernance.transfer(msg.sender, _filGovernance.balanceOf(address(this)));
+        _filTrust.setOwner(address(_multiSignFactory));
+        _filGovernance.setOwner(address(_multiSignFactory));
+        _fitStake.setOwner(address(_multiSignFactory));
+        _governance.setOwner(address(_multiSignFactory));
+        _filLiquid.setOwner(address(_multiSignFactory));
     }
 
     function getAddrs() external view returns (FITStake, Governance, FILLiquid, Deployer1, address) {

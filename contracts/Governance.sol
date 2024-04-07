@@ -86,6 +86,28 @@ contract Governance is Context {
         uint indexed proposalId,
         voteResult result
     );
+    event FactorsChanged(
+        uint new_rateBase,
+        uint new_minYes,
+        uint new_maxNo,
+        uint new_maxNoWithVeto,
+        uint new_quorum,
+        uint new_liquidate,
+        uint new_depositRatioThreshold,
+        uint new_depositAmountThreshold,
+        uint new_voteThreshold,
+        uint new_votingPeriod,
+        uint new_executionPeriod,
+        uint new_maxActiveProposals
+    );
+    event ContractAddrsChanged(
+        address new_filLiquid,
+        address new_fitStake,
+        address new_tokenFILGovernance
+    );
+    event OwnerChanged(
+        address indexed account
+    );
 
     mapping(address => uint) private _bondings;
     Proposal[] private _proposals;
@@ -385,6 +407,20 @@ contract Governance is Context {
         _votingPeriod = new_votingPeriod;
         _executionPeriod = new_executionPeriod;
         _maxActiveProposals = new_maxActiveProposals;
+        emit FactorsChanged(
+            new_rateBase,
+            new_minYes,
+            new_maxNo,
+            new_maxNoWithVeto,
+            new_quorum,
+            new_liquidate,
+            new_depositRatioThreshold,
+            new_depositAmountThreshold,
+            new_voteThreshold,
+            new_votingPeriod,
+            new_executionPeriod,
+            new_maxActiveProposals
+        );
     }
 
     function getContractAddrs() external view returns (address, address, address) {
@@ -399,6 +435,7 @@ contract Governance is Context {
         _filLiquid = FILLiquid(new_filLiquid);
         _fitStake = FITStake(new_fitStake);
         _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
+        emit ContractAddrsChanged(new_filLiquid, new_fitStake, new_tokenFILGovernance);
     }
 
     function owner() external view returns (address) {
@@ -407,6 +444,7 @@ contract Governance is Context {
 
     function setOwner(address new_owner) onlyOwner external returns (address) {
         _owner = new_owner;
+        emit OwnerChanged(new_owner);
         return _owner;
     }
 

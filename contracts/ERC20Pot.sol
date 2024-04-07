@@ -15,11 +15,12 @@ contract ERC20Pot is Context {
 
     address _owner;
     ERC20 _token;
-    uint private _initialAmount;
-    uint private _startHeight;
-    uint private _totallyReleasedHeight;
+    uint private immutable _initialAmount;
+    uint private immutable _startHeight;
+    uint private immutable _totallyReleasedHeight;
 
     constructor (address owner, ERC20 token, uint initialAmount, uint startHeight, uint totallyReleasedHeight) {
+        require(owner != address(0), "Invalid owner");
         _owner = owner;
         _token = token;
         _initialAmount = initialAmount;
@@ -29,11 +30,12 @@ contract ERC20Pot is Context {
 
     function transfer(address receiver, uint amount) external onlyOwner {
         require (amount <= canReleaseNow(), "Invalid amount");
-        _token.transfer(receiver, amount);
         emit Transferred(receiver, amount);
+        _token.transfer(receiver, amount);
     }
 
     function changeOwner(address new_owner) external onlyOwner {
+        require(new_owner != address(0), "Invalid owner");
         _owner = new_owner;
         emit OwnerChanged(_owner);
     }

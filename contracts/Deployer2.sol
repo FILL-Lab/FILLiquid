@@ -68,7 +68,7 @@ contract Deployer2 {
 
     function setting() external payable {
         require (msg.sender == _owner, "only owner allowed");
-        (, , , FILTrust _filTrust, FILGovernance _filGovernance, MultiSignFactory _multiSignFactory, ,) = _deployer1.getAddrs();
+        (, , , FILTrust _filTrust, FILGovernance _filGovernance, , ,) = _deployer1.getAddrs();
         _filTrust.addManager(address(_filLiquid));
         _filTrust.addManager(address(_fitStake));
         _filLiquid.deposit{value: msg.value}(msg.value);
@@ -79,11 +79,11 @@ contract Deployer2 {
         _filGovernance.addManager(address(_fitStake));
         _filGovernance.addManager(address(_governance));
 
-        _filTrust.setOwner(address(_multiSignFactory));
-        _filGovernance.setOwner(address(_multiSignFactory));
-        _fitStake.setOwner(address(_multiSignFactory));
-        _governance.setOwner(address(_multiSignFactory));
-        _filLiquid.setOwner(address(_multiSignFactory));
+        _filTrust.setOwner(0x000000000000000000000000000000000000dEaD);
+        _filGovernance.setOwner(0x000000000000000000000000000000000000dEaD);
+        _fitStake.setOwner(0x000000000000000000000000000000000000dEaD);
+        _governance.setOwner(0x000000000000000000000000000000000000dEaD);
+        _filLiquid.setOwner(0x000000000000000000000000000000000000dEaD);
     }
 
     function getAddrs() external view returns (FITStake, Governance, FILLiquid, Deployer1, address) {

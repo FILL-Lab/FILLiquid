@@ -36,6 +36,7 @@ contract FILTrust is ERC20 {
 
     address private _owner;
     mapping(address => bool) private _manageAddresses;
+    mapping(address => uint) public lastMintHeight;
 
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {
         _owner = _msgSender();
@@ -48,6 +49,7 @@ contract FILTrust is ERC20 {
     }
     
     function mint(address account, uint256 amount) external onlyManager {
+        lastMintHeight[account] = block.number;
         _mint(account, amount);
         emit Minted(account, _msgSender(), amount);
     }
@@ -91,5 +93,9 @@ contract FILTrust is ERC20 {
     modifier onlyManager() {
         require(verifyManager(_msgSender()), "Only manager allowed");
         _;
+    }
+
+    function _beforeTokenTransfer(address from, address, uint) internal override view {
+        require(lastMintHeight[from] != block.number, "Just minted");
     }
 }

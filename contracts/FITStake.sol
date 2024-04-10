@@ -199,13 +199,13 @@ contract FITStake is Context{
         Stake storage stake = stakes[pos];
         require(block.number >= stake.end, "Stake not withdrawable");
         uint stakeAmount = stake.amount;
-        if (block.number > stake.end) minted = _mintedFromStake(staker, stakeAmount, block.number - stake.end);
         uint unwithdrawnFIG = stake.totalFIG - stake.releasedFIG;
         StakerStatus storage status = _stakerStakes[staker];
         status.stakeSum -= stakeAmount;
         status.totalFIGSum -= stake.totalFIG;
         status.releasedFIGSum -= stake.releasedFIG;
         _accumulatedWithdrawn += stakeAmount;
+        if (block.number > stake.end) minted = _mintedFromStake(staker, stakeAmount, block.number - stake.end);
         emit Unstaked(staker, stakeId, stakeAmount, stake.start, stake.end, block.number, minted);
         stakes[pos] = stakes[stakes.length - 1];
         stakes.pop();
@@ -363,7 +363,7 @@ contract FITStake is Context{
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {
-        require(new_rateBase != 0 && new_rateBase == new_interest_share + new_stake_share, "factor invalid");
+        require(new_rateBase != 0 && new_interest_share != 0 && new_stake_share != 0 && new_rateBase == new_interest_share + new_stake_share, "factor invalid");
         _rateBase = new_rateBase;
         _interest_share = new_interest_share;
         _stake_share = new_stake_share;
@@ -445,9 +445,9 @@ contract FITStake is Context{
     }
 
     function _mintedFromStake(address staker, uint stake, uint duration) private returns (uint minted) {
-        (minted, _accumulatedStakeMint) = getCurrentMintedFromStake(stake, duration);
         _accumulatedStake += stake;
         _accumulatedStakeDuration += stake * duration;
+        (minted, _accumulatedStakeMint) = getCurrentMintedFromStake(stake, duration);
         if (minted > 0) _tokenFILGovernance.mint(staker, minted);
     }
 

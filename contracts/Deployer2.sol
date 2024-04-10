@@ -74,7 +74,6 @@ contract Deployer2 {
         _filLiquid.deposit{value: msg.value}(msg.value);
         uint filTrustBalance = _filTrust.balanceOf(address(this));
         assert(filTrustBalance == msg.value);
-        _filTrust.transfer(msg.sender, filTrustBalance);
         
         _filGovernance.addManager(address(_fitStake));
         _filGovernance.addManager(address(_governance));
@@ -84,6 +83,13 @@ contract Deployer2 {
         _fitStake.setOwner(0x000000000000000000000000000000000000dEaD);
         _governance.setOwner(0x000000000000000000000000000000000000dEaD);
         _filLiquid.setOwner(0x000000000000000000000000000000000000dEaD);
+    }
+
+    function setting2() external {
+        require (msg.sender == _owner, "only owner allowed");
+        (, , , FILTrust _filTrust, , , ,) = _deployer1.getAddrs();
+        uint filTrustBalance = _filTrust.balanceOf(address(this));
+        _filTrust.transfer(msg.sender, filTrustBalance);
     }
 
     function getAddrs() external view returns (FITStake, Governance, FILLiquid, Deployer1, address) {

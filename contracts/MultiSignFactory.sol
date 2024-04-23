@@ -96,9 +96,9 @@ contract MultiSignFactory is Context, ReentrancyGuard {
             delete isSigner[_signers[i]];
         }
         _signers = signers;
-        for (uint i = 0; i < _signers.length; i++) {
-            require(!isSigner[_signers[i]], "Duplicate signers");
-            isSigner[_signers[i]] = true;
+        for (uint i = 0; i < signers.length; i++) {
+            require(!isSigner[signers[i]], "Duplicate signers");
+            isSigner[signers[i]] = true;
         }
         _approvalThreshold = approvalThreshold;
         emit SignersModified(signers, approvalThreshold);

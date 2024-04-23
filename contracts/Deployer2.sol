@@ -10,37 +10,29 @@ import "./Deployer1.sol";
 import "./FITStake.sol";
 import "./Governance.sol";
 import "./FILLiquid.sol";
-import "./MultiSignFactory.sol";
 
 contract Deployer2 {
-    FITStake private _fitStake;
-    Governance private _governance;
-    FILLiquid private _filLiquid;
-    Deployer1 private _deployer1;
-    address private _owner;
+    FITStake immutable private _fitStake;
+    Governance immutable private _governance;
+    FILLiquid immutable private _filLiquid;
+    Deployer1 immutable private _deployer1;
+    address immutable private _owner;
 
-    event ContractPublishing (
-        string name,
-        address addr
-    );
-
-    constructor(address deployer1) {
+    constructor(address deployer1, address payable foundation) {
         _deployer1 = Deployer1(deployer1);
         (
             Validation _validation,
             Calculation _calculation,
             FilecoinAPI _filecoinAPI,
             FILTrust _filTrust,
-            FILGovernance _filGovernance,,,
+            FILGovernance _filGovernance,
             address _ownerDeployer1
-        ) = _deployer1.getAddrs();
+        ) = _deployer1.getAddrs1();
         require (msg.sender == _ownerDeployer1, "only owner allowed");
         _owner = msg.sender;
 
         _fitStake = new FITStake();
-        emit ContractPublishing("FITStake", address(_fitStake));
         _governance = new Governance();
-        emit ContractPublishing("Governance", address(_governance));
         _filLiquid = new FILLiquid(
             address(_filTrust),
             address(_validation),
@@ -48,10 +40,8 @@ contract Deployer2 {
             address(_filecoinAPI),
             address(_fitStake),
             address(_governance),
-            payable(msg.sender)
+            foundation
         );
-        emit ContractPublishing("FILLiquid", address(_filLiquid));
-
         _fitStake.setContractAddrs(
             address(_filLiquid),
             address(_governance),
@@ -68,13 +58,13 @@ contract Deployer2 {
 
     function setting() external payable {
         require (msg.sender == _owner, "only owner allowed");
-        (, , , FILTrust _filTrust, FILGovernance _filGovernance, , ,) = _deployer1.getAddrs();
+        (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs1();
         _filTrust.addManager(address(_filLiquid));
         _filTrust.addManager(address(_fitStake));
+        _filTrust.addManager(msg.sender);
         _filLiquid.deposit{value: msg.value}(msg.value);
-        uint filTrustBalance = _filTrust.balanceOf(address(this));
-        assert(filTrustBalance == msg.value);
-        
+        _filTrust.transfer(msg.sender, _filTrust.balanceOf(address(this)));
+        _filTrust.removeManager(msg.sender);
         _filGovernance.addManager(address(_fitStake));
         _filGovernance.addManager(address(_governance));
 
@@ -83,13 +73,6 @@ contract Deployer2 {
         _fitStake.setOwner(0x000000000000000000000000000000000000dEaD);
         _governance.setOwner(0x000000000000000000000000000000000000dEaD);
         _filLiquid.setOwner(0x000000000000000000000000000000000000dEaD);
-    }
-
-    function setting2() external {
-        require (msg.sender == _owner, "only owner allowed");
-        (, , , FILTrust _filTrust, , , ,) = _deployer1.getAddrs();
-        uint filTrustBalance = _filTrust.balanceOf(address(this));
-        _filTrust.transfer(msg.sender, filTrustBalance);
     }
 
     function getAddrs() external view returns (FITStake, Governance, FILLiquid, Deployer1, address) {

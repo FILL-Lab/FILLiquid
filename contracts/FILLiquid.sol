@@ -94,16 +94,16 @@ interface FILLiquidInterface {
     }
 
     /// @dev deposit FIL to the contract, mint FILTrust
-    /// @param exchangeRate approximated exchange rate at the point of request
+    /// @param expectAmountFILTrust approximated FILTrust expect to receive at the point of request
     /// @return amount actual FILTrust minted
-    function deposit(uint exchangeRate) external payable returns (uint amount);
+    function deposit(uint expectAmountFILTrust) external payable returns (uint amount);
 
     /// @dev redeem FILTrust to the contract, withdraw FIL
     /// @param amountFILTrust the amount of FILTrust user would like to redeem
-    /// @param exchangeRate approximated exchange rate at the point of request
+    /// @param expectAmountFIL approximated FIL expect to receive at the point of request
     /// @return amount actual FIL withdrawal
     /// @return fee fee deducted
-    function redeem(uint amountFILTrust, uint exchangeRate) external returns (uint amount, uint fee);
+    function redeem(uint amountFILTrust, uint expectAmountFIL) external returns (uint amount, uint fee);
 
     /// @dev borrow FIL from the contract
     /// @param minerId miner id
@@ -181,7 +181,7 @@ interface FILLiquidInterface {
     /// @dev return FIL/FILTrust exchange rate: total amount of FIL liquidity divided by total amount of FILTrust outstanding
     function exchangeRate() external view returns (uint);
 
-    /// @dev return borrowing interest rate: a mathematical function of utilizatonRate
+    /// @dev return borrowing interest rate: a mathematical function of utilizationRate
     function interestRate() external view returns (uint);
 
     /// @dev return liquidity pool utilization: the amount of FIL being utilized divided by the total liquidity provided (the amount of FIL deposited and the interest repaid)
@@ -230,7 +230,8 @@ interface FILLiquidInterface {
         uint principal,
         uint interest,
         uint reward,
-        uint fee
+        uint fee,
+        uint mintedFIG
     );
 
     /// @dev Emitted when Borrow with `id` is updated
@@ -516,12 +517,12 @@ contract FILLiquid is Context, FILLiquidInterface {
         if (totalWithdraw > 0) {
             withdrawBalance(minerIdPayer, totalWithdraw);
         }
-        address sender = _msgSender();
         result = [r[1], r[2], bonus, fees[1]];
 
-        emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
+        uint mintedFig = _fitStake.handleInterest(_minerBindsMap[minerIdPayer], r[1], r[2]);
+        emit Liquidate(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1], mintedFig);
         _foundation.transfer(fees[1]);
-        if (bonus > 0) payable(sender).transfer(bonus);
+        if (bonus > 0) payable(_msgSender()).transfer(bonus);
     }
 
     function collateralizingMiner(uint64 minerId, bytes calldata signature) external noCollateralizing(minerId){

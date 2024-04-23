@@ -19,9 +19,9 @@ contract Deployer1 {
 
     MultiSignFactory immutable private _institutionSigner;
     ERC20Pot immutable private _institution;
-    MultiSignFactory immutable private _teamMultiSigner;
+    MultiSignFactory immutable private _teamSigner;
     ERC20Pot immutable private _team;
-    MultiSignFactory immutable private _foundationMultiSigner;
+    MultiSignFactory immutable private _foundationSigner;
     ERC20Pot immutable private _foundation;
     MultiSignFactory immutable private _reserveSigner;
     ERC20Pot immutable private _reserve;
@@ -65,11 +65,11 @@ contract Deployer1 {
         _institutionSigner = new MultiSignFactory(institutionSigners, institutionApprovalThreshold);
         _institution = new ERC20Pot(address(_institutionSigner), _filGovernance, figBalance * INSTITUTION_SHARE / RATEBASE, current, current + INSTITUTION_LOCKING_PERIOD);
 
-        _teamMultiSigner = new MultiSignFactory(teamSigners, teamApprovalThreshold);
-        _team = new ERC20Pot(address(_teamMultiSigner), _filGovernance, figBalance * TEAM_SHARE / RATEBASE, current, current + TEAM_LOCKING_PERIOD);
+        _teamSigner = new MultiSignFactory(teamSigners, teamApprovalThreshold);
+        _team = new ERC20Pot(address(_teamSigner), _filGovernance, figBalance * TEAM_SHARE / RATEBASE, current, current + TEAM_LOCKING_PERIOD);
 
-        _foundationMultiSigner = new MultiSignFactory(foundationSigners, foundationApprovalThreshold);
-        _foundation = new ERC20Pot(address(_foundationMultiSigner), _filGovernance, figBalance * FOUNDATION_SHARE / RATEBASE, current, current + FOUNDATION_LOCKING_PERIOD);
+        _foundationSigner = new MultiSignFactory(foundationSigners, foundationApprovalThreshold);
+        _foundation = new ERC20Pot(address(_foundationSigner), _filGovernance, figBalance * FOUNDATION_SHARE / RATEBASE, current, current + FOUNDATION_LOCKING_PERIOD);
 
         _reserveSigner = new MultiSignFactory(reserveSigners, reserveApprovalThreshold);
         _reserve = new ERC20Pot(address(_reserveSigner), _filGovernance, figBalance * RESERVE_SHARE / RATEBASE, current, current + RESERVE_LOCKING_PERIOD);
@@ -123,9 +123,9 @@ contract Deployer1 {
         return (
             _institutionSigner,
             _institution,
-            _teamMultiSigner,
+            _teamSigner,
             _team,
-            _foundationMultiSigner,
+            _foundationSigner,
             _foundation,
             _reserveSigner,
             _reserve,

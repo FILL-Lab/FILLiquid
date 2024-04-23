@@ -21,7 +21,7 @@ contract Deployer3 {
         (
             FITStake _fitStake,
             Governance _governance,
-            FILLiquid _filLiquid,
+            FILLiquid _filLiquid,,,
             Deployer1 _deployer1,
             address _ownerDeployer2
         ) = _deployer2.getAddrs();

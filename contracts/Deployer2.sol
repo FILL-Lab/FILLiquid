@@ -10,15 +10,18 @@ import "./Deployer1.sol";
 import "./FITStake.sol";
 import "./Governance.sol";
 import "./FILLiquid.sol";
+import "./FILPot.sol";
 
 contract Deployer2 {
     FITStake immutable private _fitStake;
     Governance immutable private _governance;
     FILLiquid immutable private _filLiquid;
+    MultiSignFactory immutable private _feeReceiverSigner;
+    FILPot immutable private _feeReceiver;
     Deployer1 immutable private _deployer1;
     address immutable private _owner;
 
-    constructor(address deployer1, address payable foundation) {
+    constructor(address deployer1, address[] memory feeReceiverSigners, uint feeReceiverApprovalThreshold) {
         _deployer1 = Deployer1(deployer1);
         (
             Validation _validation,
@@ -33,6 +36,8 @@ contract Deployer2 {
 
         _fitStake = new FITStake();
         _governance = new Governance();
+        _feeReceiverSigner = new MultiSignFactory(feeReceiverSigners, feeReceiverApprovalThreshold);
+        _feeReceiver = new FILPot(address(_feeReceiverSigner));
         _filLiquid = new FILLiquid(
             address(_filTrust),
             address(_validation),
@@ -40,7 +45,7 @@ contract Deployer2 {
             address(_filecoinAPI),
             address(_fitStake),
             address(_governance),
-            foundation
+            payable(_feeReceiver)
         );
         _fitStake.setContractAddrs(
             address(_filLiquid),
@@ -75,11 +80,13 @@ contract Deployer2 {
         _filLiquid.setOwner(0x000000000000000000000000000000000000dEaD);
     }
 
-    function getAddrs() external view returns (FITStake, Governance, FILLiquid, Deployer1, address) {
+    function getAddrs() external view returns (FITStake, Governance, FILLiquid, MultiSignFactory, FILPot, Deployer1, address) {
         return (
             _fitStake,
             _governance,
             _filLiquid,
+            _feeReceiverSigner,
+            _feeReceiver,
             _deployer1,
             _owner
         );

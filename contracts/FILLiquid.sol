@@ -94,24 +94,24 @@ interface FILLiquidInterface {
     }
 
     /// @dev deposit FIL to the contract, mint FILTrust
-    /// @param exchangeRate approximated exchange rate at the point of request
+    /// @param minimumAmountFILTrust the minimum acceptable FILTrust amount
     /// @return amount actual FILTrust minted
-    function deposit(uint exchangeRate) external payable returns (uint amount);
+    function deposit(uint minimumAmountFILTrust) external payable returns (uint amount);
 
     /// @dev redeem FILTrust to the contract, withdraw FIL
     /// @param amountFILTrust the amount of FILTrust user would like to redeem
-    /// @param exchangeRate approximated exchange rate at the point of request
+    /// @param minimumAmountFIL the minimum acceptable FIL amount
     /// @return amount actual FIL withdrawal
     /// @return fee fee deducted
-    function redeem(uint amountFILTrust, uint exchangeRate) external returns (uint amount, uint fee);
+    function redeem(uint amountFILTrust, uint minimumAmountFIL) external returns (uint amount, uint fee);
 
     /// @dev borrow FIL from the contract
     /// @param minerId miner id
     /// @param amountFIL the amount of FIL user would like to borrow
-    /// @param interestRate approximated interest rate at the point of request
+    /// @param maximumInterestRate the maximum interest rate user would like to accept
     /// @return amount actual FIL borrowed
     /// @return fee fee deducted
-    function borrow(uint64 minerId, uint amountFIL, uint interestRate) external returns (uint amount, uint fee);
+    function borrow(uint64 minerId, uint amountFIL, uint maximumInterestRate) external returns (uint amount, uint fee);
 
     /// @dev payback principal and interest by self
     /// @param minerIdPayee miner id being paid
@@ -372,11 +372,11 @@ contract FILLiquid is Context, FILLiquidInterface {
         _n = _calculation.getN(_u_1, _u_m, _r_1, _r_m, _rateBase);
     }
 
-    function deposit(uint expectAmountFILTrust) external payable returns (uint) {
+    function deposit(uint minimumAmountFILTrust) external payable returns (uint) {
         uint amountFIL = msg.value;
         require(amountFIL >= _minDepositAmount, "Value too small");
         uint amountFILTrust = getFitByDeposit(amountFIL);
-        isLower(expectAmountFILTrust, amountFILTrust);
+        isLower(minimumAmountFILTrust, amountFILTrust);
         
         _accumulatedDepositFIL += amountFIL;
         _accumulatedMintFILTrust += amountFILTrust;
@@ -406,14 +406,14 @@ contract FILLiquid is Context, FILLiquidInterface {
         return (fees[0], fees[1]);
     }
 
-    function borrow(uint64 minerId, uint amount, uint expectInterestRate) external isBindMiner(minerId) haveCollateralizing(minerId) returns (uint, uint) {
+    function borrow(uint64 minerId, uint amount, uint maximumInterestRate) external isBindMiner(minerId) haveCollateralizing(minerId) returns (uint, uint) {
         (bool borrowable, string memory reason) = getBorrowable(minerId);
         require(borrowable, reason);
         require(amount >= _minBorrowAmount, "Lower than minimum");
         require(amount <= maxBorrowAllowedByUtilization(), "Utilization would exceeds u_m");
         require(amount > 0 && amount <= maxBorrowAllowed(minerId), "Insufficient collateral");
         uint realInterestRate = interestRateBorrow(amount);
-        isHigher(expectInterestRate, realInterestRate);
+        isHigher(maximumInterestRate, realInterestRate);
 
         uint borrowId = _accumulatedBorrows;
         BorrowInfo[] storage borrows = _minerBorrows[minerId];

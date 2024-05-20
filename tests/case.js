@@ -1,8 +1,8 @@
 
+const case_1 = require("./cases/case_6")
 
 const hre = require('hardhat')
 const { ethers } = require('hardhat')
-
 
 const {
   time,
@@ -23,8 +23,6 @@ const { assert } = require("console")
 const { transaction } = require("@openzeppelin/test-helpers/src/send")
 const { duration } = require("@openzeppelin/test-helpers/src/time")
 
-const case_1 = require("./cases/case_6")
-
 const parseEther = utils.parseEther
 
 const ONE_ETHER = BigInt(1e18)
@@ -44,7 +42,6 @@ const INIT_MAX_DEBT_RATE = 400000
 
 describe("Liquid", function () {
   async function deployLiquid() {
-    console.log("has entered the deployLiquid")
 
     const [owner, otherAccount] = await ethers.getSigners()
 
@@ -144,7 +141,7 @@ describe("Liquid", function () {
 
       contract = contracts.filLiquid
       principalAndInterest = await contract.paybackAmount(BigInt(ONE_ETHER * 200000n), 31536000n*5n, 82000n)
-      console.log("principalAndInterest: ", principalAndInterest.toBigInt())
+      // console.log("principalAndInterest: ", principalAndInterest.toBigInt())
 
       mineBlockNumberHex = `0x${(887).toString(16)}`
       await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
@@ -198,24 +195,22 @@ describe("Liquid", function () {
 
         // await hre.network.provider.send("hardhat_mine", [`0x${(1).toString(16)}`, `0x${(98).toString(16)}`]);
 
-        try {
-          interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 320000n))
-          console.log("interestRate: ", interestRate.toBigInt())
-
+        // try {
+        //   interestRate = await contract.interestRateBorrow(BigInt(ONE_ETHER * 320000n))
+        //   console.log("interestRate: ", interestRate.toBigInt())
           
-          
-          maxBorrowAllowedByUtilization = await contract.maxBorrowAllowedByUtilization()
-          totalFILLiquidity = await contract.totalFILLiquidity()
-          utilizedLiquidity = await contract.utilizedLiquidity()
-          console.log("maxBorrowAllowedByUtilization: ", maxBorrowAllowedByUtilization.toBigInt())
-          console.log("totalFILLiquidity: ", totalFILLiquidity.toBigInt())
-          console.log("utilizedLiquidity: ", utilizedLiquidity.toBigInt())
+        //   maxBorrowAllowedByUtilization = await contract.maxBorrowAllowedByUtilization()
+        //   totalFILLiquidity = await contract.totalFILLiquidity()
+        //   utilizedLiquidity = await contract.utilizedLiquidity()
+        //   console.log("maxBorrowAllowedByUtilization: ", maxBorrowAllowedByUtilization.toBigInt())
+        //   console.log("totalFILLiquidity: ", totalFILLiquidity.toBigInt())
+        //   console.log("utilizedLiquidity: ", utilizedLiquidity.toBigInt())
 
-          liquidStatus = await contracts.filLiquid.getStatus()
-          console.log("liquidStatus: ", liquidStatus)
-        }catch(error) {
+        //   liquidStatus = await contracts.filLiquid.getStatus()
+        //   console.log("liquidStatus: ", liquidStatus)
+        // }catch(error) {
 
-        }
+        // }
       }
 
       for (stepIndex in finalStateCheckList) {

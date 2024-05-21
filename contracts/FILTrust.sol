@@ -2,8 +2,9 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./IFILTrust.sol";
 
-contract FILTrust is ERC20 {
+contract FILTrust is ERC20, IFILTrust {
     address private _owner;
     mapping(address => bool) private _manageAddresses;
 

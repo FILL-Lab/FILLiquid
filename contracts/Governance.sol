@@ -3,9 +3,10 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
-import "./FILLiquid.sol";
-import "./FITStake.sol";
-import "./FILGovernance.sol";
+import "./IFILLiquid.sol";
+import "./IFITStake.sol";
+import "./IFILGovernance.sol";
+import "./IGovernance.sol";
 
 contract Governance is Context {
     enum proposolCategory {
@@ -106,9 +107,9 @@ contract Governance is Context {
     uint private _maxActiveProposals;
     address private _owner;
 
-    FILLiquid private _filLiquid;
-    FITStake private _fitStake;
-    FILGovernance private _tokenFILGovernance;
+    IFILLiquid private _filLiquid;
+    IFITStake private _fitStake;
+    IFILGovernance private _tokenFILGovernance;
 
     uint constant DEFAULT_RATEBASE = 1000000;
     uint constant DEFAULT_MIN_YES = 500000;
@@ -396,9 +397,9 @@ contract Governance is Context {
         address new_fitStake,
         address new_tokenFILGovernance
     ) onlyOwner external {
-        _filLiquid = FILLiquid(new_filLiquid);
-        _fitStake = FITStake(new_fitStake);
-        _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
+        _filLiquid = IFILLiquid(new_filLiquid);
+        _fitStake = IFITStake(new_fitStake);
+        _tokenFILGovernance = IFILGovernance(new_tokenFILGovernance);
     }
 
     function owner() external view returns (address) {

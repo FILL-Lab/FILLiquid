@@ -1,14 +1,11 @@
 require("@nomicfoundation/hardhat-toolbox");
-require("hardhat-deploy");
-require("hardhat-deploy-ethers");
-require("./tasks");
-require("dotenv").config();
+const { vars } = require("hardhat/config");
+const CALIBRATION_PRIVATE_KEY = vars.get("CALIBRATION_PRIVATE_KEY");
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: "0.8.19",
+    version: "0.8.24",
     settings: {
       optimizer: {
         enabled: true,
@@ -21,12 +18,12 @@ module.exports = {
     wallaby: {
       chainId: 31415,
       url: "https://calibration.filfox.info/rpc/v0",
-      accounts: [PRIVATE_KEY],
+      accounts: [CALIBRATION_PRIVATE_KEY],
     },
     calibration: {
       chainId: 314159,
       url: "https://api.calibration.node.glif.io/rpc/v1",
-      accounts: [PRIVATE_KEY],
+      accounts: [CALIBRATION_PRIVATE_KEY],
     },
   },
   paths: {

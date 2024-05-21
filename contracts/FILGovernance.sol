@@ -2,8 +2,10 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./IFILGovernance.sol";
 
-contract FILGovernance is ERC20 {
+
+contract FILGovernance is ERC20, IFILGovernance{
     address private _owner;
     address private _burner;
     mapping(address => bool) private _manageAddresses;

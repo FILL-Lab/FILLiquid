@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "./FILLiquid.sol";
-import "./FILTrust.sol";
-import "./FITStake.sol";
-import "./FILGovernance.sol";
-import "./Governance.sol";
-import "./Utils/FilecoinAPI.sol";
+import "./IFILLiquid.sol";
+import "./IFILTrust.sol";
+import "./IFITStake.sol";
+import "./IFILGovernance.sol";
+import "./IGovernance.sol";
+import "./Utils/IFilecoinAPI.sol";
 
 contract DataFetcher {
     struct MinerBorrowable {
@@ -38,14 +38,14 @@ contract DataFetcher {
         uint n_stake;
     }
 
-    FILLiquid private _filliquid;
-    FILTrust private _filTrust;
-    FITStake private _fitStake;
-    FILGovernance private _filGovernance;
-    Governance private _governance;
-    FilecoinAPI private _filecoinAPI;
+    IFILLiquid private _filliquid;
+    IFILTrust private _filTrust;
+    IFITStake private _fitStake;
+    IFILGovernance private _filGovernance;
+    IGovernance private _governance;
+    IFilecoinAPI private _filecoinAPI;
 
-    constructor(FILLiquid filLiquidAddr, FILTrust filTrustAddr, FITStake fitStakeAddr, FILGovernance filGovernanceAddr, Governance governanceAddr, FilecoinAPI filecoinAPIAddr) {
+    constructor(IFILLiquid filLiquidAddr, IFILTrust filTrustAddr, IFITStake fitStakeAddr, IFILGovernance filGovernanceAddr, IGovernance governanceAddr, IFilecoinAPI filecoinAPIAddr) {
         _filliquid = filLiquidAddr;
         _filTrust = filTrustAddr;
         _fitStake = fitStakeAddr;
@@ -59,9 +59,9 @@ contract DataFetcher {
         uint blockTimeStamp,
         uint fitTotalSupply,
         uint figTotalSupply,
-        FILLiquid.FILLiquidInfo memory filLiquidInfo,
-        FITStake.FITStakeInfo memory fitStakeInfo,
-        Governance.GovernanceInfo memory governanceInfo,
+        IFILLiquid.FILLiquidInfo memory filLiquidInfo,
+        IFITStake.FITStakeInfo memory fitStakeInfo,
+        IGovernance.GovernanceInfo memory governanceInfo,
         FiLLiquidGovernanceFactors memory fiLLiquidGovernanceFactors,
         FITStakeGovernanceFactors memory fitStakeGovernanceFactors
     ) {
@@ -78,7 +78,7 @@ contract DataFetcher {
     function fetchPersonalData(address player) external view returns (
         uint filTrustBalance,
         uint filBalance,
-        FILLiquid.UserInfo memory userInfo
+        IFILLiquid.UserInfo memory userInfo
     ) {
         filTrustBalance = _filTrust.balanceOf(player);
         filBalance = player.balance;
@@ -170,18 +170,18 @@ contract DataFetcher {
         expectedAmountFIL = _filliquid.getFilByRedeem(amountFILTrust);
     }
 
-    function getBatchedUserBorrows(address[] calldata accounts) external view returns (FILLiquid.UserInfo[] memory infos) {
-        infos = new FILLiquid.UserInfo[](accounts.length);
+    function getBatchedUserBorrows(address[] calldata accounts) external view returns (IFILLiquid.UserInfo[] memory infos) {
+        infos = new IFILLiquid.UserInfo[](accounts.length);
         for (uint i = 0; i < infos.length; i++) {
             infos[i] = _filliquid.userBorrows(accounts[i]);
         }
     }
 
-    function getUserBorrowsByMiner(uint64 minerId) external view returns (FILLiquid.UserInfo memory infos) {
+    function getUserBorrowsByMiner(uint64 minerId) external view returns (IFILLiquid.UserInfo memory infos) {
         return _filliquid.userBorrows(_filliquid.minerUser(minerId));
     }
 
-    function getUserBorrowsAndBorrowable(address account) external view returns (FILLiquid.UserInfo memory info, MinerBorrowable[] memory borrowables) {
+    function getUserBorrowsAndBorrowable(address account) external view returns (IFILLiquid.UserInfo memory info, MinerBorrowable[] memory borrowables) {
         info = _filliquid.userBorrows(account);
         borrowables = getBorrowable(account);
     }
@@ -208,16 +208,16 @@ contract DataFetcher {
         blockTimeStamp = block.timestamp;
         uint start = 0;
         uint end = _filliquid.allMinersCount();
-        FILLiquid.FILLiquidInfo memory filLiquidInfo = _filliquid.getStatus();
+        IFILLiquid.FILLiquidInfo memory filLiquidInfo = _filliquid.getStatus();
         if (start != end) {
-            FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
+            IFILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
             for (uint j = 0; j < allMiners.length; j++) {
-                FILLiquid.BindStatusInfo memory info = allMiners[j];
+                IFILLiquid.BindStatusInfo memory info = allMiners[j];
                 if (!info.status.stillBound) continue;
-                FILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
+                IFILLiquid.MinerBorrowInfo memory minerBorrowInfo = _filliquid.minerBorrows(info.minerId);
                 totalPendingInterest += minerBorrowInfo.debtOutStanding - minerBorrowInfo.borrowSum;
                 for (uint i = 0; i < minerBorrowInfo.borrows.length; i++) {
-                    FILLiquid.BorrowInfo memory borrowInfo = minerBorrowInfo.borrows[i].borrow;
+                    IFILLiquid.BorrowInfo memory borrowInfo = minerBorrowInfo.borrows[i].borrow;
                     borrowingAndPeriod += borrowInfo.remainingOriginalAmount * (block.timestamp - borrowInfo.initialTime);
                     interestExp += _filliquid.paybackAmount(borrowInfo.borrowAmount, 31536000, borrowInfo.interestRate) - borrowInfo.borrowAmount;
                 }
@@ -244,10 +244,10 @@ contract DataFetcher {
         uint64[] memory miners = _filliquid.userMiners(_filliquid.minerUser(minerId));
         (uint balanceSum, uint principalAndInterestSum) = (0, 0);
         for (uint j = 0; j < miners.length; j++) {
-            FILLiquid.BorrowInterestInfo[] memory borrows = _filliquid.minerBorrows(miners[j]).borrows;
+            IFILLiquid.BorrowInterestInfo[] memory borrows = _filliquid.minerBorrows(miners[j]).borrows;
             balanceSum += _toAddress(miners[j]).balance;
             for (uint i = 0; i < borrows.length; i++) {
-                FILLiquid.BorrowInfo memory info = borrows[i].borrow;
+                IFILLiquid.BorrowInfo memory info = borrows[i].borrow;
                 principalAndInterestSum += _filliquid.paybackAmount(info.borrowAmount, block.timestamp + 30 * afterBlocks - info.datedTime, info.interestRate);
             }
         }

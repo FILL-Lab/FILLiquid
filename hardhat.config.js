@@ -1,7 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-deploy");
 require("hardhat-deploy-ethers");
-require("./tasks");
 require("dotenv").config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -18,6 +17,15 @@ module.exports = {
   },
   defaultNetwork: "calibration",
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+      accounts: [
+        {
+          privateKey: "ec30c33546ddf1ce381e7a9be187bad34659048c182f1bd756e21d4733bd5998",
+          balance: "99999900000000000000000000000000"
+        }
+      ]
+    },
     wallaby: {
       chainId: 31415,
       url: "https://calibration.filfox.info/rpc/v0",

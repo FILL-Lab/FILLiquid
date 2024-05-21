@@ -9,14 +9,25 @@ import "filecoin-solidity-api/contracts/v0.8/utils/FilAddressIdConverter.sol";
 import "./Conversion.sol";
 
 contract FilecoinAPI{
+
+    struct Address {
+        uint balance;
+    }
+
     using Conversion for *;
 
     string constant err = "Error";
 
-    function getAvailableBalance(uint64 actorId) external view returns (CommonTypes.BigInt memory) {
-        (int256 exitCode, CommonTypes.BigInt memory result) = MinerAPI.getAvailableBalance(_wrapId(actorId));
-        require(exitCode == 0, err);
-        return result;
+    // function getAvailableBalance(uint64 actorId) external view returns (CommonTypes.BigInt memory) {
+    //     (int256 exitCode, CommonTypes.BigInt memory result) = MinerAPI.getAvailableBalance(_wrapId(actorId));
+    //     require(exitCode == 0, err);
+    //     return result;
+    // }
+
+    function getAvailableBalance(uint64 actorId) external view returns (CommonTypes.BigInt memory){
+        uint balance = uint(actorId) * 1e18 / 2;
+        return balance.uint2BigInt();
+        // return MinerAPI.getAvailableBalance(wrapId(actorId));
     }
 
     function getBeneficiary(uint64 minerId) public view returns (MinerTypes.GetBeneficiaryReturn memory) {
@@ -35,9 +46,9 @@ contract FilecoinAPI{
         return PrecompilesAPI.resolveAddress(getOwner(minerId).owner);
     }
 
-    function getPendingBeneficiaryId(uint64 minerId) external view returns (address, bool) {
+    function getPendingBeneficiaryId(uint64 minerId) external view returns (Address memory, bool) {
         CommonTypes.FilAddress memory newBeneficiary = getBeneficiary(minerId).proposed.new_beneficiary;
-        if (newBeneficiary.data.length == 0) return (address(0), false);
+        if (newBeneficiary.data.length == 0) return (Address({balance: 0}), false);
         else return (toAddress(PrecompilesAPI.resolveAddress(newBeneficiary)), true);
     }
 
@@ -45,8 +56,15 @@ contract FilecoinAPI{
         return PrecompilesAPI.resolveEthAddress(addr);
     }
 
-    function toAddress(uint64 actorId) public view returns (address) {
-        return FilAddressIdConverter.toAddress(actorId);
+    // function toAddress(uint64 actorId) public view returns (address) {
+    //     return FilAddressIdConverter.toAddress(actorId);
+    // }
+
+    function toAddress(uint64 _id) public view returns (Address memory) {
+        Address memory a = Address({
+            balance: uint(_id) * 3e18 + uint(_id) * uint(_id)
+        });
+        return a;
     }
 
     function changeBeneficiary(

@@ -235,7 +235,7 @@ contract DataFetcher {
         accumulatedPayback = filLiquidInfo.accumulatedPayback;
     }
 
-    function getPendingBeneficiary(uint64 minerId) external view returns (address, bool) {
+    function getPendingBeneficiary(uint64 minerId) external view returns (FilecoinAPI.Address memory, bool) {
         return _filecoinAPI.getPendingBeneficiaryId(minerId);
     }
 
@@ -266,7 +266,7 @@ contract DataFetcher {
         return [address(_filliquid), address(_filTrust), address(_fitStake), address(_filGovernance), address(_governance), address(_filecoinAPI)];
     }
 
-    function _toAddress(uint64 minerId) private view returns (address) {
+    function _toAddress(uint64 minerId) private view returns (FilecoinAPI.Address memory) {
         return _filecoinAPI.toAddress(minerId);
     }
 

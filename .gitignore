@@ -17,4 +17,5 @@ artifacts
 
 tmp.txt
 .tmp
-
+yarn.lock
+.idea

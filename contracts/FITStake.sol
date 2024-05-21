@@ -3,9 +3,10 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
-import "./FILTrust.sol";
-import "./FILGovernance.sol";
-import "./Utils/Calculation.sol";
+import "./IFILTrust.sol";
+import "./IFILGovernance.sol";
+import "./Utils/ICalculation.sol";
+import "./IFITStake.sol";
 
 contract FITStake is Context{
     struct Stake {
@@ -102,9 +103,9 @@ contract FITStake is Context{
     uint private _interest_share;
     uint private _stake_share;
 
-    FILTrust private _tokenFILTrust;
-    Calculation private _calculation;
-    FILGovernance private _tokenFILGovernance;
+    IFILTrust private _tokenFILTrust;
+    ICalculation private _calculation;
+    IFILGovernance private _tokenFILGovernance;
 
     uint constant DEFAULT_N_INTEREST = 1e25;
     uint constant DEFAULT_N_STAKE = 1.36449194112e31;
@@ -375,9 +376,9 @@ contract FITStake is Context{
     ) onlyOwner external {
         _filLiquid = new_filLiquid;
         _governance = new_governance;
-        _tokenFILTrust = FILTrust(new_tokenFILTrust);
-        _calculation = Calculation(new_calculation);
-        _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
+        _tokenFILTrust = IFILTrust(new_tokenFILTrust);
+        _calculation = ICalculation(new_calculation);
+        _tokenFILGovernance = IFILGovernance(new_tokenFILGovernance);
     }
 
     function owner() external view returns (address) {

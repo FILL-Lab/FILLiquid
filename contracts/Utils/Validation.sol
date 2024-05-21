@@ -6,8 +6,9 @@ import "filecoin-solidity-api/contracts/v0.8/MinerAPI.sol";
 import "filecoin-solidity-api/contracts/v0.8/PrecompilesAPI.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
+import "./IValidation.sol";
 
-contract Validation is Context {
+contract Validation is Context, IValidation {
     mapping(bytes => uint256) private _nonces;
 
     function validateOwner(

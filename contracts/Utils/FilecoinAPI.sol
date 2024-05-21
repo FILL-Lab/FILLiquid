@@ -7,8 +7,9 @@ import "filecoin-solidity-api/contracts/v0.8/SendAPI.sol";
 import "filecoin-solidity-api/contracts/v0.8/utils/FilAddressIdConverter.sol";
 
 import "./Conversion.sol";
+import "./IFilecoinAPI.sol";
 
-contract FilecoinAPI{
+contract FilecoinAPI is IFilecoinAPI {
     using Conversion for *;
 
     string constant err = "Error";

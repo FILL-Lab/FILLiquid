@@ -1,136 +1,68 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "./Utils/Validation.sol";
-import "./Utils/Calculation.sol";
-import "./Utils/FilecoinAPI.sol";
 import "./FILTrust.sol";
+import "./FITStake.sol";
+import "./Governance.sol";
 import "./FILGovernance.sol";
-import "./MultiSignFactory.sol";
-import "./ERC20Pot.sol";
+
+interface IDeploy2 {
+    function finalize() external payable;
+}
 
 contract Deployer1 {
-    Validation immutable private _validation;
-    Calculation immutable private _calculation;
-    FilecoinAPI immutable private _filecoinAPI;
-    FILTrust immutable private _filTrust;
-    FILGovernance immutable private _filGovernance;
-    address immutable private _owner;
+    address _owner;
 
-    MultiSignFactory immutable private _institutionSigner;
-    ERC20Pot immutable private _institution;
-    MultiSignFactory immutable private _teamSigner;
-    ERC20Pot immutable private _team;
-    MultiSignFactory immutable private _foundationSigner;
-    ERC20Pot immutable private _foundation;
-    MultiSignFactory immutable private _reserveSigner;
-    ERC20Pot immutable private _reserve;
-    MultiSignFactory immutable private _communitySigner;
-    ERC20Pot immutable private _community;
+    address private _validation;
+    address private _calculation;
+    address private _filecoinAPI;
 
-    uint constant INSTITUTION_LOCKING_PERIOD = 1036800; //360 days
-    uint constant TEAM_LOCKING_PERIOD = 3110400; //1080 days
-    uint constant FOUNDATION_LOCKING_PERIOD = 3110400; //1080 days
-    uint constant RESERVE_LOCKING_PERIOD = 1036800; //360 days
-    uint constant COMMUNITY_LOCKING_PERIOD = 259200; //90 days
+    FILTrust private _filTrust;
+    FITStake private _fitStake;
+    Governance private _governance;
+    FILGovernance private _filGovernance;
 
-    uint constant INSTITUTION_SHARE = 250;
-    uint constant TEAM_SHARE = 375;
-    uint constant FOUNDATION_SHARE = 125;
-    uint constant RESERVE_SHARE = 125;
-    uint constant COMMUNITY_SHARE = 125;
-    uint constant RATEBASE = 1000;
+    address payable private _foundationAddr;
 
-    constructor(
-        address[] memory institutionSigners,
-        uint institutionApprovalThreshold,
-        address[] memory teamSigners,
-        uint teamApprovalThreshold,
-        address[] memory foundationSigners,
-        uint foundationApprovalThreshold,
-        address[] memory reserveSigners,
-        uint reserveApprovalThreshold,
-        address[] memory communitySigners,
-        uint communityApprovalThreshold
-    ) {
-        _validation = new Validation();
-        _calculation = new Calculation();
-        _filecoinAPI = new FilecoinAPI();
-        _filTrust = new FILTrust("FILLiquid Trust", "FIT");
-        _filGovernance = new FILGovernance("FILLiquid Governance", "FIG");
+    event ContractCreate(
+        address contractAddr,
+        string contractName
+    );
+
+    constructor(address validation, address calculation, address filecoinAPI, address payable foundationAddr) {
         _owner = msg.sender;
-        uint current = block.number;
-        uint figBalance = _filGovernance.balanceOf(address(this));
+        _validation = validation;
+        _calculation = calculation;
+        _filecoinAPI = filecoinAPI;
+        _foundationAddr = foundationAddr;
 
-        _institutionSigner = new MultiSignFactory(institutionSigners, institutionApprovalThreshold);
-        _institution = new ERC20Pot(address(_institutionSigner), _filGovernance, figBalance * INSTITUTION_SHARE / RATEBASE, current, current + INSTITUTION_LOCKING_PERIOD);
+        // 1. Create FILTrust 
+        _filTrust = new FILTrust("FILTrust", "FIT");
+        emit ContractCreate(address(_filTrust), "FILTrust");
 
-        _teamSigner = new MultiSignFactory(teamSigners, teamApprovalThreshold);
-        _team = new ERC20Pot(address(_teamSigner), _filGovernance, figBalance * TEAM_SHARE / RATEBASE, current, current + TEAM_LOCKING_PERIOD);
+        // 2. Create FITStake
+        _fitStake = new FITStake();
+        emit ContractCreate(address(_fitStake), "FITStake");
 
-        _foundationSigner = new MultiSignFactory(foundationSigners, foundationApprovalThreshold);
-        _foundation = new ERC20Pot(address(_foundationSigner), _filGovernance, figBalance * FOUNDATION_SHARE / RATEBASE, current, current + FOUNDATION_LOCKING_PERIOD);
+        // // 3. Create Governance
+        _governance = new Governance();
+        emit ContractCreate(address(_governance), "Governance");
 
-        _reserveSigner = new MultiSignFactory(reserveSigners, reserveApprovalThreshold);
-        _reserve = new ERC20Pot(address(_reserveSigner), _filGovernance, figBalance * RESERVE_SHARE / RATEBASE, current, current + RESERVE_LOCKING_PERIOD);
-
-        _communitySigner = new MultiSignFactory(communitySigners, communityApprovalThreshold);
-        _community = new ERC20Pot(address(_communitySigner), _filGovernance, figBalance * COMMUNITY_SHARE / RATEBASE, current, current + COMMUNITY_LOCKING_PERIOD);
-
-        _filGovernance.transfer(address(_institution), figBalance * INSTITUTION_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_team), figBalance * TEAM_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_foundation), figBalance * FOUNDATION_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_reserve), figBalance * RESERVE_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_community), figBalance * COMMUNITY_SHARE / RATEBASE);
+        // // 4. Create FIGovernance
+        _filGovernance = new FILGovernance("FILGovernance", "FIG");
+        emit ContractCreate(address(_filGovernance), "FILGovernance");
     }
 
-    function setting(address deployer2) external {
-        require (msg.sender == _owner, "only owner allowed");
+    function continueDeploy(address deployer2) external payable {
+        require(msg.sender == _owner, "Deployer: only owner can continue deploy");
+        // Only allow call once
+        _owner = address(0);
         _filTrust.setOwner(deployer2);
+        _fitStake.setOwner(deployer2);
+        _governance.setOwner(deployer2);
         _filGovernance.setOwner(deployer2);
-    }
-
-    function getAddrs1() external view returns (
-        Validation,
-        Calculation,
-        FilecoinAPI,
-        FILTrust,
-        FILGovernance,
-        address
-    ) {
-        return (
-            _validation,
-            _calculation,
-            _filecoinAPI,
-            _filTrust,
-            _filGovernance,
-            _owner
-        );
-    }
-
-    function getAddrs2() external view returns (
-        MultiSignFactory,
-        ERC20Pot,
-        MultiSignFactory,
-        ERC20Pot,
-        MultiSignFactory,
-        ERC20Pot,
-        MultiSignFactory,
-        ERC20Pot,
-        MultiSignFactory,
-        ERC20Pot
-    ) {
-        return (
-            _institutionSigner,
-            _institution,
-            _teamSigner,
-            _team,
-            _foundationSigner,
-            _foundation,
-            _reserveSigner,
-            _reserve,
-            _communitySigner,
-            _community
-        );
+        
+        IDeploy2 deploy2 = IDeploy2(deployer2);
+        deploy2.finalize{value: msg.value}();
     }
 }

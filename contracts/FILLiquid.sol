@@ -826,24 +826,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         ;
     }
 
-    function setAdministrativeFactors(
-        address new_tokenFILTrust,
-        address new_validation,
-        address new_calculation,
-        address new_filecoinAPI,
-        address new_fitStake,
-        address new_governance,
-        address payable new_foundation
-    ) onlyOwner external {
-        _tokenFILTrust= FILTrust(new_tokenFILTrust);
-        _validation = Validation(new_validation);
-        _calculation = Calculation(new_calculation);
-        _filecoinAPI = FilecoinAPI(new_filecoinAPI);
-        _fitStake = FITStake(new_fitStake);
-        _governance = new_governance;
-        _foundation = new_foundation;
-    }
-
     function getComprehensiveFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, int64) {
         return (
             _rateBase,

@@ -22,19 +22,16 @@ contract Deployer1 {
     Governance private _governance;
     FILGovernance private _filGovernance;
 
-    address payable private _foundationAddr;
-
     event ContractCreate(
         address contractAddr,
         string contractName
     );
 
-    constructor(address validation, address calculation, address filecoinAPI, address payable foundationAddr) {
+    constructor(address validation, address calculation, address filecoinAPI) {
         _owner = msg.sender;
         _validation = validation;
         _calculation = calculation;
         _filecoinAPI = filecoinAPI;
-        _foundationAddr = foundationAddr;
 
         // 1. Create FILTrust 
         _filTrust = new FILTrust("FILTrust", "FIT");
@@ -44,11 +41,11 @@ contract Deployer1 {
         _fitStake = new FITStake();
         emit ContractCreate(address(_fitStake), "FITStake");
 
-        // // 3. Create Governance
+        // 3. Create Governance
         _governance = new Governance();
         emit ContractCreate(address(_governance), "Governance");
 
-        // // 4. Create FIGovernance
+        // 4. Create FIGovernance
         _filGovernance = new FILGovernance("FILGovernance", "FIG");
         emit ContractCreate(address(_filGovernance), "FILGovernance");
     }

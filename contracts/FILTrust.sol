@@ -97,7 +97,7 @@ contract FILTrust is ERC20 {
         _;
     }
 
-    function _beforeTokenTransfer(address from, address to, uint) internal override view {
+    function _beforeTokenTransfer(address from, address to, uint) internal view {
         require(_manageAddresses[to] || lastMintHeight[from] + MIN_LOCKING_PERIOD <= block.number, "Just minted");
     }
 }

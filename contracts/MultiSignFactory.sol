@@ -80,16 +80,16 @@ contract MultiSignFactory is Context, ReentrancyGuard {
         _approve(proposalId);
     }
 
-    function unapprove(uint proposalId) senderIsSigner validProposalId(proposalId) external {
-        require(haveApproved(_msgSender(), proposalId), "No approval for this proposal");
-        _unapprove(proposalId);
-    }
+    // function unapprove(uint proposalId) senderIsSigner validProposalId(proposalId) external {
+    //     require(haveApproved(_msgSender(), proposalId), "No approval for this proposal");
+    //     _unapprove(proposalId);
+    // }
 
-    function execute(uint proposalId) senderIsSigner validProposalId(proposalId) external payable {
-        (bool executable, string memory reason) = _canExecute(proposalId);
-        require(executable, reason);
-        _execute(proposalId);
-    }
+    // function execute(uint proposalId) senderIsSigner validProposalId(proposalId) external payable {
+    //     (bool executable, string memory reason) = _canExecute(proposalId);
+    //     require(executable, reason);
+    //     _execute(proposalId);
+    // }
 
     function renewSigners(address[] calldata signers, uint approvalThreshold) isValidSignerCount(approvalThreshold, signers.length) senderIsSelf external {
         for (uint i = 0; i < _signers.length; i++) {

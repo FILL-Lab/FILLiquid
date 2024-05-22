@@ -10,7 +10,7 @@ module.exports = buildModule("FILL", (m) => {
     const caculation = m.contract("Calculation", []);
     const filecoinAPI = m.contract("FilecoinAPI", []);
 
-    const deployer1 = m.contract("Deployer1", [validation, caculation, filecoinAPI, FOUNDATION_ADDRESS]);
+    const deployer1 = m.contract("Deployer1", [validation, caculation, filecoinAPI]);
     const filTrustAddr = m.readEventArgument(deployer1, "ContractCreate", "contractAddr", { eventIndex: 0});
     const fitStakeAddr = m.readEventArgument(deployer1, "ContractCreate", "contractAddr", { eventIndex: 1});
     const governanceAddr = m.readEventArgument(deployer1, "ContractCreate", "contractAddr", { eventIndex: 2});

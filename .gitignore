@@ -17,4 +17,8 @@ artifacts
 
 tmp.txt
 .tmp
+remix.sh
 
+migrations/
+package-lock.json
+test

@@ -9,6 +9,10 @@ import "./FILGovernance.sol";
 import "./MultiSignFactory.sol";
 import "./ERC20Pot.sol";
 
+interface IDeployer2 {
+    function setting() external;
+}
+
 contract Deployer1 {
     Validation immutable private _validation;
     Calculation immutable private _calculation;
@@ -16,6 +20,8 @@ contract Deployer1 {
     FILTrust immutable private _filTrust;
     FILGovernance immutable private _filGovernance;
     address immutable private _owner;
+
+    bool settingDone = false;
 
     MultiSignFactory immutable private _institutionSigner;
     ERC20Pot immutable private _institution;
@@ -84,10 +90,14 @@ contract Deployer1 {
         _filGovernance.transfer(address(_community), figBalance * COMMUNITY_SHARE / RATEBASE);
     }
 
-    function setting(address deployer2) external {
+    function setting(address deployer2) external payable {
         require (msg.sender == _owner, "only owner allowed");
+        require (!settingDone, "setting already done");
+        settingDone = true;
+
         _filTrust.setOwner(deployer2);
         _filGovernance.setOwner(deployer2);
+        IDeployer2(deployer2).setting();
     }
 
     function getAddrs1() external view returns (

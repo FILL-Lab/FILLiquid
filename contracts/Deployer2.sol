@@ -62,12 +62,14 @@ contract Deployer2 {
     }
 
     function setting() external payable {
-        require (msg.sender == _owner, "only owner allowed");
+        require (msg.sender == address(_deployer1), "only deployer1 allowed");
         (, , , FILTrust _filTrust, FILGovernance _filGovernance,) = _deployer1.getAddrs1();
         _filTrust.addManager(address(_filLiquid));
         _filTrust.addManager(address(_fitStake));
         _filTrust.addManager(msg.sender);
         _filLiquid.deposit{value: msg.value}(msg.value);
+
+        // TODO: 确认初始质押的FIT转移的地址
         _filTrust.transfer(msg.sender, _filTrust.balanceOf(address(this)));
         _filTrust.removeManager(msg.sender);
         _filGovernance.addManager(address(_fitStake));

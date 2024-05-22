@@ -1,0 +1,18 @@
+{
+    "FILL": {
+        "institutionSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "institutionApprovalThreshold": 1,
+        "teamSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "teamApprovalThreshold": 1,
+        "foundationSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "foundationApprovalThreshold": 1,
+        "reserveSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "reserveApprovalThreshold": 1,
+        "communitySigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "communityApprovalThreshold": 1,
+        "feeReceiverSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "feeReceiverApprovalThreshold": 1,
+      
+        "initDepositValue": "1000000000000000000n"
+    }
+}

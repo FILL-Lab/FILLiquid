@@ -13,7 +13,7 @@ import "./DataFetcher.sol";
 
 contract Deployer2 {
     address _owner;
-
+    address _deployer1;
     Validation private _validation;
     Calculation private _calculation;
     FilecoinAPI private _filecoinAPI;
@@ -36,6 +36,7 @@ contract Deployer2 {
         address filGovernance
     ) {
         _owner = deloyer1;
+        _deployer1 = deloyer1;
 
         _validation = Validation(validation);
         _calculation = Calculation(calculation);
@@ -89,5 +90,19 @@ contract Deployer2 {
         _filTrust.transfer(msg.sender, filTrustBalance);
 
         _filGovernance.transfer(msg.sender, _filGovernance.balanceOf(address(this)));
+    }
+
+    function getAddrs() external view returns (address, address, address, address, address, address, address, address, address) {
+        return (
+            _deployer1,
+            address(_validation),
+            address(_calculation),
+            address(_filecoinAPI),
+            address(_filTrust),
+            address(_fitStake),
+            address(_governance),
+            address(_filGovernance),
+            address(_filLiquid)
+        );
     }
 }

@@ -1,6 +1,6 @@
 const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
 
-module.exports = buildModule("FILL", (m) => {
+module.exports = buildModule("FILLModule", (m) => {
     const ONE_FIL = 10n ** 18n;
     // Get the foundation address
     const institutionSigners = m.getParameter("institutionSigners");

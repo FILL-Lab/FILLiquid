@@ -139,4 +139,72 @@ contract DeployerFILL {
         _fitStake.setOwner(0x000000000000000000000000000000000000dEaD);
         _governance.setOwner(0x000000000000000000000000000000000000dEaD);
     }
+
+    function getDeployerAddrsOwners() external view returns (
+        address, address, address, address, address, address
+    ) {
+        return (
+            _deployerUtilsOwner,
+            _deployerMixOwner,
+            _deployerFIGOwner,
+            _deployerFIGMutilSignerOwner,
+            _deployerFeeMultiSignerOwner,
+            _owner
+        );
+    }
+
+    function getDeployerAddrs() external view returns (
+        address, address, address, address, address, address
+    ) {
+        return (
+            address(_deployerUtils),
+            address(_deployerMix),
+            address(_deployerFIG),
+            address(_deployerFIGMultiSigner),
+            address(_deployerFeeMultiSigner),
+            address(this)
+        );
+    }
+
+    function getMultiSignerAddrs() external view returns (
+        address, address, address, address, address, address
+    ) {
+        return (
+            address(_institutionSigner),
+            address(_teamSigner),
+            address(_foundationSigner),
+            address(_reserveSigner),
+            address(_communitySigner),
+            address(_feeReceiverSigner)
+        );
+    }
+
+    function getPotAddrs() external view returns (
+        address, address, address, address, address, address
+    ) {
+        return (
+            address(_institutionPot),
+            address(_teamPot),
+            address(_foundationPot),
+            address(_reservePot),
+            address(_communityPot),
+            address(_feeReceiverPot)
+        );
+    }
+
+    function getFILLAddrs() external view returns (
+        address, address, address, address, address, address, address, address, address
+    ) {
+        return (
+            address(_validation),
+            address(_calculation),
+            address(_filecoinAPI),
+            address(_filTrust),
+            address(_fitStake),
+            address(_governance),
+            address(_filLiquid),
+            address(_filGovernance),
+            address(_dataFetcher)
+        );
+    }
 }

@@ -11,6 +11,7 @@ import "./Governance.sol";
 import "./FILLiquid.sol";
 import "./FILPot.sol";
 import "./ERC20Pot.sol";
+import "./DataFetcher.sol";
 
 import "./DeployerUtils.sol";
 import "./DeployerMix.sol";
@@ -31,6 +32,7 @@ contract DeployerFILL {
     FILLiquid immutable private _filLiquid;
     FILGovernance immutable private _filGovernance;
 
+    DataFetcher immutable private _dataFetcher;
 
     DeployerUtils immutable private _deployerUtils;
     DeployerMix immutable private _deployerMix;
@@ -113,6 +115,8 @@ contract DeployerFILL {
             payable(_feeReceiverPot)
         );
         _filLiquid.setOwner(0x000000000000000000000000000000000000dEaD);
+
+        _dataFetcher = new DataFetcher(_filLiquid, _filTrust, _fitStake, _filGovernance, _governance, _filecoinAPI);
     }
 
     function configure_FIG() external {

@@ -62,7 +62,8 @@ function getIntegralDN(total_interest, total_supply, half) {
 
   fnn = Math.pow(2, nn)
   dn = total_supply / fnn
-  return BigInt(dn)
+  return dn
+  // return BigInt(dn)
 }
 
 
@@ -78,17 +79,28 @@ function getInterectAllocateFIG(total_interest, new_interest) {
 }
 
 
-function getStakeAllocateFIG(total_stake, new_stake) {
+function getInterestAllocateFIG(total_stake, interest) {
+  total_supply = 480000000
+  half = 12000000
+  dnn = getIntegralDN(total_stake + interest, total_supply, half)
+  dnn_1 = getIntegralDN(total_stake, total_supply, half)
+  fig = dnn_1 - dnn
+  return fig
+  // return Math.floor(fig)
+}
+
+function getStakeAllocateFIG(total_stake, new_stake, duration_second) {
   total_supply = 720000000
-  half = 5550000
+  half = 13160609
   dnn = getIntegralDN(total_stake + new_stake, total_supply, half)
   dnn_1 = getIntegralDN(total_stake, total_supply, half)
   fig = dnn_1 - dnn
-  return Math.floor(fig)
+  return fig
+  // return Math.floor(fig)
 }
 
-annualRate = getAnnualRate(liquidity, utilized, BASE_RATE)
-console.log("annualRate: ", annualRate)
+// annualRate = getAnnualRate(liquidity, utilized, BASE_RATE)
+// console.log("annualRate: ", annualRate)
 
 // principal = ONE_ETHER * 50000n + 101363557022570715200000n
 // annualRate = 82000n
@@ -115,9 +127,9 @@ console.log("borrowFee: ", borrowFee)
 
 
 
-// figStake = getStakeAllocateFIG(0n, 500000n * ONE_ETHER)
-// console.log("figStake: ", fig, "figStakeHuman", fig/1e18)
+figStake = getStakeAllocateFIG(0n, 10000n, 1)
+console.log("figStake: ", fig, "figStakeHuman", fig)
 
 
-r = ONE_ETHER * 500000n * (1051200n / 2n)
-console.log("r: ", r)
+// r = ONE_ETHER * 500000n * (1051200n / 2n)
+// console.log("r: ", r)

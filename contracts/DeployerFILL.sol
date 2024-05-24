@@ -133,7 +133,7 @@ contract DeployerFILL {
 
         _filLiquid.deposit{value: msg.value}(msg.value);
         // TODO: replace msg.sender with the actual FIT receiver
-        _filTrust.transfer(msg.sender, _filTrust.balanceOf(address(this)));
+        _filTrust.transfer(_owner, _filTrust.balanceOf(address(this)));
 
         _filTrust.setOwner(0x000000000000000000000000000000000000dEaD);
         _fitStake.setOwner(0x000000000000000000000000000000000000dEaD);

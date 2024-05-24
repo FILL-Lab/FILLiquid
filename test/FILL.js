@@ -31,19 +31,36 @@ describe("FILL test", function() {
         });
     }
 
-    async function getfilLiquid() {
+    async function getContracts() {
         const { deployerFILL } = await loadFixture(deployFILLModuleFixture);
-        console.log("FILLiquid address", await deployerFILL._filLiquid())
-        const filLiquid = await ethers.getContractAt("FILLiquid", await deployerFILL._filLiquid());
-        return { filLiquid }
+        const addrs = await deployerFILL.getFILLAddrs();
+        console.log("addrs: ", addrs);
+        const filTrust = await ethers.getContractAt("FILTrust", addrs[3]);
+        const filLiquid = await ethers.getContractAt("FILLiquid", addrs[6]);
+        return { filLiquid, filTrust }
     }
 
     it("Test getFitByDeposit after init", async function () {
+        const [signer] = await ethers.getSigners();
         const depositAmount = ONE_FIL * 100n;
-        const {filLiquid} = await getfilLiquid();
+        const {filLiquid, filTrust} = await getContracts();
+
         let fitAmount = await filLiquid.getFitByDeposit(depositAmount);
+
         expect(fitAmount).to.equal(depositAmount);
+        expect(depositAmount).to.equal(await filTrust.balanceOf(signer.address))
     });
 
+    it("Test getFitByDeposit after redeem", async function () {
+        const {fitTrust} = await getContracts();
+        const depositAmount = ONE_FIL * 100n;
+        const {filLiquid} = await getContracts();
+        await filLiquid.getFilByRedeem(depositAmount - 1n);
+        // console.log("redeem result: ", result);
+        const result = await filLiquid.redeem(depositAmount - ONE_FIL + 1, depositAmount - ONE_FIL + 1);
+        // console.log("redeem result: ", result);
+        // let fitAmount = await filLiquid.getFitByDeposit(depositAmount);
 
+        // expect(fitAmount).to.equal(depositAmount);
+    });
 });

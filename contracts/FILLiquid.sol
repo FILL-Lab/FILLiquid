@@ -1084,9 +1084,9 @@ contract FILLiquid is Context, FILLiquidInterface {
                 principleSum += borrowList[j].remainingOriginalAmount;
             }
         }
-        if (balanceSum == 0 || _badDebt[user] != 0) {
-            _badDebt[user] = principleSum;
-            _accumulatedBadDebt += principleSum;
+        if (balanceSum < principleSum || _badDebt[user] != 0) {
+            _badDebt[user] = principleSum - balanceSum;
+            _accumulatedBadDebt += principleSum - balanceSum;
         }
     }
 

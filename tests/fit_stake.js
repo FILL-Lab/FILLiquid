@@ -45,6 +45,9 @@ const SIGNER1_DEPOSIT_FIL = ONE_ETHER * 5000n;
 const SIGNER2_DEPOSIT_FIL = ONE_ETHER * 10000n;
 const SIGNER3_DEPOSIT_FIL = ONE_ETHER * 10000n;
 
+
+
+
 describe("FITStake", function () {
   async function beforeEach() {
     console.log("beforeEach")
@@ -85,7 +88,7 @@ describe("FITStake", function () {
     // console.log("deployed Governance")
 
     const FILLiquid = await hre.ethers.getContractFactory("FILLiquid")
-    const filLiquid = await FILLiquid.deploy(filTrust.address, validation.address, calculation.address, filcoinAPI.address, fitStake.address, governance.address, owner.address, {gasLimit: 30000000})
+    const filLiquid = await FILLiquid.deploy(filTrust.address, validation.address, calculation.address, filcoinAPI.address, fitStake.address, governance.address, owner.address, { gasLimit: 30000000 })
     // console.log("deployed FILLiquid")
 
     await governance.setContractAddrs(filLiquidMockSigner.address, fitStake.address, filGovernance.address)
@@ -101,10 +104,10 @@ describe("FITStake", function () {
     mineBlockNumberHex = `0x${(3000).toString(16)}`
     await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
 
-    await filLiquid.connect(owner).deposit(OWNER_DEPOSIT_FIL, {value: OWNER_DEPOSIT_FIL})
-    await filLiquid.connect(singer1).deposit(SIGNER1_DEPOSIT_FIL, {value: SIGNER1_DEPOSIT_FIL})
-    await filLiquid.connect(singer2).deposit(SIGNER2_DEPOSIT_FIL, {value: SIGNER2_DEPOSIT_FIL})
-    await filLiquid.connect(singer3).deposit(SIGNER3_DEPOSIT_FIL, {value: SIGNER3_DEPOSIT_FIL})
+    await filLiquid.connect(owner).deposit(OWNER_DEPOSIT_FIL, { value: OWNER_DEPOSIT_FIL })
+    await filLiquid.connect(singer1).deposit(SIGNER1_DEPOSIT_FIL, { value: SIGNER1_DEPOSIT_FIL })
+    await filLiquid.connect(singer2).deposit(SIGNER2_DEPOSIT_FIL, { value: SIGNER2_DEPOSIT_FIL })
+    await filLiquid.connect(singer3).deposit(SIGNER3_DEPOSIT_FIL, { value: SIGNER3_DEPOSIT_FIL })
 
     return { filLiquid, filTrust, validation, calculation, filcoinAPI, fitStake, governance, filGovernance, owner, singer1, singer2, singer3, filLiquidMockSigner }
   }
@@ -117,7 +120,7 @@ describe("FITStake", function () {
 
   describe("handleInterest", function () {
     it("onlyFiLLiquid", async function () {
-      const {fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
+      const { fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
       let promise = fitStake.handleInterest(singer1.address, parseEther("143.2"), parseEther("3.2"))
       await expect(promise).to.be.revertedWith("Only filLiquid allowed")
 
@@ -128,7 +131,7 @@ describe("FITStake", function () {
     })
 
     it("Normal tests", async function () {
-      const {fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
+      const { fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
 
       await fitStake.connect(filLiquidMockSigner).handleInterest(singer1.address, parseEther("143.2"), parseEther("3.2"))
 
@@ -136,39 +139,39 @@ describe("FITStake", function () {
   })
 
   describe("stakeFilTrust", function () {
-    
-    it("Amount too small", async function () {
-      const {fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
 
-      let promise1 = fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE-1n, 100, parseEther("3.2"))
+    it("Amount too small", async function () {
+      const { fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
+
+      let promise1 = fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE - 1n, 100, parseEther("3.2"))
       await expect(promise1).to.be.revertedWith("Amount too small")
     })
 
     it("Block height exceeds", async function () {
-      const {fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
+      const { fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
 
       console.log("block.number: ", (await ethers.provider.getBlock()).number)
 
-      let promise1 = fitStake.connect(singer1).stakeFilTrust(DEFAULT_MIN_STAKE, 1, DEFAULT_MIN_STAKE_PERIOD+1)
+      let promise1 = fitStake.connect(singer1).stakeFilTrust(DEFAULT_MIN_STAKE, 1, DEFAULT_MIN_STAKE_PERIOD + 1)
       await expect(promise1).to.be.revertedWith("Block height exceeds")
     })
 
     it("Invalid duration", async function () {
-      const {fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
+      const { fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
 
-      let promise1 = fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE, 10000, DEFAULT_MIN_STAKE_PERIOD-1)
+      let promise1 = fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE, 10000, DEFAULT_MIN_STAKE_PERIOD - 1)
       await expect(promise1).to.be.revertedWith("Invalid duration")
 
-      let promise2 = fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE, 10000, DEFAULT_MAX_STAKE_PERIOD+1)
+      let promise2 = fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE, 10000, DEFAULT_MAX_STAKE_PERIOD + 1)
       await expect(promise2).to.be.revertedWith("Invalid duration")
     })
 
     it("StakerStatus", async function () {
-      const {fitStake, governance, filGovernance, owner, singer1, singer2, singer3, filLiquidMockSigner } = await loadFixture(deployAllContracts)
+      const { fitStake, governance, filGovernance, owner, singer1, singer2, singer3, filLiquidMockSigner } = await loadFixture(deployAllContracts)
 
       // await fitStake.connect(owner).stakeFilTrust(DEFAULT_MIN_STAKE, 13332, 2880*30)
-      await fitStake.connect(singer2).stakeFilTrust(ONE_ETHER * 10000n, 10003230, 2880*30)
-      await fitStake.connect(singer3).stakeFilTrust(ONE_ETHER * 10000n, 10000434, 2880*30)
+      await fitStake.connect(singer2).stakeFilTrust(ONE_ETHER * 10000n, 10003230, 2880 * 30)
+      await fitStake.connect(singer3).stakeFilTrust(ONE_ETHER * 10000n, 10000434, 2880 * 30)
 
       let stakerStatus = await fitStake.getStakerStakes(singer2.address)
       // console.log("stakerStatus: ", stakerStatus)
@@ -180,10 +183,10 @@ describe("FITStake", function () {
 
     })
 
-    
+
 
     it("Normal tests", async function () {
-      const {fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
+      const { fitStake, governance, filGovernance, owner, singer1, filLiquidMockSigner } = await loadFixture(deployAllContracts)
 
       await fitStake.connect(filLiquidMockSigner).handleInterest(singer1.address, parseEther("143.2"), 2880 * 30)
 
@@ -192,26 +195,26 @@ describe("FITStake", function () {
 
   describe("withdrawFIG", function () {
     let fitStake, governance, filGovernance, owner, singer1, singer2, singer3, filLiquidMockSigner;
-  
+
     beforeEach(async function () {
-      [fitStake, governance, filGovernance, owner, singer1, singer2, singer3, filLiquidMockSigner ] = await loadFixture(deployAllContracts)
+      [fitStake, governance, filGovernance, owner, singer1, singer2, singer3, filLiquidMockSigner] = await loadFixture(deployAllContracts)
 
       console.log("fitStake--------: ", fitStake)
     });
-  
+
     // it("should transfer the FIG tokens to the staker's address when withdrawable", async function () {
     //   await fitStake.connect(staker).withdrawFIG(stakeId);
     //   const balance = await tokenFILGovernance.balanceOf(staker.address);
     //   expect(balance).to.equal(withdrawableFIG);
     // });
-  
+
     // it("should not transfer any FIG tokens when not withdrawable", async function () {
     //   await fitStake.mockSetWithdrawableFIG(stakeId, 0);
     //   await fitStake.connect(staker).withdrawFIG(stakeId);
     //   const balance = await tokenFILGovernance.balanceOf(staker.address);
     //   expect(balance).to.equal(0);
     // });
-  
+
     // it("should update releasedFIGSum and releasedFIGStake correctly", async function () {
     //   await fitStake.connect(staker).withdrawFIG(stakeId);
     //   const status = await fitStake.getStakerStatus(staker.address);
@@ -219,13 +222,13 @@ describe("FITStake", function () {
     //   const releasedFIGStake = await fitStake.releasedFIGStake();
     //   expect(releasedFIGStake).to.equal(withdrawableFIG);
     // });
-  
+
     // it("should emit WithdrawnFIG event correctly", async function () {
     //   await expect(fitStake.connect(staker).withdrawFIG(stakeId))
     //     .to.emit(fitStake, "WithdrawnFIG")
     //     .withArgs(staker.address, stakeId, withdrawableFIG);
     // });
-  
+
     it("should revert if the stake ID is invalid", async function () {
       await expect(fitStake.connect(staker).withdrawFIG(999)).to.be.revertedWith("Invalid stakeId");
     });

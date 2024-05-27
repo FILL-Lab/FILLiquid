@@ -1,7 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const withdrawFIG = require("./functions/withdrawFIG");
+// const withdrawFIG = require("./functions/withdrawFIG");
+const stakeFilTrust = require("./functions/stakeFilTrust");
 
 
 const ONE_ETHER = BigInt(1e18)
@@ -134,5 +135,7 @@ describe("FITStake", function () {
     // it("should transfer the FIG tokens to the staker's address when withdrawable", async function () {
     // });
 
-    withdrawFIG.tests()
+    // withdrawFIG.tests()
+    stakeFilTrust.tests()
+
 });

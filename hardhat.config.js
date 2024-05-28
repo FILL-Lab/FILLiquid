@@ -13,7 +13,7 @@ module.exports = {
       },
     },
   },
-  defaultNetwork: "calibration",
+  defaultNetwork: "localhost",
   networks: {
     wallaby: {
       chainId: 31415,

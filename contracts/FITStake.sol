@@ -439,9 +439,11 @@ contract FITStake is Context{
     function _getStakePos(address staker, uint stakeId) private view returns (uint p) {
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         for (; p < stakes.length; p++) {
-            if (stakes[p].id == stakeId) break;
+            if (stakes[p].id == stakeId) {
+                return p;
+            }
         }
-        require(p != stakes.length, "Invalid stakeId");
+        revert("stakeId Not Found");
     }
 
     function _mintedFromStake(address staker, uint stake, uint duration) private returns (uint minted) {

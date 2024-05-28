@@ -155,8 +155,8 @@ contract FITStake is Context{
     }
 
     function handleInterest(address minter, uint principal, uint interest) onlyFiLLiquid external returns (uint minted) {
-        _accumulatedInterest += interest;
         (minted, _accumulatedInterestMint) = getCurrentMintedFromInterest(interest);
+        _accumulatedInterest += interest;
         if (minted > 0) _tokenFILGovernance.mint(minter, minted);
         emit Interest(minter, principal, interest, minted);
     }
@@ -445,9 +445,9 @@ contract FITStake is Context{
     }
 
     function _mintedFromStake(address staker, uint stake, uint duration) private returns (uint minted) {
+        (minted, _accumulatedStakeMint) = getCurrentMintedFromStake(stake, duration);
         _accumulatedStake += stake;
         _accumulatedStakeDuration += stake * duration;
-        (minted, _accumulatedStakeMint) = getCurrentMintedFromStake(stake, duration);
         if (minted > 0) _tokenFILGovernance.mint(staker, minted);
     }
 

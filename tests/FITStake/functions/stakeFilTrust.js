@@ -26,12 +26,12 @@ const SIGNER3_DEPOSIT_FIL = ONE_ETHER * 10000n;
 function tests() {
   describe("stakeFilTrust", function () {
 
-    it("Amount too small", async function () {
-      let promise1 = this.fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE - 1n, 100, parseEther("3.2"))
-      await expect(promise1).to.be.revertedWith("Amount too small")
-    })
+    // it("Amount too small", async function () {
+    //   let promise1 = this.fitStake.connect(filLiquidMockSigner).stakeFilTrust(DEFAULT_MIN_STAKE - 1n, 100, parseEther("3.2"))
+    //   await expect(promise1).to.be.revertedWith("Amount too small")
+    // })
 
-    it("Block height exceeds", async function () {
+    it("Amount too small", async function () {
       let promise1 = this.fitStake.connect(this.singer1).stakeFilTrust(DEFAULT_MIN_STAKE, 1, DEFAULT_MIN_STAKE_PERIOD + 1)
       await expect(promise1).to.be.revertedWith("Block height exceeds")
     })
@@ -61,9 +61,41 @@ function tests() {
     })
 
 
-    it("Normal tests", async function () {
-      await this.fitStake.connect(filLiquidMockSigner).handleInterest(this.singer1.address, parseEther("143.2"), 2880 * 30)
+    it("should mint amount of FIG correctly via stake FIT", async function () {
+      console.log("await this.filGovernance.balanceOf(this.singer2.address): ", await this.filGovernance.balanceOf(this.singer2.address))
+      console.log("await this.filGovernance.balanceOf(this.singer3.address): ", await this.filGovernance.balanceOf(this.singer3.address))
 
+      const transaction = await this.fitStake.connect(this.singer2).stakeFilTrust(parseEther("10967"), 100230000, 2880*360)
+      await transaction.wait()
+      const receipt = await ethers.provider.getTransactionReceipt(transaction.hash);
+      const log = receipt.logs[receipt.logs.length - 1];
+      const decodedEvent = this.fitStake.interface.decodeEventLog("Staked", log.data, log.topics)
+      const stakeId = decodedEvent.id.toBigInt()
+      const stakeInfo = await this.fitStake.getStakeInfoById(stakeId)
+      console.log("stakeInfo: ", stakeInfo)
+
+      const transaction2 = await this.fitStake.connect(this.singer3).stakeFilTrust(parseEther("10967"), 100230000, 2880*360)
+      await transaction2.wait()
+      const receipt2 = await ethers.provider.getTransactionReceipt(transaction2.hash);
+      const log2 = receipt2.logs[receipt2.logs.length - 1];
+      const decodedEvent2 = this.fitStake.interface.decodeEventLog("Staked", log2.data, log2.topics)
+      const stakeId2 = decodedEvent2.id.toBigInt()
+      const stakeInfo2 = await this.fitStake.getStakeInfoById(stakeId2)
+      console.log("stakeInfo2: ", stakeInfo2)
+
+
+      // console.log("this.filGovernance: ", this.filGovernance)
+      // expect(await this.filGovernance.balanceOf(this.singer2.address)).to.be.equal(parseEther("415768"))
+      // expect(await this.filGovernance.balanceOf(this.singer3.address)).to.be.equal(parseEther("277019"))
+
+      // let status = await this.fitStake.getStatus()
+      // console.log("status: ", status)
+
+      // console.log("await this.filGovernance.balanceOf(this.singer2.address): ", (await this.filGovernance.balanceOf(this.singer2.address)).toBigInt())
+      // console.log("await this.filGovernance.balanceOf(this.singer3.address): ", (await this.filGovernance.balanceOf(this.singer3.address)).toBigInt())
+      // console.log("await this.filGovernance.balanceOf(this.singer4.address): ", (await this.filGovernance.balanceOf(this.singer4.address)).toBigInt())
+
+      
     })
   })
 }

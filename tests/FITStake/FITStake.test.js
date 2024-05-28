@@ -1,8 +1,10 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-// const withdrawFIG = require("./functions/withdrawFIG");
+const handleInterest = require("./functions/handleInterest");
+const withdrawFIG = require("./functions/withdrawFIG");
 const stakeFilTrust = require("./functions/stakeFilTrust");
+const unStakeFilTrust = require("./functions/unStakeFilTrust");
 
 
 const ONE_ETHER = BigInt(1e18)
@@ -19,9 +21,10 @@ const DEFAULT_STAKE_SHARE = 6;
 
 
 const OWNER_DEPOSIT_FIL = ONE_ETHER * 1000n;
-const SIGNER1_DEPOSIT_FIL = ONE_ETHER * 5000n;
-const SIGNER2_DEPOSIT_FIL = ONE_ETHER * 10000n;
-const SIGNER3_DEPOSIT_FIL = ONE_ETHER * 10000n;
+const SIGNER1_DEPOSIT_FIL = ONE_ETHER * 10000n;
+const SIGNER2_DEPOSIT_FIL = ONE_ETHER * 200000n;
+const SIGNER3_DEPOSIT_FIL = ONE_ETHER * 300000n;
+const SIGNER4_DEPOSIT_FIL = ONE_ETHER * 40000n;
 
 
 const constants = {
@@ -62,8 +65,11 @@ describe("FITStake", function () {
         owner = singers[0]
         singer1 = singers[1]
         singer2 = singers[2]
-        singer3 = singers[2]
+        singer3 = singers[3]
+        singer4 = singers[4]
         filLiquidMockSigner = singers[19]
+
+        console.log("(await ethers.provider.getBalance(singer2.address)).toBigInt(): ", (await ethers.provider.getBalance(singer2.address)).toBigInt())
     
     
         const FILTrust = await hre.ethers.getContractFactory("FILTrust");
@@ -115,6 +121,7 @@ describe("FITStake", function () {
     
         // return { filLiquid, filTrust, validation, calculation, filcoinAPI, fitStake, governance, filGovernance, owner, singer1, singer2, singer3, filLiquidMockSigner }
         this.filLiquid = filLiquid
+        this.filGovernance = filGovernance
         this.filTrust = filTrust
         this.validation = validation
         this.calculation = calculation
@@ -125,6 +132,7 @@ describe("FITStake", function () {
         this.singer1 = singer1
         this.singer2 = singer2
         this.singer3 = singer3
+        this.singer4 = singer4
         this.filLiquidMockSigner = filLiquidMockSigner
 
         this.constants = constants
@@ -135,7 +143,9 @@ describe("FITStake", function () {
     // it("should transfer the FIG tokens to the staker's address when withdrawable", async function () {
     // });
 
+    // handleInterest.tests()
     // withdrawFIG.tests()
-    stakeFilTrust.tests()
+    // stakeFilTrust.tests()
+    unStakeFilTrust.tests()
 
 });

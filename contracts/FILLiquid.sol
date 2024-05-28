@@ -1016,26 +1016,45 @@ contract FILLiquid is Context, FILLiquidInterface {
         for (uint i = borrows.length; i > 0; i--) {
             BorrowInfo storage info = borrows[i - 1];
             uint time = block.timestamp - info.datedTime;
+            // 根据 `借款的金额`、 `时间`、 `利息率` 计算应还的本金和利息
             uint principalAndInterest = paybackAmount(info.borrowAmount, time, info.interestRate);
+
+            // 当前还款总额
             uint payBackTotal;
+
+            // 当前【剩余的可用还款金额】大于【应还的本息和】
+            // 对于当前这笔Borrow 【还款总额】 为 【应还的本息和】
+            // 【剩余的可用还款金额】减去【应还的本息和】
             if (r[0] > principalAndInterest) {
                 payBackTotal = principalAndInterest;
                 r[0] -= principalAndInterest;
             } else {
+                // 当前【剩余的可用还款金额】小于【应还的本息和】
+                // 对于当前这笔Borrow 还款总额 为 【剩余可用的可用还款金额】
+                // 【剩余的可用还款金额】置0
                 payBackTotal = r[0];
                 r[0] = 0;
             }
 
+            // 【最大要归还的利息的金额】
             uint payBackInterest = principalAndInterest - info.remainingOriginalAmount;
+            // 【归还的本金的金额】
             uint paybackPrincipal;
+
+            // 如果【当前还款总额】小于【最大要归还的利息的金额】，本次要归还的利息为【当前还款总额】， 本次要归还的本金为0
+            // 否则 本次要归还的利息为【最大要归还的利息的金额】， 本次要归还的本金为【当前还款总额】减去【最大要归还的利息的金额】
             if (payBackTotal < payBackInterest) {
                 payBackInterest = payBackTotal;
                 paybackPrincipal = 0;
             } else {
                 paybackPrincipal = payBackTotal - payBackInterest;
             }
+            // 累加【归还的利息的金额】
+            // 累加【归还的本金的金额】
             r[2] += payBackInterest;
             r[1] += paybackPrincipal;
+
+            // 如果 【本息和】 大于 【当前还款总额】, 说明还有剩余的本息没有还清
             if (principalAndInterest > payBackTotal){
                 info.borrowAmount = principalAndInterest - payBackTotal;
                 info.datedTime = block.timestamp;

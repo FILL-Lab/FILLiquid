@@ -38,6 +38,8 @@ contract FILTrust is ERC20 {
     mapping(address => bool) private _manageAddresses;
     mapping(address => uint) public lastMintHeight;
 
+    uint constant MIN_LOCKING_PERIOD = 2880; // 1 day
+
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {
         _owner = _msgSender();
     }
@@ -95,7 +97,7 @@ contract FILTrust is ERC20 {
         _;
     }
 
-    function _beforeTokenTransfer(address from, address, uint) internal override view {
-        require(lastMintHeight[from] != block.number, "Just minted");
+    function _beforeTokenTransfer(address from, address to, uint) internal view {
+        require(_manageAddresses[to] || lastMintHeight[from] + MIN_LOCKING_PERIOD <= block.number, "Just minted");
     }
 }

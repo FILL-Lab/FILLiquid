@@ -13,8 +13,8 @@ contract ERC20Pot is Context {
         address indexed owner
     );
 
-    address _owner;
-    ERC20 _token;
+    address private _owner;
+    ERC20 private immutable _token;
     uint private immutable _initialAmount;
     uint private immutable _startHeight;
     uint private immutable _totallyReleasedHeight;

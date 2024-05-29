@@ -1,0 +1,1187 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "new_filLiquid",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "new_governance",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "new_tokenFILTrust",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "new_calculation",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "new_tokenFILGovernance",
+        "type": "address"
+      }
+    ],
+    "name": "ContractAddrsChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_n_interest",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_n_stake",
+        "type": "uint256"
+      }
+    ],
+    "name": "GovernanceFactorsChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "minter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "principal",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "interest",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "minted",
+        "type": "uint256"
+      }
+    ],
+    "name": "Interest",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "new_owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnerChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "new_rateBase",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "new_interest_share",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "new_stake_share",
+        "type": "uint256"
+      }
+    ],
+    "name": "SharesChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "new_minStakePeriod",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "new_maxStakePeriod",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "new_minStake",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "new_maxStakes",
+        "type": "uint256"
+      }
+    ],
+    "name": "StakeParamsChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "start",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "end",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "minted",
+        "type": "uint256"
+      }
+    ],
+    "name": "Staked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "start",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "end",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "realEnd",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "minted",
+        "type": "uint256"
+      }
+    ],
+    "name": "Unstaked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "WithdrawnFIG",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "stakeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "canWithDrawFIG",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "canWithdraw",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      }
+    ],
+    "name": "canWithdrawFIGAll",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "withdrawn",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "params",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "checkGovernanceFactors",
+    "outputs": [],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllFactors",
+    "outputs": [
+      {
+        "internalType": "uint256[9]",
+        "name": "result",
+        "type": "uint256[9]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getContractAddrs",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCurrentMintedFromInterest",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "stake",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "duration",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCurrentMintedFromStake",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "stakeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStakeInfoById",
+    "outputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "start",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "end",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "totalFIG",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "releasedFIG",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct FITStake.Stake",
+            "name": "stake",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "canWithdrawFIT",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "canWithdrawFIG",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct FITStake.StakeInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "stakeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStakeInfoByStakerAndId",
+    "outputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "start",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "end",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "totalFIG",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "releasedFIG",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct FITStake.Stake",
+            "name": "stake",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "canWithdrawFIT",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "canWithdrawFIG",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct FITStake.StakeInfo",
+        "name": "result",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "stakeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStakerById",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      }
+    ],
+    "name": "getStakerStakes",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "staker",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "stakeSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalFIGSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "releasedFIGSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "canWithdrawFITSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "canWithdrawFIGSum",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "components": [
+                  {
+                    "internalType": "uint256",
+                    "name": "id",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "amount",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "start",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "end",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "totalFIG",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "releasedFIG",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct FITStake.Stake",
+                "name": "stake",
+                "type": "tuple"
+              },
+              {
+                "internalType": "bool",
+                "name": "canWithdrawFIT",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "canWithdrawFIG",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct FITStake.StakeInfo[]",
+            "name": "stakeInfos",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct FITStake.StakerInfo",
+        "name": "result",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      }
+    ],
+    "name": "getStakerSum",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      }
+    ],
+    "name": "getStakerTerms",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "stakeSum",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalFIGSum",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "releasedFIGSum",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "canWithdrawFITSum",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "canWithdrawFIGSum",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getStakersCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "start",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "end",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStakersSubset",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "staker",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "stakeSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalFIGSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "releasedFIGSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "canWithdrawFITSum",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "canWithdrawFIGSum",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "components": [
+                  {
+                    "internalType": "uint256",
+                    "name": "id",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "amount",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "start",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "end",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "totalFIG",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "releasedFIG",
+                    "type": "uint256"
+                  }
+                ],
+                "internalType": "struct FITStake.Stake",
+                "name": "stake",
+                "type": "tuple"
+              },
+              {
+                "internalType": "bool",
+                "name": "canWithdrawFIT",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "canWithdrawFIG",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct FITStake.StakeInfo[]",
+            "name": "stakeInfos",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct FITStake.StakerInfo[]",
+        "name": "result",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getStatus",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "accumulatedInterest",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accumulatedStake",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accumulatedStakeDuration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accumulatedInterestMint",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accumulatedStakeMint",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accumulatedWithdrawn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nextStakeID",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "releasedFIGStake",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct FITStake.FITStakeInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "minter",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "principal",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "interest",
+        "type": "uint256"
+      }
+    ],
+    "name": "handleInterest",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "minted",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "staker",
+        "type": "address"
+      }
+    ],
+    "name": "onceStaked",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "new_filLiquid",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "new_governance",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "new_tokenFILTrust",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "new_calculation",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "new_tokenFILGovernance",
+        "type": "address"
+      }
+    ],
+    "name": "setContractAddrs",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "params",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "setGovernanceFactors",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "new_owner",
+        "type": "address"
+      }
+    ],
+    "name": "setOwner",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "new_rateBase",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "new_interest_share",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "new_stake_share",
+        "type": "uint256"
+      }
+    ],
+    "name": "setShares",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "new_minStakePeriod",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "new_maxStakePeriod",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "new_minStake",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "new_maxStakes",
+        "type": "uint256"
+      }
+    ],
+    "name": "setStakeParams",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxStart",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "duration",
+        "type": "uint256"
+      }
+    ],
+    "name": "stakeFilTrust",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "minted",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "stakeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "unStakeFilTrust",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "minted",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "withdrawnFIG",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "stakeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawFIG",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "withdrawn",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawFIGAll",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "withdrawn",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

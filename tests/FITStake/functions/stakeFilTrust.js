@@ -24,6 +24,10 @@ const SIGNER3_DEPOSIT_FIL = ONE_ETHER * 10000n;
 
 
 function tests() {
+
+  beforeEach(async function () {
+  })
+
   describe("stakeFilTrust", function () {
 
     // it("Amount too small", async function () {
@@ -62,27 +66,28 @@ function tests() {
 
 
     it("should mint amount of FIG correctly via stake FIT", async function () {
-      console.log("await this.filGovernance.balanceOf(this.singer2.address): ", await this.filGovernance.balanceOf(this.singer2.address))
-      console.log("await this.filGovernance.balanceOf(this.singer3.address): ", await this.filGovernance.balanceOf(this.singer3.address))
+      // console.log("await this.filGovernance.balanceOf(this.singer2.address): ", await this.filGovernance.balanceOf(this.singer2.address))
+      // console.log("await this.filGovernance.balanceOf(this.singer3.address): ", await this.filGovernance.balanceOf(this.singer3.address))
 
-      const transaction = await this.fitStake.connect(this.singer2).stakeFilTrust(parseEther("10967"), 100230000, 2880*360)
+      const transaction = await this.fitStake.connect(this.singer2).stakeFilTrust(parseEther("10967"), 100230000, 2880 * 360)
       await transaction.wait()
       const receipt = await ethers.provider.getTransactionReceipt(transaction.hash);
       const log = receipt.logs[receipt.logs.length - 1];
       const decodedEvent = this.fitStake.interface.decodeEventLog("Staked", log.data, log.topics)
       const stakeId = decodedEvent.id.toBigInt()
       const stakeInfo = await this.fitStake.getStakeInfoById(stakeId)
-      console.log("stakeInfo: ", stakeInfo)
+      expect(stakeInfo.stake.totalFIG).to.be.equal(415761617412233941570777n)
+      // console.log("stakeInfo: ", stakeInfo)
+      // console.log("stakeInfo.stake.totalFIG: ", stakeInfo.stake.totalFIG)
 
-      const transaction2 = await this.fitStake.connect(this.singer3).stakeFilTrust(parseEther("10967"), 100230000, 2880*360)
+      const transaction2 = await this.fitStake.connect(this.singer3).stakeFilTrust(parseEther("10967"), 100230000, 2880 * 360)
       await transaction2.wait()
       const receipt2 = await ethers.provider.getTransactionReceipt(transaction2.hash);
       const log2 = receipt2.logs[receipt2.logs.length - 1];
       const decodedEvent2 = this.fitStake.interface.decodeEventLog("Staked", log2.data, log2.topics)
       const stakeId2 = decodedEvent2.id.toBigInt()
       const stakeInfo2 = await this.fitStake.getStakeInfoById(stakeId2)
-      console.log("stakeInfo2: ", stakeInfo2)
-
+      expect(stakeInfo2.stake.totalFIG).to.be.equal(415521537242077354079600n)
 
       // console.log("this.filGovernance: ", this.filGovernance)
       // expect(await this.filGovernance.balanceOf(this.singer2.address)).to.be.equal(parseEther("415768"))
@@ -95,7 +100,27 @@ function tests() {
       // console.log("await this.filGovernance.balanceOf(this.singer3.address): ", (await this.filGovernance.balanceOf(this.singer3.address)).toBigInt())
       // console.log("await this.filGovernance.balanceOf(this.singer4.address): ", (await this.filGovernance.balanceOf(this.singer4.address)).toBigInt())
 
-      
+
+    })
+
+
+
+    it("should mint amount of FIG correctly via stake huge FIT", async function () {
+      const depositSigner = this.singer4
+      // const depositAmount = parseEther("10000000000")
+      const depositAmount = parseEther("13160609")
+
+      await filLiquid.connect(depositSigner).deposit(depositAmount, { value: depositAmount })
+
+      const transaction = await this.fitStake.connect(depositSigner).stakeFilTrust(depositAmount, 100230000, 2880 * 360)
+      await transaction.wait()
+      const receipt = await ethers.provider.getTransactionReceipt(transaction.hash);
+      const log = receipt.logs[receipt.logs.length - 1];
+      const decodedEvent = this.fitStake.interface.decodeEventLog("Staked", log.data, log.topics)
+      const stakeId = decodedEvent.id.toBigInt()
+      const stakeInfo = await this.fitStake.getStakeInfoById(stakeId)
+      expect(stakeInfo.stake.totalFIG).to.be.equal(360000000000000000000000000n)
+
     })
   })
 }

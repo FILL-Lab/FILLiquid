@@ -21,7 +21,7 @@ module.exports = {
       allowUnlimitedContractSize: true,
       accounts: {
         mnemonic: "test test test test test test test test test test test junk",
-        accountsBalance: (1000000000000000000n * 10000000n).toString(),
+        accountsBalance: (1000000000000000000n * 1000n * 1000n * 1000n * 1000n).toString(),
       }
       // accounts: [
       //   {

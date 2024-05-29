@@ -69,6 +69,15 @@ function tests() {
       const fitBalanceAfter = await this.filTrust.balanceOf(this.nonStakeSigner.address)
       expect(fitBalanceBefore).to.be.equal(fitBalanceAfter)
     })
+
+    it("should get amount of FIT correctly when deposit not withdrawn at maturity", async function () {
+      this.mineBlocks(STAKE_PERIOD*3)
+      await this.fitStake.connect(this.stakeSigner).unStakeFilTrust(this.stakeId)
+      await this.fitStake.connect(this.stakeSigner).withdrawFIG(this.stakeId)
+      const balanceFIG = await this.filGovernance.balanceOf(this.stakeSigner.address)
+      console.log("balanceFIG.toBigInt(): ", balanceFIG.toBigInt())
+      // expect(balanceFIG.toBigInt()).to.be.equal(fitBalanceAfter.toBigInt()-STAKE_AMOUNT)
+    })
   })
 }
 

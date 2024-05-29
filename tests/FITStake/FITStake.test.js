@@ -5,6 +5,8 @@ const handleInterest = require("./functions/handleInterest");
 const withdrawFIG = require("./functions/withdrawFIG");
 const stakeFilTrust = require("./functions/stakeFilTrust");
 const unStakeFilTrust = require("./functions/unStakeFilTrust");
+const withdrawFIGAll = require("./functions/withdrawFIGAll");
+
 
 
 const ONE_ETHER = BigInt(1e18)
@@ -24,7 +26,6 @@ const OWNER_DEPOSIT_FIL = ONE_ETHER * 1000n;
 const SIGNER1_DEPOSIT_FIL = ONE_ETHER * 10000n;
 const SIGNER2_DEPOSIT_FIL = ONE_ETHER * 200000n;
 const SIGNER3_DEPOSIT_FIL = ONE_ETHER * 300000n;
-const SIGNER4_DEPOSIT_FIL = ONE_ETHER * 40000n;
 
 
 const constants = {
@@ -69,8 +70,7 @@ describe("FITStake", function () {
         singer4 = singers[4]
         filLiquidMockSigner = singers[19]
 
-        console.log("(await ethers.provider.getBalance(singer2.address)).toBigInt(): ", (await ethers.provider.getBalance(singer2.address)).toBigInt())
-    
+        // console.log("(await ethers.provider.getBalance(singer2.address)).toBigInt(): ", (await ethers.provider.getBalance(singer2.address)).toBigInt())
     
         const FILTrust = await hre.ethers.getContractFactory("FILTrust");
         filTrust = await FILTrust.deploy("FILTrust", "FIT")
@@ -146,6 +146,6 @@ describe("FITStake", function () {
     // handleInterest.tests()
     // withdrawFIG.tests()
     // stakeFilTrust.tests()
-    unStakeFilTrust.tests()
-
+    // unStakeFilTrust.tests()
+    withdrawFIGAll.tests()
 });

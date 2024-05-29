@@ -29,26 +29,23 @@ function tests() {
     //   console.log("await this.filGovernance.balanceOf(this.singer2.address): ", await this.filGovernance.balanceOf(this.singer2.address))
     //   console.log("await this.filGovernance.balanceOf(this.singer3.address): ", await this.filGovernance.balanceOf(this.singer3.address))
 
-      let status = await this.fitStake.getStatus()
-      console.log("status: ", status)
+      // let status = await this.fitStake.getStatus()
+      // console.log("status: ", status)
 
       await this.fitStake.connect(filLiquidMockSigner).handleInterest(this.singer2.address, parseEther("12323210000"), parseEther("10000").toBigInt())
-      // await this.fitStake.connect(filLiquidMockSigner).handleInterest(this.singer3.address, parseEther("13443340000"), parseEther("10000").toBigInt())
-      // await this.fitStake.connect(filLiquidMockSigner).handleInterest(this.singer4.address, parseEther("13443340000"), parseEther("10000").toBigInt())
+      await this.fitStake.connect(filLiquidMockSigner).handleInterest(this.singer3.address, parseEther("13443340000"), parseEther("10000").toBigInt())
+      await this.fitStake.connect(filLiquidMockSigner).handleInterest(this.singer4.address, parseEther("13443340000"), this.constants.ONE_ETHER * 1000n * 1000n * 1000n)
 
-      let status2 = await this.fitStake.getStatus()
-      console.log("status2: ", status2)
+      // let status2 = await this.fitStake.getStatus()
+      // console.log("status2: ", status2)
 
-    //   // console.log("this.filGovernance: ", this.filGovernance)
-    //   // expect(await this.filGovernance.balanceOf(this.singer2.address)).to.be.equal(parseEther("277179"))
-    //   // expect(await this.filGovernance.balanceOf(this.singer3.address)).to.be.equal(parseEther("277019"))
+      expect((await this.filGovernance.balanceOf(this.singer2.address)).toBigInt()).to.be.equal(277178812137240082090243n)
+      expect((await this.filGovernance.balanceOf(this.singer3.address)).toBigInt()).to.be.equal(277018753608286352598908n)
+      expect((await this.filGovernance.balanceOf(this.singer4.address)).toBigInt()).to.be.equal(479445802434254473565310810n)
 
-    //   let status = await this.fitStake.getStatus()
-    //   console.log("status: ", status)
-
-      console.log("await this.filGovernance.balanceOf(this.singer2.address): ", (await this.filGovernance.balanceOf(this.singer2.address)).toBigInt())
-      console.log("await this.filGovernance.balanceOf(this.singer3.address): ", (await this.filGovernance.balanceOf(this.singer3.address)).toBigInt())
-      console.log("await this.filGovernance.balanceOf(this.singer4.address): ", (await this.filGovernance.balanceOf(this.singer4.address)).toBigInt())
+      // console.log("await this.filGovernance.balanceOf(this.singer2.address): ", (await this.filGovernance.balanceOf(this.singer2.address)).toBigInt())
+      // console.log("await this.filGovernance.balanceOf(this.singer3.address): ", (await this.filGovernance.balanceOf(this.singer3.address)).toBigInt())
+      // console.log("await this.filGovernance.balanceOf(this.singer4.address): ", (await this.filGovernance.balanceOf(this.singer4.address)).toBigInt())
     })
   })
 }

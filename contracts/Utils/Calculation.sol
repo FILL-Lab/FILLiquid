@@ -22,7 +22,7 @@ contract Calculation {
     }
 
     function getExchangeRate(uint u, uint u_m, uint rateBase, uint fitLiquidity, uint filLiquidity) external pure returns (uint) {
-        require(u <= rateBase, "Utilization rate cannot be bigger than 1");
+        require(u < rateBase, "Utilization rate cannot be bigger than 1");
         if (fitLiquidity == 0) return rateBase;
         uint filFit = rateBase;
         if (fitLiquidity != filLiquidity) {

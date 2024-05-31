@@ -650,13 +650,14 @@ contract FILLiquid is Context, FILLiquidInterface {
     function utilizationRate() public view returns (uint) {
         uint utilized = utilizedLiquidity();
         uint total = totalFILLiquidity();
+        if (utilized == 0 || total == 0) return 0;
         if (utilized == total) return _rateBase;
         else return utilized * _rateBase / total;
     }
 
     function utilizationRateBorrow(uint amount) public view returns (uint) {
         uint total = totalFILLiquidity();
-        require(total != 0, "Total liquidity is 0");
+        if (total == 0) return 0;
         uint utilized = utilizedLiquidity() + amount;
         require(utilized < total, "Utilized liquidity exceeds total");
         return utilized * _rateBase / total;

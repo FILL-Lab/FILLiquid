@@ -1,16 +1,16 @@
 {
     "FILL": {
-        "institutionSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "institutionSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
         "institutionApprovalThreshold": 1,
-        "teamSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "teamSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
         "teamApprovalThreshold": 1,
-        "foundationSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "foundationSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
         "foundationApprovalThreshold": 1,
-        "reserveSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "reserveSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
         "reserveApprovalThreshold": 1,
-        "communitySigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "communitySigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
         "communityApprovalThreshold": 1,
-        "feeReceiverSigners": ["0xBf37F9f7C9Df3a71633E240f9C23581E0a958E2B"],
+        "feeReceiverSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
         "feeReceiverApprovalThreshold": 1
     }
 }

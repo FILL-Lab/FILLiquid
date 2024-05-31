@@ -2,8 +2,9 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract MultiSignFactory is Context {
+contract MultiSignFactory is Context, ReentrancyGuard {
     enum approveResult {
         passed,
         pending
@@ -19,6 +20,7 @@ contract MultiSignFactory is Context {
         address proposer;
         address target;
         bytes code;
+        uint value;
         bool executed;
         string text;
     }
@@ -32,6 +34,7 @@ contract MultiSignFactory is Context {
         address indexed target,
         uint indexed proposalId,
         bytes code,
+        uint value,
         string text
     );
     event Approved (
@@ -55,19 +58,20 @@ contract MultiSignFactory is Context {
 
     Proposal[] private _proposals;
     address[] private _signers;
-    mapping(address => bool) _isSigner;
+    mapping(address => bool) public isSigner;
     uint private _approvalThreshold;
 
     constructor(address[] memory signers, uint approvalThreshold) isValidSignerCount(approvalThreshold, signers.length) {
         _signers = signers;
         for (uint i = 0; i < _signers.length; i++) {
-            _isSigner[_signers[i]] = true;
+            require(!isSigner[_signers[i]], "Duplicate signers");
+            isSigner[_signers[i]] = true;
         }
         _approvalThreshold = approvalThreshold;
     }
 
-    function propose(address target, bytes calldata code, string calldata text) senderIsSigner external payable {
-        _propose(target, code, text);
+    function propose(address target, bytes calldata code, uint value, string calldata text) senderIsSigner external payable {
+        _propose(target, code, value, text);
     }
 
     function approve(uint proposalId) senderIsSigner validProposalId(proposalId) external payable {
@@ -89,11 +93,12 @@ contract MultiSignFactory is Context {
 
     function renewSigners(address[] calldata signers, uint approvalThreshold) isValidSignerCount(approvalThreshold, signers.length) senderIsSelf external {
         for (uint i = 0; i < _signers.length; i++) {
-            delete _isSigner[_signers[i]];
+            delete isSigner[_signers[i]];
         }
         _signers = signers;
-        for (uint i = 0; i < _signers.length; i++) {
-            _isSigner[_signers[i]] = true;
+        for (uint i = 0; i < signers.length; i++) {
+            require(!isSigner[signers[i]], "Duplicate signers");
+            isSigner[signers[i]] = true;
         }
         _approvalThreshold = approvalThreshold;
         emit SignersModified(signers, approvalThreshold);
@@ -106,10 +111,6 @@ contract MultiSignFactory is Context {
     function decode(bytes calldata input) external pure returns (bytes memory selector, address[] memory signers, uint approvalThreshold) {
         selector = input[:4];
         (signers, approvalThreshold) = abi.decode(input[4:], (address[], uint));
-    }
-
-    function isSigner(address addr) external view returns (bool) {
-        return _isSigner[addr];
     }
 
     function getProposalInfo(uint proposalId) validProposalId(proposalId) external view returns (ProposalInfo memory) {
@@ -159,7 +160,7 @@ contract MultiSignFactory is Context {
     }
 
     modifier senderIsSigner() {
-        require(_isSigner[_msgSender()], "Sender is not signer");
+        require(isSigner[_msgSender()], "Sender is not signer");
         _;
     }
 
@@ -170,7 +171,7 @@ contract MultiSignFactory is Context {
 
     modifier isValidSignerCount(uint approvalThreshold, uint signerCount) {
         require(signerCount > 0, "At least one signer required");
-        require(approvalThreshold > 0 && approvalThreshold <= signerCount, "Invalid approvalThreshold");
+        require(approvalThreshold >= (signerCount + 1) / 2 && approvalThreshold <= signerCount, "Invalid approvalThreshold");
         _;
     }
 
@@ -179,7 +180,7 @@ contract MultiSignFactory is Context {
         _;
     }
 
-    function _propose(address target, bytes calldata code, string calldata text) private {
+    function _propose(address target, bytes calldata code, uint value, string calldata text) private {
         _proposals.push();
         uint proposalId = _proposals.length - 1;
         address proposer = _msgSender();
@@ -187,12 +188,14 @@ contract MultiSignFactory is Context {
         info.proposer = proposer;
         info.target = target;
         info.code = code;
+        info.value = value;
         info.text = text;
         emit Proposed(
             proposer,
             target,
             proposalId,
             code,
+            value,
             text
         );
         (bool votable,) = _canApprove(proposer, proposalId);
@@ -231,15 +234,16 @@ contract MultiSignFactory is Context {
         emit Unapproved(approver, proposalId);
     }
 
-    function _execute(uint proposalId) private {
+    function _execute(uint proposalId) nonReentrant private {
+        require(msg.value == _proposals[proposalId].info.value, "Value not match");
         ProposalInfo storage info = _proposals[proposalId].info;
-        info.executed = true;
         (bool success, bytes memory output) = info.target.call{value: msg.value}(info.code);
+        if (success) info.executed = true;
         emit Executed(_msgSender(), proposalId, success, output);
     }
 
     function _canApprove(address approver, uint proposalId) private view returns (bool, string memory) {
-        if (!_isSigner[approver]) return (false, "Sender is not signer");
+        if (!isSigner[approver]) return (false, "Sender is not signer");
         if (haveApproved(approver,proposalId)) return (false, "Already approved");
         else return (true, "");
     }

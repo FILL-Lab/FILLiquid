@@ -53,6 +53,7 @@ contract Validation is Context {
             ownerAddr,
             minerID,
             sender,
+            address(this),
             _nonces[ownerAddr],
             _getChainId()
         ));

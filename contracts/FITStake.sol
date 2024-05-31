@@ -74,6 +74,31 @@ contract FITStake is Context{
         uint indexed id,
         uint amount
     );
+    event SharesChanged(
+        uint new_rateBase,
+        uint new_interest_share,
+        uint new_stake_share
+    );
+    event StakeParamsChanged(
+        uint new_minStakePeriod,
+        uint new_maxStakePeriod,
+        uint new_minStake,
+        uint new_maxStakes
+    );
+    event ContractAddrsChanged(
+        address new_filLiquid,
+        address new_governance,
+        address new_tokenFILTrust,
+        address new_calculation,
+        address new_tokenFILGovernance
+    );
+    event OwnerChanged(
+        address new_owner
+    );
+    event GovernanceFactorsChanged(
+        uint _n_interest,
+        uint _n_stake
+    );
 
     mapping(address => StakerStatus) private _stakerStakes;
     mapping(address => bool) private _onceStaked;
@@ -106,7 +131,7 @@ contract FITStake is Context{
     Calculation private _calculation;
     FILGovernance private _tokenFILGovernance;
 
-    uint constant DEFAULT_N_INTEREST = 1e25;
+    uint constant DEFAULT_N_INTEREST = 1.2e25;
     uint constant DEFAULT_N_STAKE = 1.36449194112e31;
     uint constant DEFAULT_MIN_STAKE_PERIOD = 86400; //30 days
     uint constant DEFAULT_MAX_STAKE_PERIOD = 1036800; //360 days
@@ -148,8 +173,10 @@ contract FITStake is Context{
         require(stakes.length < _maxStakes, "Exceed max stakes");
         status.stakeSum += amount;
         _idStaker[_nextStakeID] = staker;
-        if (!_onceStaked[staker]) _stakers.push(staker);
-        _onceStaked[staker] = true;
+        if (!_onceStaked[staker]) {
+            _stakers.push(staker);
+            _onceStaked[staker] = true;
+        }
         minted = _mintedFromStake(address(this), amount, duration);
         status.totalFIGSum += minted;
         stakes.push(
@@ -170,25 +197,25 @@ contract FITStake is Context{
         Stake[] storage stakes = _stakerStakes[staker].stakes;
         uint pos = _getStakePos(staker, stakeId);
         Stake storage stake = stakes[pos];
-        uint realEnd = block.number;
-        require(realEnd >= stake.end, "Stake not withdrawable");
-        if (realEnd > stake.end) minted = _mintedFromStake(staker, stake.amount, realEnd - stake.end);
+        require(block.number >= stake.end, "Stake not withdrawable");
+        uint stakeAmount = stake.amount;
         uint unwithdrawnFIG = stake.totalFIG - stake.releasedFIG;
+        StakerStatus storage status = _stakerStakes[staker];
+        status.stakeSum -= stakeAmount;
+        status.totalFIGSum -= stake.totalFIG;
+        status.releasedFIGSum -= stake.releasedFIG;
+        _accumulatedWithdrawn += stakeAmount;
+        if (block.number > stake.end) minted = _mintedFromStake(staker, stakeAmount, block.number - stake.end);
+        emit Unstaked(staker, stakeId, stakeAmount, stake.start, stake.end, block.number, minted);
+        stakes[pos] = stakes[stakes.length - 1];
+        stakes.pop();
         if (unwithdrawnFIG > 0) {
             _releasedFIGStake += unwithdrawnFIG;
             withdrawnFIG = unwithdrawnFIG;
+            emit WithdrawnFIG(staker, stakeId, unwithdrawnFIG);
             _tokenFILGovernance.transfer(staker, unwithdrawnFIG);
-            emit WithdrawnFIG(staker, stake.id, unwithdrawnFIG);
         }
-        StakerStatus storage status = _stakerStakes[staker];
-        status.stakeSum -= stake.amount;
-        status.totalFIGSum -= stake.totalFIG;
-        status.releasedFIGSum -= stake.releasedFIG;
-        _tokenFILTrust.transfer(staker, stake.amount);
-        _accumulatedWithdrawn += stake.amount;
-        emit Unstaked(staker, stake.id, stake.amount, stake.start, stake.end, realEnd, minted);
-        stakes[pos] = stakes[stakes.length - 1];
-        stakes.pop();
+        _tokenFILTrust.transfer(staker, stakeAmount);
     }
 
     function withdrawFIG(uint stakeId) external returns (uint withdrawn) {
@@ -201,8 +228,8 @@ contract FITStake is Context{
             status.releasedFIGSum += withdrawn;
             stake.releasedFIG += withdrawn;
             _releasedFIGStake += withdrawn;
-            _tokenFILGovernance.transfer(staker, withdrawn);
             emit WithdrawnFIG(staker, stake.id, withdrawn);
+            _tokenFILGovernance.transfer(staker, withdrawn);
         }
     }
 
@@ -336,22 +363,26 @@ contract FITStake is Context{
     }
 
     function setShares(uint new_rateBase, uint new_interest_share, uint new_stake_share) onlyOwner external {
-        require(new_rateBase == new_interest_share + new_stake_share, "factor invalid");
+        require(new_rateBase != 0 && new_interest_share != 0 && new_stake_share != 0 && new_rateBase == new_interest_share + new_stake_share, "factor invalid");
         _rateBase = new_rateBase;
         _interest_share = new_interest_share;
         _stake_share = new_stake_share;
+        emit SharesChanged(new_rateBase, new_interest_share, new_stake_share);
     }
 
     function setStakeParams(uint new_minStakePeriod, uint new_maxStakePeriod, uint new_minStake, uint new_maxStakes) onlyOwner external {
+        require(new_minStakePeriod <= new_maxStakePeriod && new_minStake <= new_maxStakes, "Invalid params");
         _minStakePeriod = new_minStakePeriod;
         _maxStakePeriod = new_maxStakePeriod;
         _minStake = new_minStake;
         _maxStakes = new_maxStakes;
+        emit StakeParamsChanged(new_minStakePeriod, new_maxStakePeriod, new_minStake, new_maxStakes);
     }
 
     function setGovernanceFactors(uint[] calldata params) onlyGovernance external {
         _n_interest = params[0];
         _n_stake = params[1];
+        emit GovernanceFactorsChanged(params[0], params[1]);
     }
 
     function checkGovernanceFactors(uint[] calldata params) external pure {
@@ -378,6 +409,7 @@ contract FITStake is Context{
         _tokenFILTrust = FILTrust(new_tokenFILTrust);
         _calculation = Calculation(new_calculation);
         _tokenFILGovernance = FILGovernance(new_tokenFILGovernance);
+        emit ContractAddrsChanged (new_filLiquid, new_governance, new_tokenFILTrust, new_calculation, new_tokenFILGovernance);
     }
 
     function owner() external view returns (address) {
@@ -386,6 +418,7 @@ contract FITStake is Context{
 
     function setOwner(address new_owner) onlyOwner external {
         _owner = new_owner;
+        emit OwnerChanged(new_owner);
     }
 
     modifier onlyOwner() {

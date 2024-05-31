@@ -94,16 +94,16 @@ interface FILLiquidInterface {
     }
 
     /// @dev deposit FIL to the contract, mint FILTrust
-    /// @param exchangeRate approximated exchange rate at the point of request
+    /// @param expectAmountFILTrust approximated FILTrust expect to receive at the point of request
     /// @return amount actual FILTrust minted
-    function deposit(uint exchangeRate) external payable returns (uint amount);
+    function deposit(uint expectAmountFILTrust) external payable returns (uint amount);
 
     /// @dev redeem FILTrust to the contract, withdraw FIL
     /// @param amountFILTrust the amount of FILTrust user would like to redeem
-    /// @param exchangeRate approximated exchange rate at the point of request
+    /// @param expectAmountFIL approximated FIL expect to receive at the point of request
     /// @return amount actual FIL withdrawal
     /// @return fee fee deducted
-    function redeem(uint amountFILTrust, uint exchangeRate) external returns (uint amount, uint fee);
+    function redeem(uint amountFILTrust, uint expectAmountFIL) external returns (uint amount, uint fee);
 
     /// @dev borrow FIL from the contract
     /// @param minerId miner id
@@ -181,7 +181,7 @@ interface FILLiquidInterface {
     /// @dev return FIL/FILTrust exchange rate: total amount of FIL liquidity divided by total amount of FILTrust outstanding
     function exchangeRate() external view returns (uint);
 
-    /// @dev return borrowing interest rate: a mathematical function of utilizatonRate
+    /// @dev return borrowing interest rate: a mathematical function of utilizationRate
     function interestRate() external view returns (uint);
 
     /// @dev return liquidity pool utilization: the amount of FIL being utilized divided by the total liquidity provided (the amount of FIL deposited and the interest repaid)
@@ -230,7 +230,8 @@ interface FILLiquidInterface {
         uint principal,
         uint interest,
         uint reward,
-        uint fee
+        uint fee,
+        uint mintedFIG
     );
 
     /// @dev Emitted when Borrow with `id` is updated
@@ -244,6 +245,10 @@ interface FILLiquidInterface {
     /// @dev Emitted when Borrow with `id` is droped
     event BorrowDropped(
         uint indexed id
+    );
+
+    event OwnerChanged(
+        address indexed account
     );
 }
 
@@ -399,10 +404,10 @@ contract FILLiquid is Context, FILLiquidInterface {
         _accumulatedRedeemFee += fees[1];
         address sender = _msgSender();
         _tokenFILTrust.burn(sender, amountFILTrust);
-        _foundation.transfer(fees[1]);
-        if (fees[0] > 0) payable(sender).transfer(fees[0]);
 
         emit Redeem(sender, amountFILTrust, fees[0], fees[1]);
+        _foundation.transfer(fees[1]);
+        if (fees[0] > 0) payable(sender).transfer(fees[0]);
         return (fees[0], fees[1]);
     }
 
@@ -447,7 +452,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         _accumulatedBorrowFee += fees[1];
         _accumulatedBorrows++;
         if (borrows.length == 1) _minerWithBorrows++;
-        _foundation.transfer(fees[1]);
 
         if(fees[0] > 0) {
             (bool success, ) = address(_filecoinAPI).delegatecall(
@@ -457,6 +461,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         }
 
         emit Borrow(borrowId, _msgSender(), minerId, fees[0], fees[1], realInterestRate, block.timestamp);
+        _foundation.transfer(fees[1]);
         return (fees[0], fees[1]);
     }
 
@@ -470,7 +475,6 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint[2] memory sentBack_withdrawn;
         if (r[0] > amount) {
             sentBack_withdrawn[0] = r[0] - amount;
-            payable(_msgSender()).transfer(sentBack_withdrawn[0]);
         } else if (r[0] < amount) {
             sentBack_withdrawn[1] = amount - r[0];
             withdrawBalance(minerIdPayer, sentBack_withdrawn[1]);
@@ -478,15 +482,18 @@ contract FILLiquid is Context, FILLiquidInterface {
         uint mintedFIG = _fitStake.handleInterest(_msgSender(), r[1], r[2]);
 
         emit Payback(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], sentBack_withdrawn[1], mintedFIG);
+        if (r[0] > amount) {
+            payable(_msgSender()).transfer(sentBack_withdrawn[0]);
+        }
         return (r[1], r[2], sentBack_withdrawn[1], mintedFIG);
     }
 
     function directPayback(uint64 minerId) external isBorrower(minerId) payable returns (uint, uint, uint) {
         uint[3] memory r = paybackProcess(minerId, msg.value);
         address sender = _msgSender();
-        if (r[0] > 0) payable(sender).transfer(r[0]);
         uint mintedFIG = _fitStake.handleInterest(_minerBindsMap[minerId], r[1], r[2]);
         emit Payback(sender, minerId, minerId, r[1], r[2], 0, mintedFIG);
+        if (r[0] > 0) payable(sender).transfer(r[0]);
         return (r[1], r[2], mintedFIG);
     }
 
@@ -510,12 +517,12 @@ contract FILLiquid is Context, FILLiquidInterface {
         if (totalWithdraw > 0) {
             withdrawBalance(minerIdPayer, totalWithdraw);
         }
-        _foundation.transfer(fees[1]);
-        address sender = _msgSender();
-        if (bonus > 0) payable(sender).transfer(bonus);
         result = [r[1], r[2], bonus, fees[1]];
 
-        emit Liquidate(sender, minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1]);
+        uint mintedFig = _fitStake.handleInterest(_minerBindsMap[minerIdPayer], r[1], r[2]);
+        emit Liquidate(_msgSender(), minerIdPayee, minerIdPayer, r[1], r[2], bonus, fees[1], mintedFig);
+        _foundation.transfer(fees[1]);
+        if (bonus > 0) payable(_msgSender()).transfer(bonus);
     }
 
     function collateralizingMiner(uint64 minerId, bytes calldata signature) external noCollateralizing(minerId){
@@ -804,6 +811,7 @@ contract FILLiquid is Context, FILLiquidInterface {
 
     function setOwner(address new_owner) onlyOwner external {
         _owner = new_owner;
+        emit OwnerChanged(new_owner);
     }
 
     function getAdministrativeFactors() external view returns (address, address, address, address, address, address, address payable) {
@@ -816,24 +824,6 @@ contract FILLiquid is Context, FILLiquidInterface {
             _governance,
             _foundation)
         ;
-    }
-
-    function setAdministrativeFactors(
-        address new_tokenFILTrust,
-        address new_validation,
-        address new_calculation,
-        address new_filecoinAPI,
-        address new_fitStake,
-        address new_governance,
-        address payable new_foundation
-    ) onlyOwner external {
-        _tokenFILTrust= FILTrust(new_tokenFILTrust);
-        _validation = Validation(new_validation);
-        _calculation = Calculation(new_calculation);
-        _filecoinAPI = FilecoinAPI(new_filecoinAPI);
-        _fitStake = FITStake(new_fitStake);
-        _governance = new_governance;
-        _foundation = new_foundation;
     }
 
     function getComprehensiveFactors() external view returns (uint, uint, uint, uint, uint, uint, uint, uint, uint, int64) {
@@ -1076,9 +1066,11 @@ contract FILLiquid is Context, FILLiquidInterface {
                 principleSum += borrowList[j].remainingOriginalAmount;
             }
         }
-        if (balanceSum == 0 || _badDebt[user] != 0) {
-            _badDebt[user] = principleSum;
-            _accumulatedBadDebt += principleSum;
+	if (balanceSum < principleSum) {
+            _badDebt[user] = principleSum - balanceSum;
+            _accumulatedBadDebt += principleSum - balanceSum;
+        } else {
+            _badDebt[user] = 0;
         }
     }
 

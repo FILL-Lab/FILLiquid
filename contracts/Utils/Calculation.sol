@@ -56,8 +56,8 @@ contract Calculation {
     }
 
     // The white paper outlines two types of redemption mechanisms for maintaining pool liquidity liveness:
-    //   - Proportional Redemption when utilizationRate is less than or equal to u_m / rateBase
-    //   - Discounted Redemption when utilizationRate is greater than u_m / rateBase
+    //   - Proportional Redemption when utilizationRate is less than u_m / rateBase
+    //   - Discounted Redemption when utilizationRate is equal to or greater than u_m / rateBase
     function getFilByRedeem(uint amountFit, uint u_m, uint rateBase, uint fitTotalSupply, uint filLiquidity, uint utilizedLiquidity) external pure returns (uint) {
         require(utilizedLiquidity < filLiquidity, "Utilization rate must be smaller than 1");
         require(amountFit < fitTotalSupply, "Invalid FIT amount");

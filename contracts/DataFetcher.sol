@@ -30,12 +30,20 @@ contract DataFetcher {
         uint maxExistingBorrows;
         uint minBorrowAmount;
         uint minDepositAmount;
-        uint n;
     }
 
     struct FITStakeGovernanceFactors {
         uint n_interest;
         uint n_stake;
+    }
+
+    struct VotingResult {
+        uint amountTotal;
+        uint amountYes;
+        uint amountNo;
+        uint amountNoWithVeto;
+        uint amountAbstain;
+        Governance.voteResult result;
     }
 
     FILLiquid private _filliquid;
@@ -110,7 +118,6 @@ contract DataFetcher {
             fiLLiquidGovernanceFactors.r_0,
             fiLLiquidGovernanceFactors.r_1,
             fiLLiquidGovernanceFactors.r_m,
-            fiLLiquidGovernanceFactors.n
         ) = _filliquid.getBorrowPayBackFactors();
         (
             ,,,
@@ -230,6 +237,29 @@ contract DataFetcher {
 
     function getPendingBeneficiary(uint64 minerId) external view returns (address, bool) {
         return _filecoinAPI.getPendingBeneficiaryId(minerId);
+    }
+
+    function getProposals(uint[] calldata ids) external view returns(Governance.ProposalInfo[] memory proposals, VotingResult[] memory votings) {
+        proposals = new Governance.ProposalInfo[](ids.length);
+        votings = new VotingResult[](ids.length);
+        for (uint i = 0; i < ids.length; i++) {
+            uint id = ids[i];
+            proposals[i] = _governance.getProposalInfo(id);
+            Governance.VotingStatusInfo memory info = _governance.getVoteStatus(id);
+            votings[i] = VotingResult(info.amountTotal, info.amounts[0], info.amounts[1], info.amounts[2], info.amounts[3], _governance.getVoteResult(id));
+        }
+    }
+
+    function getBondsOnProposal(uint proposalId, address account) external view returns(uint votedAmount, uint bondedAmount, uint totalBondedAmount) {
+        votedAmount = _governance.votedForProposal(account, proposalId).amountTotal;
+        bondedAmount = _governance.bondedAmount(account);
+        totalBondedAmount = _governance.getStatus().totalBondedAmount;
+    }
+
+    function getFigAmounts(address account) external returns(uint figBalance, uint bondedAmount, uint unbondableAmount) {
+        figBalance = _filGovernance.balanceOf(account);
+        bondedAmount = _governance.bondedAmount(account);
+        (unbondableAmount,,) = _governance.canUnbond(account);
     }
 
     function getAddresses() external view returns (address[6] memory) {

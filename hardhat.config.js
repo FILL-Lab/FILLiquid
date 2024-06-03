@@ -1,6 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 const { vars } = require("hardhat/config");
 const CALIBRATION_PRIVATE_KEY = vars.get("CALIBRATION_PRIVATE_KEY");
+const MAINNET_PRIVATE_KEY = vars.get("MAINNET_PRIVATE_KEY");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -25,6 +26,11 @@ module.exports = {
       url: "https://api.calibration.node.glif.io/rpc/v1",
       accounts: [CALIBRATION_PRIVATE_KEY],
     },
+    mainnet: {
+      chainId: 314,
+      url: "https://api.node.glif.io/rpc/v1",
+      accounts: [MAINNET_PRIVATE_KEY],
+    }
   },
   paths: {
     sources: "./contracts",

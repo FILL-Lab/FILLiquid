@@ -1,0 +1,16 @@
+{
+    "FILL": {
+        "institutionSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
+        "institutionApprovalThreshold": 1,
+        "teamSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
+        "teamApprovalThreshold": 1,
+        "foundationSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
+        "foundationApprovalThreshold": 1,
+        "reserveSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
+        "reserveApprovalThreshold": 1,
+        "communitySigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
+        "communityApprovalThreshold": 1,
+        "feeReceiverSigners": ["0xcc16Ae9d551C236447eabfeBc4F8302407E2D1DF"],
+        "feeReceiverApprovalThreshold": 1
+    }
+}

@@ -6,7 +6,7 @@ typechain
 typechain-types
 deployments
 .prettierrc.json
-
+test
 
 # Hardhat files
 cache

@@ -49,12 +49,13 @@ contract DeployerFIG {
         _foundation = new ERC20Pot(address(foundationSigner), _filGovernance, figBalance * FOUNDATION_SHARE / RATEBASE, current, current + FOUNDATION_LOCKING_PERIOD);
         _reserve = new ERC20Pot(address(reserveSigner), _filGovernance, figBalance * RESERVE_SHARE / RATEBASE, current, current + RESERVE_LOCKING_PERIOD);
         _community = new ERC20Pot(address(communitySigner), _filGovernance, figBalance * COMMUNITY_SHARE / RATEBASE, current, current + COMMUNITY_LOCKING_PERIOD);
-
-        _filGovernance.transfer(address(_institution), figBalance * INSTITUTION_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_team), figBalance * TEAM_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_foundation), figBalance * FOUNDATION_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_reserve), figBalance * RESERVE_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_community), figBalance * COMMUNITY_SHARE / RATEBASE);
+        _filGovernance.setOwner(tx.origin);
+        _filGovernance.transfer(tx.origin, figBalance);
+        // _filGovernance.transfer(address(_institution), figBalance * INSTITUTION_SHARE / RATEBASE);
+        // _filGovernance.transfer(address(_team), figBalance * TEAM_SHARE / RATEBASE);
+        // _filGovernance.transfer(address(_foundation), figBalance * FOUNDATION_SHARE / RATEBASE);
+        // _filGovernance.transfer(address(_reserve), figBalance * RESERVE_SHARE / RATEBASE);
+        // _filGovernance.transfer(address(_community), figBalance * COMMUNITY_SHARE / RATEBASE);
     }
 
     function setting(DeployerFILL deployerFILL) external {

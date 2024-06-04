@@ -148,7 +148,7 @@ contract Governance is Context {
     uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 10;    // 0.001% (10/1000000)
     uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 1e22;  // 10000FIG 
     uint constant DEFAULT_VOTE_THRESHOLD = 1e19;
-    uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days
+    uint constant DEFAULT_VOTING_PERIOD = 2880 * 2; // 2 days
     uint constant DEFAULT_EXECUTION_PERIOD = 20160; // 7 days
     uint constant DEFAULT_GRID = 2880; // 1 days
     uint constant DEFAULT_MAX_ACTIVE_PROPOSAL = 1000;

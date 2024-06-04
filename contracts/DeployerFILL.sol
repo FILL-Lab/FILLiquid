@@ -125,7 +125,14 @@ contract DeployerFILL {
         require(!_configured_FIG);
         _filGovernance.addManager(address(_fitStake));
         _filGovernance.addManager(address(_governance));
-        _filGovernance.setOwner(0x000000000000000000000000000000000000dEaD);
+
+        // ****TESTNET*****
+        _filGovernance.setOwner(tx.origin);
+        // ****TESTNET*****
+
+        // ****MAINNET****
+        // _filGovernance.setOwner(0x000000000000000000000000000000000000dEaD);
+        // ****MAINNET****
         _configured_FIG = true;
     }
 

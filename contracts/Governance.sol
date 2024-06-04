@@ -502,6 +502,29 @@ contract Governance is Context {
         }
     }
 
+    // function voteResult2(uint proposalId) external view returns (voteResult result) {
+    //     Proposal storage proposal = _proposals[proposalId];
+    //     VotingStatusInfo storage info = proposal.status.info;
+    //     uint amountTotal = info.amountTotal;
+    //     uint amountYes = info.amounts[uint(voteCategory.yes)];
+    //     uint amountNo = info.amounts[uint(voteCategory.no)];
+    //     uint amountNoWithVeto = info.amounts[uint(voteCategory.noWithVeto)];
+    //     if (amountNoWithVeto > 0 && amountNoWithVeto * _rateBase >= amountTotal * _maxNoWithVeto) {
+    //         result = voteResult.rejectedWithVeto;
+    //     } else if ((amountNo + amountNoWithVeto) * _rateBase >= amountTotal * _maxNo) {
+    //         result = voteResult.rejected;
+    //     } else if (amountYes * _rateBase >= amountTotal * _minYes) {
+    //         uint s = proposal.info.deadline;
+    //         while (!totalBondedAmounts[s].initialized) {
+    //             s -= DEFAULT_GRID;
+    //         }
+    //         if (amountTotal * _rateBase >= totalBondedAmounts[s].amount * _quorum) result = voteResult.approved;
+    //         else result = voteResult.rejected;
+    //     } else {
+    //         result = voteResult.rejected;
+    //     }
+    // }
+
     function _liquidateResult(uint amount) private view returns (uint liquidate, uint remain) {
         liquidate = amount * _liquidate;
         if (liquidate % _rateBase == 0) liquidate /= _rateBase;

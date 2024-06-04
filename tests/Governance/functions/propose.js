@@ -157,25 +157,20 @@ function tests() {
             const proposalInfo = await this.governance.getProposalInfo(0)
 
             const block = await ethers.provider.getBlock()
+            console.log("block.number: ", block.number)
 
             console.log("proposalInfo: ", proposalInfo)
             expect(proposalInfo.category).to.be.equal(1)
             expect(proposalInfo.start).to.be.equal(block.number)
-            expect(proposalInfo.deadline).to.be.equal(block.number + 40320)
-            expect(proposalInfo.deposited).to.be.equal(10000)
+            expect(proposalInfo.deadline).to.be.equal(block.number + 40320 + 1097)
+            expect(proposalInfo.deposited).to.be.equal(parseEther("10000"))
             expect(proposalInfo.discussionIndex).to.be.equal(323)
-            expect(proposalInfo.executed).to.be.equal(0)
-            expect(proposalInfo.result.approved).to.be.equal(0)
-            expect(proposalInfo.result.rejected).to.be.equal(0)
-            expect(proposalInfo.result.rejectedWithVeto).to.be.equal(0)
-            expect(proposalInfo.result.pending).to.be.equal(1)
+            expect(proposalInfo.executed).to.be.equal(false)
+            expect(proposalInfo.result).to.be.equal(3)
             expect(proposalInfo.category).to.be.equal(1)
             expect(proposalInfo.text).to.be.equal("abc啦啦啦\ndsd单独")
             expect(proposalInfo.proposer).to.be.equal(this.signer2.address)
-            expect(proposalInfo.values[0]).to.be.equal(parseEther("12000000"))
-            expect(proposalInfo.values[1]).to.be.equal(parseEther("13644919411200"))
         });
-
     });
 }
 

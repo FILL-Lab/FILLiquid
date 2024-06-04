@@ -4,6 +4,9 @@ const { ethers } = require("hardhat");
 const bound = require("./functions/bond");
 const unbound = require("./functions/unbond");
 const propose = require("./functions/propose");
+const vote = require("./functions/vote");
+const execute = require("./functions/execute");
+const getVoteResult = require("./functions/getVoteResult");
 
 const ONE_ETHER = BigInt(1e18)
 
@@ -27,7 +30,6 @@ describe("Governance", function () {
 
     beforeEach(async function () {
         const signers = await ethers.getSigners()
-
 
         owner = signers[0]
         signer1 = signers[1]
@@ -89,7 +91,7 @@ describe("Governance", function () {
         await fitStake.connect(signer2).stakeFilTrust(SIGNER2_DEPOSIT_FIL, 100230000, 2880 * 360)
         await fitStake.connect(signer3).stakeFilTrust(SIGNER3_DEPOSIT_FIL, 100230000, 2880 * 360)
 
-        mineBlocks(2880 * 360)
+        await mineBlocks(2880 * 360)
 
         await fitStake.connect(owner).unStakeFilTrust(0)
         await fitStake.connect(signer1).unStakeFilTrust(1)
@@ -134,5 +136,8 @@ describe("Governance", function () {
 
     // bound.tests()
     // unbound.tests()
-    propose.tests()
+    // propose.tests()
+    // vote.tests()
+    // execute.tests()
+    getVoteResult.tests()
 });

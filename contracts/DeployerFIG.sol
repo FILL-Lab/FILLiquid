@@ -51,7 +51,6 @@ contract DeployerFIG {
         _community = new ERC20Pot(address(communitySigner), _filGovernance, figBalance * COMMUNITY_SHARE / RATEBASE, current, current + COMMUNITY_LOCKING_PERIOD);
         
         // ****Testnet **** //
-        _filGovernance.setOwner(tx.origin);
         uint figBalance40 = figBalance * 400 / 1000;
         uint figBalance60 = figBalance * 600 / 1000;
         _filGovernance.transfer(tx.origin, figBalance40);

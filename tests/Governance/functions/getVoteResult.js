@@ -46,10 +46,11 @@ function tests() {
         it("should get yes 2", async function () {
             await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*5n)
             await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*6n)
-            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 1, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 1, this.bondedAmount2.toBigInt()/10n*3n)
             await this.mineBlocks(2880*16)
 
             const voteResult = await this.governance.getVoteResult(this.proposalId)
+            console.log("voteResult: ", voteResult)
             expect(voteResult).to.be.equal(0)
         });
 
@@ -57,7 +58,7 @@ function tests() {
         it("should get yes 3", async function () {
             await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*5n)
             await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*6n)
-            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 2, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 2, this.bondedAmount2.toBigInt()/10n*3n)
             await this.mineBlocks(2880*16)
 
             const voteResult = await this.governance.getVoteResult(this.proposalId)
@@ -74,16 +75,75 @@ function tests() {
             expect(voteResult).to.be.equal(0)
         });
 
+        it("should get yes 4", async function () {
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*5n)
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 1, this.bondedAmount.toBigInt()/10n*5n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*6n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 3, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.mineBlocks(2880*16)
 
+            const voteResult = await this.governance.getVoteResult(this.proposalId)
+            expect(voteResult).to.be.equal(0)
+        });
 
-        // it("should get yes", async function () {
-        //     await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*5n)
-        //     await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*4n)
-        //     await this.mineBlocks(2880*16)
+        it("should get no", async function () {
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*5n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 1, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.mineBlocks(2880*16)
 
-        //     const voteResult = await this.governance.getVoteResult(this.proposalId)
-        //     expect(voteResult).to.be.equal(0)
-        // });
+            const voteResult = await this.governance.getVoteResult(this.proposalId)
+            expect(voteResult).to.be.equal(1)
+        });
+
+        it("should get no 2", async function () {
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*5n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*1n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 3, this.bondedAmount2.toBigInt()/10n*5n)
+            await this.mineBlocks(2880*16)
+
+            const voteResult = await this.governance.getVoteResult(this.proposalId)
+            expect(voteResult).to.be.equal(1)
+        });
+
+        it("should get no with not enough vote", async function () {
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*3n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.mineBlocks(2880*16)
+
+            const voteResult = await this.governance.getVoteResult(this.proposalId)
+            expect(voteResult).to.be.equal(1)
+        });
+
+        it("should get noWithVeto", async function () {
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 0, this.bondedAmount.toBigInt()/10n*5n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 2, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.mineBlocks(2880*16)
+
+            const voteResult = await this.governance.getVoteResult(this.proposalId)
+            expect(voteResult).to.be.equal(2)
+        });
+
+        it("should get noWithVeto 2", async function () {
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 2, this.bondedAmount.toBigInt()/10n*5n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 0, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 2, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.mineBlocks(2880*16)
+
+            const voteResult = await this.governance.getVoteResult(this.proposalId)
+            expect(voteResult).to.be.equal(2)
+        });
+
+        it("should get noWithVeto 3", async function () {
+            await this.governance.connect(this.bondSigner).vote(this.proposalId, 2, this.bondedAmount.toBigInt()/10n*5n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 1, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.governance.connect(this.bondSigner2).vote(this.proposalId, 2, this.bondedAmount2.toBigInt()/10n*4n)
+            await this.mineBlocks(2880*16)
+
+            const voteResult = await this.governance.getVoteResult(this.proposalId)
+            expect(voteResult).to.be.equal(2)
+        });
     });
 }
 

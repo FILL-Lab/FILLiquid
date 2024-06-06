@@ -23,7 +23,7 @@ function tests() {
             console.log("ownerBoundAmount: ", ownerBoundAmount)
 
             console.log("this.governance.propose: ", this.governance.propose)
-            const transaction = await this.governance.propose(0, 323n, "abc啦啦啦\ndsd单独", [500000n, 10000n, 100000n, 600000n, 500000n, 5n, 750000n, 850000n, 10n, 43200n, 900000n, 70000n, 5n, parseEther("10"), parseEther("1")])
+            await this.governance.propose(0, 323n, "abc啦啦啦\ndsd单独", [500000n, 10000n, 100000n, 600000n, 500000n, 5n, 750000n, 850000n, 10n, 43200n, 900000n, 70000n, 5n, parseEther("10"), parseEther("1")])
             // console.log("transaction: ", transaction)
 
             const signer4BoundAmount = await this.governance.bondedAmount(this.signer4.address)
@@ -132,27 +132,6 @@ function tests() {
         // });
 
         it("should store proposal info correctly", async function () {
-
-            // struct ProposalInfo {
-            //     proposalCategory category;
-            //     uint start;
-            //     uint deadline;
-            //     uint deposited;
-            //     uint discussionIndex;
-            //     bool executed;
-            //     voteResult result;
-            //     string text;
-            //     address proposer;
-            //     uint[] values;
-            // }
-
-            // enum voteResult {
-            //     approved,
-            //     rejected,
-            //     rejectedWithVeto,
-            //     pending
-            // }
-
             await this.governance.connect(this.signer2).propose(1, 323n, "abc啦啦啦\ndsd单独", [parseEther("12000000"), parseEther("13644919411200")])
             const proposalInfo = await this.governance.getProposalInfo(0)
 

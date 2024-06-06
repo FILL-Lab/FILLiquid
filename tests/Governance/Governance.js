@@ -134,10 +134,10 @@ describe("Governance", function () {
         this.ONE_ETHER = BigInt(1e18)
     });
 
-    // bound.tests()
+    bound.tests()
     // unbound.tests()
     // propose.tests()
     // vote.tests()
     // execute.tests()
-    getVoteResult.tests()
+    // getVoteResult.tests()
 });

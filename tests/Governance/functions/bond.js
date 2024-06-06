@@ -26,10 +26,11 @@ function tests() {
         });
 
         it("should deposit correctly amount of FIG when bond a large amount", async function () {
-            const boundAmount = parseEther("412345678")
-            const balanceFigBefore = await this.filGovernance.balanceOf(this.figSigner.address)
+            const boundAmount = parseEther("7540092")
+            const balanceFigBefore = await this.filGovernance.connect(this.figSigner).balanceOf(this.figSigner.address)
+            console.log("balanceFigBefore: ", balanceFigBefore)
             await this.governance.connect(this.figSigner).bond(boundAmount)
-            const balanceFigAfter = await this.filGovernance.balanceOf(this.figSigner.address)
+            const balanceFigAfter = await this.filGovernance.connect(this.figSigner).balanceOf(this.figSigner.address)
             expect(await this.governance.bondedAmount(this.figSigner.address)).to.be.equal(boundAmount)
             expect(await this.governance.bondedAmount(this.noFigSigner.address)).to.be.equal(parseEther("0"))
             expect(balanceFigBefore.toBigInt() - balanceFigAfter.toBigInt()).to.be.equal(boundAmount.toBigInt())
@@ -37,10 +38,10 @@ function tests() {
 
         it("should revert insufficient FIG", async function () {
             const balanceFig = await this.filGovernance.balanceOf(this.figSigner.address)
-            const bondAmount = balanceFig.toBigInt() + 1
-            await this.governance.connect(this.figSigner).bond(bondAmount)
+            const bondAmount = balanceFig.toBigInt() + 1n
+            const promise = this.governance.connect(this.figSigner).bond(bondAmount)
+            await expect(promise).to.be.revertedWith("ERC20: transfer amount exceeds balance")
         });
-
     });
 }
 

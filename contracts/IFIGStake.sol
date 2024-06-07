@@ -7,6 +7,12 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "./FILGovernance.sol";
 
 interface IFIGStake {
+
+    event EventStake(uint index);
+    event EventUnstake(uint index);
+    event EventWithdrawn(uint bonusIndex, uint stakeIndex);
+    event EventBouns(index);
+
     // 质押
     struct Stake {
         address staker;
@@ -45,7 +51,4 @@ interface IFIGStake {
 
     // 根据index和质押index获取单个分红金额
     function getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) external returns (uint);
-
-    // 根据index获得分红池信息
-    function getBonus(uint bonusIndex) returns (Bonus memory);
 }

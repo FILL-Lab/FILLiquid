@@ -14,7 +14,7 @@ async function mineBlocks(blockNumber) {
   }
 
 
-describe("Governance", function () {
+describe("FIGStake", function () {
     // let filLiquid, filTrust, validation, calculation, filcoinAPI, fitStake, governance, filGovernance, owner, signer1, signer2, signer3
 
     beforeEach(async function () {
@@ -25,18 +25,20 @@ describe("Governance", function () {
         this.DEFAULT_MIN_STAKE = this.ONE_ETHER;
         this.DEFAULT_MAX_STAKES_PER_STAKER = 100;
         this.RATE_BASE = 1000000;
-        this.STAKE_PERIOD_0 = 0;
-        this.STAKE_RATE_0 = 1;
-        this.STAKE_PERIOD_1 = 86400; //30 days
-        this.STAKE_RATE_1 = 2;
-        this.STAKE_PERIOD_2 = 259200; //90 days
-        this.STAKE_RATE_2 = 3;
-        this.STAKE_PERIOD_3 = 518400; //180 days
-        this.STAKE_RATE_3 = 4;
-        this.STAKE_PERIOD_4 = 777600; //270 days
-        this.STAKE_RATE_4 = 5;
-        this.STAKE_PERIOD_5 = 1036800; //360 days
-        this.STAKE_RATE_5 = 6;
+        // this.STAKE_PERIOD_0 = 0;
+        // this.STAKE_RATE_0 = 1;
+        // this.STAKE_PERIOD_1 = 86400; //30 days
+        // this.STAKE_RATE_1 = 2;
+        // this.STAKE_PERIOD_2 = 259200; //90 days
+        // this.STAKE_RATE_2 = 3;
+        // this.STAKE_PERIOD_3 = 518400; //180 days
+        // this.STAKE_RATE_3 = 4;
+        // this.STAKE_PERIOD_4 = 777600; //270 days
+        // this.STAKE_RATE_4 = 5;
+        // this.STAKE_PERIOD_5 = 1036800; //360 days
+        // this.STAKE_RATE_5 = 6;
+
+        this.periods = [[5, 86400*7], [10, 86400*30], [15, 86400*90], [25, 86400*180], [45, 86400*365]]
 
         this.owner = signers[0]
         this.signer1 = signers[1]
@@ -46,7 +48,8 @@ describe("Governance", function () {
         this.signer11 = signers[11]
         this.signer12 = signers[12]
         this.figManager = signers[19]
-        this.fitStakeFoundation = signers[19]
+        this.figStakeFoundation = signers[19]
+
 
         this.signer1FIGAmount = this.ONE_ETHER * 1000000000000n
         this.signer2FIGAmount = this.ONE_ETHER * 2000000000000n
@@ -59,8 +62,11 @@ describe("Governance", function () {
         const filGovernance = await FILGovernance.deploy("FILGovernance", "FIG")
         await filGovernance.addManager(this.figManager.address)
 
+        // console.log("filGovernance.address, this.fitStakeFoundation.address: ", filGovernance.address, this.fitStakeFoundation.address)
+
         const FIGStake = await hre.ethers.getContractFactory("FIGStake");
-        const figStake = await FIGStake.deploy(filGovernance.address, this.fitStakeFoundation.address)
+        const figStake = await FIGStake.deploy(filGovernance.target, this.figStakeFoundation.address, this.periods)
+        await figStake.connect(this.figStakeFoundation).setPeriods(this.periods);
 
         filGovernance.connect(this.figManager).mint(this.signer1.address, this.signer1FIGAmount)
         filGovernance.connect(this.figManager).mint(this.signer2.address, this.signer2FIGAmount)

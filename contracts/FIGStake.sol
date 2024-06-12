@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import "hardhat/console.sol";
 
 
 import "./FILGovernance.sol";
@@ -36,6 +37,8 @@ contract FIGStake is Ownable {
     Bonus[] public _bonuses;
     Period[] public _periods;
 
+    Period[] public _nextPeriods;
+
     uint public _accumulatedStakeAmountWeight;
     uint public _accumulatedStakeAmountWeightTimestamp;
 
@@ -44,7 +47,7 @@ contract FIGStake is Ownable {
 
     uint public _initAccumulatedTimestamp;
 
-    uint public _accumulatedTotalPower;
+    uint public _lastBonusAccumulatedTotalPower = 0;
 
     mapping(uint => mapping(uint => bool)) public _stakeBonuswithdrawn;
     mapping(address => uint[]) public _userStakes;
@@ -57,21 +60,36 @@ contract FIGStake is Ownable {
     // }
 
     receive() onlyOwner external payable {
-        uint totalPower = _accumulatedStakeAmountWeight * block.timestamp - _accumulatedUnstakeAmountWeightTimestamp - (_accumulatedUnstakeAmountWeight * block.timestamp - _accumulatedUnstakeAmountWeightTimestamp) - _accumulatedTotalPower;
+        _periods = _nextPeriods;
 
-        _accumulatedTotalPower += totalPower;
+        console.log("_accumulatedStakeAmountWeight: ", _accumulatedStakeAmountWeight);
+        console.log("block.timestamp: ", block.timestamp);
+        console.log("_accumulatedStakeAmountWeightTimestamp: ", _accumulatedStakeAmountWeightTimestamp);
+        console.log("_accumulatedUnstakeAmountWeight: ", _accumulatedUnstakeAmountWeight);
+        console.log("_accumulatedUnstakeAmountWeightTimestamp: ", _accumulatedUnstakeAmountWeightTimestamp);
+        console.log("_lastBonusAccumulatedTotalPower: ", _lastBonusAccumulatedTotalPower);
+
+        uint totalPower = _accumulatedStakeAmountWeight * block.timestamp - _accumulatedStakeAmountWeightTimestamp - (_accumulatedUnstakeAmountWeight * block.timestamp - _accumulatedUnstakeAmountWeightTimestamp) - _lastBonusAccumulatedTotalPower;
+
+        // uint totalPower = _accumulatedStakeAmountWeight * block.timestamp + _accumulatedUnstakeAmountWeightTimestamp - (_accumulatedUnstakeAmountWeight * block.timestamp) - _lastBonusAccumulatedTotalPower;
+
+        _lastBonusAccumulatedTotalPower += totalPower;
         _bonuses.push(Bonus(msg.value, block.timestamp, totalPower));
     }
 
-    constructor(address tokenFILGovernance, address foundation) Ownable(foundation) {
+    constructor(address tokenFILGovernance, address foundation, Period[] memory periods) Ownable(foundation) {
         _tokenFILGovernance = FILGovernance(tokenFILGovernance);
+        // _periods = periods;
+        _setPeriods(periods);
+        _setNextPeriods(periods);
         // _foundation = foundation;
     }
 
     function stake(uint amount, uint maxStart, uint periodIndex) external{
         Period storage period = _periods[periodIndex];
-        _accumulatedStakeAmountWeight += period.weight * amount;
-        _accumulatedStakeAmountWeightTimestamp += _accumulatedStakeAmountWeight * block.timestamp;
+        uint stakeAmountWeight = period.weight * amount;
+        _accumulatedStakeAmountWeight += stakeAmountWeight;
+        _accumulatedStakeAmountWeightTimestamp += stakeAmountWeight * block.timestamp;
         _stakes.push(Stake(msg.sender, amount, period.weight, block.timestamp, block.timestamp+period.duration, false));
     }
 
@@ -95,7 +113,7 @@ contract FIGStake is Ownable {
         }
     }
 
-    function getBonusByBonusIndicesStakeIndices(uint[] calldata BonusIndices, uint[] calldata stakeIndices) external returns (uint){
+    function getBonusByBonusIndicesStakeIndices(uint[] calldata BonusIndices, uint[] calldata stakeIndices) external view returns (uint){
         uint totalAmount = 0;
         for (uint i=0; i < BonusIndices.length; i++) {
             uint bonusIndex = BonusIndices[i];
@@ -106,11 +124,11 @@ contract FIGStake is Ownable {
         }
         return totalAmount;
     }
-    function getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) external returns (uint) {
+    function getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) external view returns (uint) {
         return _getBonusByBonusIndexStakeIndex(bonusIndex, stakeIndex);
     }
 
-    function _getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) private returns (uint) {
+    function _getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) private view returns (uint) {
         Bonus storage bonus = _bonuses[bonusIndex];
         Stake storage stake = _stakes[stakeIndex];
 
@@ -122,8 +140,61 @@ contract FIGStake is Ownable {
         if (endTimestamp > bonus.timestamp) {
             endTimestamp = bonus.timestamp;
         }
-        uint power = (endTimestamp - startTimestamp) * stake.weight;
+        uint power = stake.amount * (endTimestamp - startTimestamp) * stake.weight;
         uint amount = power * RATE_BASE / bonus.totalPower * bonus.amount / RATE_BASE;
+
+        console.log("endTimestamp: ", endTimestamp);
+        console.log("startTimestamp: ", startTimestamp);
+        console.log("power: ", power);
+
         return amount;
+    }
+
+    function _setPeriods(Period[] memory periods) private {
+        uint length = _periods.length;
+        for (uint i=0; i<length; i++) {
+            _periods.pop();
+        }
+        for (uint i = 0; i < periods.length; i++) {
+            _periods.push(periods[i]);
+        }
+    }
+
+    function _setNextPeriods(Period[] memory periods) private {
+        uint length = _nextPeriods.length;
+        for (uint i=0; i<length; i++) {
+            _nextPeriods.pop();
+        }
+        for (uint i = 0; i < periods.length; i++) {
+            _nextPeriods.push(periods[i]);
+        }
+    }
+
+    function setPeriods(Period[] memory periods) external onlyOwner {
+        _setNextPeriods(periods);
+    }
+
+    function getStakeByIndex(uint index) external view returns (Stake memory){
+        return _stakes[index];
+    }
+
+    function getPeriodByIndex(uint index) external view returns (Period memory){
+        return _periods[index];
+    }
+
+    function getBonusByIndex(uint index) external view returns (Bonus memory){
+        return _bonuses[index];
+    }
+
+    function getStakesLength() external view returns (uint) {
+        return _stakes.length;
+    }
+
+    function getPeroidsLength(uint index) external view returns (uint) {
+        return _periods.length;
+    }
+
+    function getBonusesLength(uint index) external view returns (uint) {
+        return _bonuses.length;
     }
 }

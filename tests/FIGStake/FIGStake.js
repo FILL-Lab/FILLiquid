@@ -6,11 +6,11 @@ const stakeFilGovernance = require("./functions/stakeFilGovernance");
 
 async function mineBlocks(blockNumber) {
     mineBlockNumberHex = `0x${(blockNumber).toString(16)}`
-    await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1"]);
+    await hre.network.provider.send("hardhat_mine", [mineBlockNumberHex, "0x1e"]);
   
-    let lastTimestamp = (await ethers.provider.getBlock()).timestamp
-    lastTimestamp += blockNumber * 30
-    await hre.network.provider.send("evm_setNextBlockTimestamp", [`0x${(lastTimestamp).toString(16)}`])
+    // let lastTimestamp = (await ethers.provider.getBlock()).timestamp
+    // lastTimestamp += blockNumber * 30
+    // await hre.network.provider.send("evm_setNextBlockTimestamp", [`0x${(lastTimestamp).toString(16)}`])
   }
 
 
@@ -75,7 +75,6 @@ describe("FIGStake", function () {
 
         this.filGovernance = filGovernance
         this.figStake = figStake
-        
     });
 
     stakeFilGovernance.tests()

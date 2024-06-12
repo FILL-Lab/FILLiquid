@@ -23,28 +23,42 @@ function tests() {
         it("should deposit correctly amount of FIG", async function () {
             await this.figStake.connect(this.signer1).stake(parseEther("1000"), 10000, 1)
             await this.figStake.connect(this.signer2).stake(parseEther("2000"), 10000, 2)
+            this.mineBlocks(2880 * 45)
+            await this.figStake.connect(this.signer2).unstake(0)
+            // this.mineBlocks(960*2)
 
-            this.mineBlocks(2880)
             const transaction = {
                 to: this.figStake.target,
                 value: parseEther("100")
-              }
+            }
             
             // let wallet = ethers.Wallet(this.figStakeFoundation.)
             await this.figStakeFoundation.sendTransaction(transaction)
+
+            this.mineBlocks(2880 * 45)
+            
+            const transaction2 = {
+                to: this.figStake.target,
+                value: parseEther("100")
+            }
+            
+            // let wallet = ethers.Wallet(this.figStakeFoundation.)
+            await this.figStakeFoundation.sendTransaction(transaction2)
 
 
             // ("(await ethers.provider.getBalance(this.figStakeFoundation.address)).toBigInt(): ", (await ethers.provider.getBalance(this.figStakeFoundation.address)))
 
             console.log("await this.figStake._bonuses(): ", await this.figStake.getBonusByIndex(0))
 
+            console.log("await this.figStake._bonuses(): ", await this.figStake.getBonusByIndex(1))
+
             // const result = await this.figStake.getBonusByBonusIndicesStakeIndices([0], [0, 1])
             // console.log("result: ", result)
 
-            const bonus = await this.figStake.getBonusByBonusIndexStakeIndex(0, 0)
+            const bonus = await this.figStake.getBonusByBonusIndexStakeIndex(1, 0)
             console.log("bonus: ", bonus)
 
-            const bonus1 = await this.figStake.getBonusByBonusIndexStakeIndex(0, 1)
+            const bonus1 = await this.figStake.getBonusByBonusIndexStakeIndex(1, 1)
             console.log("bonus1: ", bonus1)
 
             const stake = await this.figStake.getStakeByIndex(0)
@@ -52,6 +66,7 @@ function tests() {
 
             const stake1 = await this.figStake.getStakeByIndex(1)
             console.log("stake1: ", stake1)
+
         });
     });
 }

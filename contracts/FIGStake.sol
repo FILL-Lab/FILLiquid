@@ -9,9 +9,9 @@ import "./FILGovernance.sol";
 
 contract FIGStake is Ownable {
     event EventBonus(uint index);
-    event EventStake(uint index);
-    event EventUnstake(uint index);
-    event EventWithdraw(uint bonusIndex, uint StakeIndex, uint amount);
+    event EventStake(uint id);
+    event EventUnstake(uint id);
+    event EventWithdraw(uint bonusIndex, uint stakeId, address to, uint amount);
     event EventChangePeriod(Period[] periods);
     
     uint constant RATE_BASE = 1000000;
@@ -20,10 +20,13 @@ contract FIGStake is Ownable {
         address staker;
         uint amount;
         uint weight;
+        uint startBonusIndex;
         uint stakeTimestamp;
         uint unlockTimestamp;
         bool unstaked;
-        uint ustakeTimestamp;
+        uint unstakeTimestamp;
+        uint bonusNumber;
+        uint withdrawNumber;
     }
 
     struct Bonus {
@@ -39,10 +42,8 @@ contract FIGStake is Ownable {
 
     FILGovernance private _tokenFILGovernance;
 
-    Stake[] public _stakes;
     Bonus[] public _bonuses;
     Period[] public _periods;
-
     Period[] public _nextPeriods;
 
     uint public _accumulatedStakeAmountWeight;
@@ -51,44 +52,45 @@ contract FIGStake is Ownable {
     uint public _accumulatedUnstakeAmountWeight;
     uint public _accumulatedUnstakeAmountWeightTimestamp;
 
-    uint public _initAccumulatedTimestamp;
-
-    uint public _lastBonusAccumulatedTotalPower = 0;
+    uint public _lastBonusAccumulatedTotalPower;
+    uint public _nextBoundTimestamp;
+    uint public _accumulatedStakeNumber;
 
     mapping(uint => mapping(uint => bool)) public _stakeBonuswithdrawn;
-    mapping(address => uint[]) public _userStakes;
 
-    // address public _foundation;
+    mapping(uint => Stake) public _stakes;
 
-    // modifier onlyFoundation() {
-    //     require(_msgSender() == _foundation, "Only foundation allowed");
-    //     _;
-    // }
-
-    receive() onlyOwner external payable {
+    function addBonus(uint amount, uint startTimestamp) payable external onlyOwner() {
+        require(amount == msg.value, "amount incorrect");
+        require(_nextBoundTimestamp == startTimestamp, "startTimestamp incorrect");
         _periods = _nextPeriods;
 
-        console.log("_accumulatedStakeAmountWeight: ", _accumulatedStakeAmountWeight);
-        console.log("block.timestamp: ", block.timestamp);
-        console.log("_accumulatedStakeAmountWeightTimestamp: ", _accumulatedStakeAmountWeightTimestamp);
-        console.log("_accumulatedUnstakeAmountWeight: ", _accumulatedUnstakeAmountWeight);
-        console.log("_accumulatedUnstakeAmountWeightTimestamp: ", _accumulatedUnstakeAmountWeightTimestamp);
-        console.log("_lastBonusAccumulatedTotalPower: ", _lastBonusAccumulatedTotalPower);
-
         uint totalPower = _accumulatedStakeAmountWeight * block.timestamp - _accumulatedStakeAmountWeightTimestamp - (_accumulatedUnstakeAmountWeight * block.timestamp - _accumulatedUnstakeAmountWeightTimestamp) - _lastBonusAccumulatedTotalPower;
-
-        // uint totalPower = _accumulatedStakeAmountWeight * block.timestamp + _accumulatedUnstakeAmountWeightTimestamp - (_accumulatedUnstakeAmountWeight * block.timestamp) - _lastBonusAccumulatedTotalPower;
 
         _lastBonusAccumulatedTotalPower += totalPower;
         _bonuses.push(Bonus(msg.value, block.timestamp, totalPower));
     }
 
+    receive() onlyOwner external payable {
+        // _periods = _nextPeriods;
+
+        // console.log("_accumulatedStakeAmountWeight: ", _accumulatedStakeAmountWeight);
+        // console.log("block.timestamp: ", block.timestamp);
+        // console.log("_accumulatedStakeAmountWeightTimestamp: ", _accumulatedStakeAmountWeightTimestamp);
+        // console.log("_accumulatedUnstakeAmountWeight: ", _accumulatedUnstakeAmountWeight);
+        // console.log("_accumulatedUnstakeAmountWeightTimestamp: ", _accumulatedUnstakeAmountWeightTimestamp);
+        // console.log("_lastBonusAccumulatedTotalPower: ", _lastBonusAccumulatedTotalPower);
+
+        // uint totalPower = _accumulatedStakeAmountWeight * block.timestamp - _accumulatedStakeAmountWeightTimestamp - (_accumulatedUnstakeAmountWeight * block.timestamp - _accumulatedUnstakeAmountWeightTimestamp) - _lastBonusAccumulatedTotalPower;
+
+        // _lastBonusAccumulatedTotalPower += totalPower;
+        // _bonuses.push(Bonus(msg.value, block.timestamp, totalPower));
+    }
+
     constructor(address tokenFILGovernance, address foundation, Period[] memory periods) Ownable(foundation) {
         _tokenFILGovernance = FILGovernance(tokenFILGovernance);
-        // _periods = periods;
         _setPeriods(periods);
         _setNextPeriods(periods);
-        // _foundation = foundation;
     }
 
     function stake(uint amount, uint maxStart, uint periodIndex) external {
@@ -96,37 +98,59 @@ contract FIGStake is Ownable {
         uint stakeAmountWeight = period.weight * amount;
         _accumulatedStakeAmountWeight += stakeAmountWeight;
         _accumulatedStakeAmountWeightTimestamp += stakeAmountWeight * block.timestamp;
-        _stakes.push(Stake(msg.sender, amount, period.weight, block.timestamp, block.timestamp+period.duration, false, 2**256-1));
-        emit EventStake(_stakes.length-1);
+
+        _stakes[_accumulatedStakeNumber] = Stake({
+            staker: msg.sender,
+            amount: amount,
+            weight: period.weight,
+            startBonusIndex: _bonuses.length,
+            stakeTimestamp: block.timestamp,
+            unlockTimestamp: block.timestamp + period.duration,
+            unstaked: false,
+            unstakeTimestamp: 0,
+            bonusNumber: 0,
+            withdrawNumber: 0
+        });
+        emit EventStake(_accumulatedStakeNumber);
+        _accumulatedStakeNumber += 1;
     }
 
-    function unstake(uint64 index) external {
-        Stake storage stake = _stakes[index];
+    function unstake(uint64 id) external {
+        Stake storage stake = _stakes[id];
         require(stake.unlockTimestamp <= block.timestamp, "not yet due");
         _accumulatedUnstakeAmountWeight += stake.weight * stake.amount;
         _accumulatedUnstakeAmountWeightTimestamp += _accumulatedUnstakeAmountWeight * block.timestamp;
         stake.unstaked = true;
-        stake.ustakeTimestamp = block.timestamp;
-        emit EventUnstake(index);
+        stake.unstakeTimestamp = block.timestamp;
+        stake.bonusNumber = _bonuses.length + 1 - stake.startBonusIndex;
+        emit EventUnstake(id);
     }
 
-    function withdrawByBonusIndicesStakeIndices(uint[] calldata bonusIndices, uint[] calldata stakeIndices, address to) external {
+    function withdrawByBonusIndicesStakeIds(uint[] calldata bonusIndices, uint[] calldata stakeIds, address to) external {
         uint totalAmount = 0;
-        for (uint i=0; i < stakeIndices.length; i++) {
-            uint stakeIndex = stakeIndices[i];
-            require(_stakes[stakeIndex].staker == msg.sender, "not staker");
+        for (uint i=0; i < stakeIds.length; i++) {
+            uint stakeId = stakeIds[i];
+            Stake storage stake = _stakes[stakeId];
+            require(_stakes[stakeId].staker == msg.sender, "not staker");
             for (uint j=0; j < bonusIndices.length; j++) {
                 uint bonusIndex = bonusIndices[j];
-                require(_stakeBonuswithdrawn[bonusIndex][stakeIndex] == false, "Already withdrawn");
-                uint amount = _getBonusByBonusIndexStakeIndex(stakeIndex, bonusIndex);
+                require(_stakeBonuswithdrawn[bonusIndex][stakeId] == false, "Already withdrawn");
+                uint amount = _getBonusByBonusIndexStakeId(stakeId, bonusIndex);
                 totalAmount += amount;
-                _stakeBonuswithdrawn[stakeIndex][bonusIndex] = true;
-                emit EventWithdraw(bonusIndex, StakeIndex, amount);
+                _stakeBonuswithdrawn[stakeId][bonusIndex] = true;
+                stake.withdrawNumber += 1;
+                if (stake.unstaked && stake.bonusNumber == stake.withdrawNumber) {
+                    delete _stakes[stakeId];
+                }
+                emit EventWithdraw(bonusIndex, stakeId, msg.sender, amount);
             }
         }
         payable(msg.sender).transfer(totalAmount);
     }
 
+    function setNextBounsTimestamp(uint nextBoundTimestamp) external onlyOwner {
+        _nextBoundTimestamp = nextBoundTimestamp;
+    }
 
     function _setPeriods(Period[] memory periods) private {
         uint length = _periods.length;
@@ -152,30 +176,33 @@ contract FIGStake is Ownable {
         _setNextPeriods(periods);
     }
 
-    function getBonusByBonusIndicesStakeIndices(uint[] calldata BonusIndices, uint[] calldata stakeIndices) external view returns (uint){
+    function getBonusByBonusIndicesStakeIds(uint[] calldata bonusIndices, uint[] calldata stakeIds) external view returns (uint){
         uint totalAmount = 0;
-        for (uint i=0; i < BonusIndices.length; i++) {
-            uint bonusIndex = BonusIndices[i];
-            for (uint j=0; j < BonusIndices.length; j++) {
-                uint stakeIndex = BonusIndices[j];
-                totalAmount += _getBonusByBonusIndexStakeIndex(bonusIndex, stakeIndex);
+        for (uint i=0; i < bonusIndices.length; i++) {
+            uint bonusIndex = bonusIndices[i];
+            for (uint j=0; j < stakeIds.length; j++) {
+                uint stakeId = stakeIds[j];
+                totalAmount += _getBonusByBonusIndexStakeId(bonusIndex, stakeId);
             }
         }
         return totalAmount;
     }
-    function getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) external view returns (uint) {
-        return _getBonusByBonusIndexStakeIndex(bonusIndex, stakeIndex);
+    function getBonusByBonusIndexStakeId(uint bonusIndex, uint stakeId) external view returns (uint) {
+        return _getBonusByBonusIndexStakeId(bonusIndex, stakeId);
     }
 
-    function _getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) private view returns (uint) {
+    function _getBonusByBonusIndexStakeId(uint bonusIndex, uint stakeId) private view returns (uint) {
         Bonus storage bonus = _bonuses[bonusIndex];
-        Stake storage stake = _stakes[stakeIndex];
+        Stake storage stake = _stakes[stakeId];
 
         uint startTimestamp = stake.stakeTimestamp;
         if (bonusIndex > 0) {
             startTimestamp = _bonuses[bonusIndex - 1].timestamp;
         }
-        uint endTimestamp = stake.ustakeTimestamp;
+        uint endTimestamp = stake.unstakeTimestamp;
+        if (stake.unstaked == false) {
+            endTimestamp = 2**256-1;
+        }
         if (endTimestamp > bonus.timestamp) {
             endTimestamp = bonus.timestamp;
         }
@@ -195,8 +222,8 @@ contract FIGStake is Ownable {
         return amount;
     }
 
-    function getStakeByIndex(uint index) external view returns (Stake memory){
-        return _stakes[index];
+    function getStakeById(uint id) external view returns (Stake memory){
+        return _stakes[id];
     }
 
     function getPeriodByIndex(uint index) external view returns (Period memory){
@@ -207,8 +234,8 @@ contract FIGStake is Ownable {
         return _bonuses[index];
     }
 
-    function getStakesLength() external view returns (uint) {
-        return _stakes.length;
+    function getAccumulatedStakeNumber() external view returns (uint) {
+        return _accumulatedStakeNumber;
     }
 
     function getPeroidsLength(uint index) external view returns (uint) {
@@ -219,7 +246,7 @@ contract FIGStake is Ownable {
         return _bonuses.length;
     }
 
-    modifier onlyStaker(uint stakeIndex) {
-
+    function getNextBoundTimestamp(uint index) external view returns (uint) {
+        return _nextBoundTimestamp;
     }
 }

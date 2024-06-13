@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "./FILGovernance.sol";
 
 contract FIGStake is Context{
-    // 一次分红，每次receive方法呗调用的时候，增加一个bonus
     struct Bonus {
         uint totalAmount;
         uint releasedAmount;
@@ -169,7 +168,6 @@ contract FIGStake is Context{
         resetStakeRates(stakePeriods, rates);
     }
 
-    // todo(xk): redeem&borrow&liquid fee，manager不一定往这个合约deposit
     receive() onlyFoundation external payable {
         uint index = getNextBonusIndex();
         uint amount = msg.value;
@@ -181,7 +179,6 @@ contract FIGStake is Context{
         _totalPower = 0;
     }
 
-    // 这个maxStart有效期。
     function stakeFilGovernance(uint amount, uint maxStart, uint stakeProgram) external returns (uint stakeId) {
         require(amount >= _minStake, "Amount too small");
         uint start = block.number;
@@ -195,7 +192,6 @@ contract FIGStake is Context{
         uint duration = stakeRate.stakePeriod;
         uint rate = stakeRate.rate;
 
-        // todo(xk): approve
         _tokenFILGovernance.transferFrom(staker, address(this), amount);
         _updateData();
         uint power = _getStakePower(amount, rate);
@@ -217,7 +213,6 @@ contract FIGStake is Context{
                 start: start,
                 duration: duration,
                 end: 0,
-                // todo(xk): 这里nextBonusIndex是不是应该是从0开始，这里好像从-1开始
                 nextBonusIndex: getNextBonusIndex(),
                 haveReleased: 0,
                 haveUnstaked: false

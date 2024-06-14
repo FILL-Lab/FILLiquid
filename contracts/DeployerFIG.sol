@@ -7,7 +7,6 @@ import "./ERC20Pot.sol";
 import "./DeployerFILL.sol";
 import "./DeployerFIGMultiSigner.sol";
 
-// 该合约部署了FIG合约，并且根据MultiSigner分配初始代币
 contract DeployerFIG {
     FILGovernance immutable private _filGovernance;
     address immutable private _owner;

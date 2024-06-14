@@ -29,7 +29,6 @@ module.exports = buildModule("FILL", (m) => {
         communitySigners, communityApprovalThreshold,
     ]);
 
-    // FIG 以及分配FIG Token
     const deployerFIG = m.contract("DeployerFIG", [deployerFIGMultiSigner]);
 
     // FIT、FITStake、Governance

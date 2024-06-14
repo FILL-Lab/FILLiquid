@@ -12,7 +12,7 @@ contract FIGStake is Ownable {
     event EventStake(uint id);
     event EventUnstake(uint id);
     event EventWithdraw(uint bonusIndex, uint stakeId, address to, uint amount);
-    event EventChangePeriod(Period[] periods);
+    event EventChangePeriod();
     
     uint constant RATE_BASE = 1000000;
 
@@ -46,6 +46,8 @@ contract FIGStake is Ownable {
     Period[] public _periods;
     Period[] public _nextPeriods;
 
+    bool public _newPeriods;
+
     uint public _accumulatedStakeAmountWeight;
     uint public _accumulatedStakeAmountWeightTimestamp;
 
@@ -63,7 +65,10 @@ contract FIGStake is Ownable {
     function addBonus(uint amount, uint startTimestamp) payable external onlyOwner() {
         require(amount == msg.value, "amount incorrect");
         require(_nextBoundTimestamp == startTimestamp, "startTimestamp incorrect");
-        _periods = _nextPeriods;
+        
+        if (_newPeriods == true) {
+            _updatePeriods();
+        }
 
         uint totalPower = _accumulatedStakeAmountWeight * block.timestamp - _accumulatedStakeAmountWeightTimestamp - (_accumulatedUnstakeAmountWeight * block.timestamp - _accumulatedUnstakeAmountWeightTimestamp) - _lastBonusAccumulatedTotalPower;
 
@@ -89,8 +94,9 @@ contract FIGStake is Ownable {
 
     constructor(address tokenFILGovernance, address foundation, Period[] memory periods) Ownable(foundation) {
         _tokenFILGovernance = FILGovernance(tokenFILGovernance);
-        _setPeriods(periods);
-        _setNextPeriods(periods);
+        for (uint i = 0; i < periods.length; i++) {
+            _periods.push(periods[i]);
+        }
     }
 
     function stake(uint amount, uint maxStart, uint periodIndex) external {
@@ -117,6 +123,11 @@ contract FIGStake is Ownable {
 
     function unstake(uint64 id) external {
         Stake storage stake = _stakes[id];
+
+        console.log("stake.unlockTimestamp: ", stake.unlockTimestamp);
+        console.log("block.timestamp: ", block.timestamp);
+
+        require(stake.staker == msg.sender, "not staker");
         require(stake.unlockTimestamp <= block.timestamp, "not yet due");
         _accumulatedUnstakeAmountWeight += stake.weight * stake.amount;
         _accumulatedUnstakeAmountWeightTimestamp += _accumulatedUnstakeAmountWeight * block.timestamp;
@@ -152,17 +163,21 @@ contract FIGStake is Ownable {
         _nextBoundTimestamp = nextBoundTimestamp;
     }
 
-    function _setPeriods(Period[] memory periods) private {
+    function _updatePeriods() private {
+        require(_newPeriods == true, "periods no update");
         uint length = _periods.length;
         for (uint i=0; i<length; i++) {
             _periods.pop();
         }
-        for (uint i = 0; i < periods.length; i++) {
-            _periods.push(periods[i]);
+        for (uint i = 0; i < _nextPeriods.length; i++) {
+            _periods.push(_nextPeriods[i]);
         }
+        _newPeriods = false;
+        emit EventChangePeriod();
     }
 
-    function _setNextPeriods(Period[] memory periods) private {
+    function setNextPeriods(Period[] memory periods) public onlyOwner {
+        _newPeriods = true;
         uint length = _nextPeriods.length;
         for (uint i=0; i<length; i++) {
             _nextPeriods.pop();
@@ -170,10 +185,6 @@ contract FIGStake is Ownable {
         for (uint i = 0; i < periods.length; i++) {
             _nextPeriods.push(periods[i]);
         }
-    }
-
-    function setPeriods(Period[] memory periods) external onlyOwner {
-        _setNextPeriods(periods);
     }
 
     function getBonusByBonusIndicesStakeIds(uint[] calldata bonusIndices, uint[] calldata stakeIds) external view returns (uint){
@@ -188,12 +199,18 @@ contract FIGStake is Ownable {
         return totalAmount;
     }
     function getBonusByBonusIndexStakeId(uint bonusIndex, uint stakeId) external view returns (uint) {
+        console.log("-getBonusByBonusIndexStakeId-");
         return _getBonusByBonusIndexStakeId(bonusIndex, stakeId);
     }
 
     function _getBonusByBonusIndexStakeId(uint bonusIndex, uint stakeId) private view returns (uint) {
+        console.log("-_getBonusByBonusIndexStakeId-");
+        require(bonusIndex < _bonuses.length, "invalid bonusIndex");
         Bonus storage bonus = _bonuses[bonusIndex];
         Stake storage stake = _stakes[stakeId];
+        require(stake.stakeTimestamp > 0, "invalid stakeId");
+
+        console.log("bonusIndex: ", bonusIndex, "stakeId: ", stakeId);
 
         uint startTimestamp = stake.stakeTimestamp;
         if (bonusIndex > 0) {
@@ -206,18 +223,22 @@ contract FIGStake is Ownable {
         if (endTimestamp > bonus.timestamp) {
             endTimestamp = bonus.timestamp;
         }
-        if (startTimestamp >= endTimestamp) {
-            return 0;
-        }
-        uint power = stake.amount * (endTimestamp - startTimestamp) * stake.weight;
-        uint amount = power * RATE_BASE / bonus.totalPower * bonus.amount / RATE_BASE;
 
         console.log("endTimestamp: ", endTimestamp);
         console.log("startTimestamp: ", startTimestamp);
+
+        if (startTimestamp >= endTimestamp) {
+            return 0;
+        }
+        console.log("endTimestamp - startTimestamp: ", endTimestamp - startTimestamp);
+
+        uint power = stake.amount * (endTimestamp - startTimestamp) * stake.weight;
+        uint amount = power * RATE_BASE / bonus.totalPower * bonus.amount / RATE_BASE;
+
         console.log("power: ", power);
         console.log("stake.weight: ", stake.weight);
         console.log("stake.amount: ", stake.amount);
-        console.log("endTimestamp - startTimestamp: ", endTimestamp - startTimestamp);
+        console.log("----------------------------------------------------------------");
 
         return amount;
     }

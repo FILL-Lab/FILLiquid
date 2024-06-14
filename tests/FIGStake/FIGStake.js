@@ -1,7 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const stakeFilGovernance = require("./functions/stakeFilGovernance");
+const stake = require("./functions/stake.js");
+// const stakeFilGovernance = require("./functions/stakeFilGovernance");
 
 
 async function mineBlocks(blockNumber) {
@@ -38,7 +39,7 @@ describe("FIGStake", function () {
         // this.STAKE_PERIOD_5 = 1036800; //360 days
         // this.STAKE_RATE_5 = 6;
 
-        this.periods = [[5, 86400*7], [10, 86400*30], [15, 86400*90], [25, 86400*180], [45, 86400*365]]
+        this.periods = [[5, 86400*7], [5, 86400*7], [10, 86400*30], [15, 86400*90], [25, 86400*180], [45, 86400*365]]
 
         this.owner = signers[0]
         this.signer1 = signers[1]
@@ -66,7 +67,7 @@ describe("FIGStake", function () {
 
         const FIGStake = await hre.ethers.getContractFactory("FIGStake");
         const figStake = await FIGStake.deploy(filGovernance.target, this.figStakeFoundation.address, this.periods)
-        await figStake.connect(this.figStakeFoundation).setPeriods(this.periods);
+        // await figStake.connect(this.figStakeFoundation).setPeriods(this.periods);
 
         filGovernance.connect(this.figManager).mint(this.signer1.address, this.signer1FIGAmount)
         filGovernance.connect(this.figManager).mint(this.signer2.address, this.signer2FIGAmount)
@@ -77,5 +78,5 @@ describe("FIGStake", function () {
         this.figStake = figStake
     });
 
-    stakeFilGovernance.tests()
+    stake.tests()
 });

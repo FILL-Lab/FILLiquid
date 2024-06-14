@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import "hardhat/console.sol";
+
+
+import "./FILGovernance.sol";
+
+interface IFIGStake {
+
+    struct Stake {
+        address staker;
+        uint amount;
+        uint weight;
+        uint stakeTimestamp;
+        uint unlockTimestamp;
+        bool unstaked;
+        uint ustakeTimestamp;
+    }
+
+    struct Bonus {
+        uint amount;
+        uint timestamp;
+        uint totalPower;
+    }
+
+    struct Period {
+        uint weight;
+        uint duration;
+    }
+
+    receive() external payable;
+
+    function stake(uint amount, uint maxStart, uint periodIndex) external;
+
+    function unstake(uint64 index) external;
+
+    function withdrawByBonusIndicesStakeIndices(uint[] calldata bonusIndices, uint[] calldata stakeIndices, address to) external;
+    function setPeriods(Period[] calldata periods) external;
+
+
+    function getBonusByBonusIndicesStakeIndices(uint[] calldata bonusIndices, uint[] calldata stakeIndices) external view returns (uint);
+    function getBonusByBonusIndexStakeIndex(uint bonusIndex, uint stakeIndex) external view returns (uint);
+    function getStakeByIndex(uint index) external view returns (Stake memory);
+    function getPeriodByIndex(uint index) external view returns (Period memory);
+    function getBonusByIndex(uint index) external view returns (Bonus memory);
+    function getStakesLength() external view returns (uint);
+    function getPeroidsLength(uint index) external view returns (uint);
+    function getBonusesLength(uint index) external view returns (uint);
+}

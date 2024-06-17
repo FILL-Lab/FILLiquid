@@ -238,8 +238,10 @@ contract MultiSignFactory is Context, ReentrancyGuard {
         require(msg.value == _proposals[proposalId].info.value, "Value not match");
         ProposalInfo storage info = _proposals[proposalId].info;
         (bool success, bytes memory output) = info.target.call{value: msg.value}(info.code);
-        if (success) info.executed = true;
-        emit Executed(_msgSender(), proposalId, success, output);
+        if (success) {
+	        info.executed = true;
+	        emit Executed(_msgSender(), proposalId, success, output);
+        }
     }
 
     function _canApprove(address approver, uint proposalId) private view returns (bool, string memory) {

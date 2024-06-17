@@ -13,7 +13,8 @@ contract DeployerFIG {
     address immutable private _owner;
 
     ERC20Pot immutable private _institution;
-    ERC20Pot immutable private _team;
+    ERC20Pot immutable private _team1;
+    ERC20Pot immutable private _team2;
     ERC20Pot immutable private _foundation;
     ERC20Pot immutable private _reserve;
     ERC20Pot immutable private _community;
@@ -25,7 +26,10 @@ contract DeployerFIG {
     uint constant COMMUNITY_LOCKING_PERIOD = 259200; //90 days
 
     uint constant INSTITUTION_SHARE = 250;
-    uint constant TEAM_SHARE = 375;
+    // uint constant TEAM_SHARE = 375;
+    // Team1 && Team2
+    uint constant TEAM1_SHARE = 175;
+    uint constant TEAM2_SHARE = 200;
     uint constant FOUNDATION_SHARE = 125;
     uint constant RESERVE_SHARE = 125;
     uint constant COMMUNITY_SHARE = 125;
@@ -42,16 +46,19 @@ contract DeployerFIG {
         uint current = block.number;
         uint figBalance = _filGovernance.balanceOf(address(this));
 
-        (, MultiSignFactory institutionSigner, MultiSignFactory teamSigner, MultiSignFactory foundationSigner, MultiSignFactory reserveSigner, MultiSignFactory communitySigner) = deployerFIGMultiSigner.getAddrs();
+        (, MultiSignFactory institutionSigner, MultiSignFactory team1Signer, MultiSignFactory team2Signer, MultiSignFactory foundationSigner, MultiSignFactory reserveSigner, MultiSignFactory communitySigner) = deployerFIGMultiSigner.getAddrs();
         
         _institution = new ERC20Pot(address(institutionSigner), _filGovernance, figBalance * INSTITUTION_SHARE / RATEBASE, current, current + INSTITUTION_LOCKING_PERIOD);
-        _team = new ERC20Pot(address(teamSigner), _filGovernance, figBalance * TEAM_SHARE / RATEBASE, current, current + TEAM_LOCKING_PERIOD);
+        _team1 = new ERC20Pot(address(team1Signer), _filGovernance, figBalance * TEAM1_SHARE / RATEBASE, current, current + TEAM_LOCKING_PERIOD);
+        _team2 = new ERC20Pot(address(team2Signer), _filGovernance, figBalance * TEAM2_SHARE / RATEBASE, current, current + TEAM_LOCKING_PERIOD);
+        
         _foundation = new ERC20Pot(address(foundationSigner), _filGovernance, figBalance * FOUNDATION_SHARE / RATEBASE, current, current + FOUNDATION_LOCKING_PERIOD);
         _reserve = new ERC20Pot(address(reserveSigner), _filGovernance, figBalance * RESERVE_SHARE / RATEBASE, current, current + RESERVE_LOCKING_PERIOD);
         _community = new ERC20Pot(address(communitySigner), _filGovernance, figBalance * COMMUNITY_SHARE / RATEBASE, current, current + COMMUNITY_LOCKING_PERIOD);
 
         _filGovernance.transfer(address(_institution), figBalance * INSTITUTION_SHARE / RATEBASE);
-        _filGovernance.transfer(address(_team), figBalance * TEAM_SHARE / RATEBASE);
+        _filGovernance.transfer(address(_team1), figBalance * TEAM1_SHARE / RATEBASE);
+        _filGovernance.transfer(address(_team2), figBalance * TEAM2_SHARE / RATEBASE);
         _filGovernance.transfer(address(_foundation), figBalance * FOUNDATION_SHARE / RATEBASE);
         _filGovernance.transfer(address(_reserve), figBalance * RESERVE_SHARE / RATEBASE);
         _filGovernance.transfer(address(_community), figBalance * COMMUNITY_SHARE / RATEBASE);
@@ -80,11 +87,13 @@ contract DeployerFIG {
         ERC20Pot,
         ERC20Pot,
         ERC20Pot,
+        ERC20Pot,
         ERC20Pot
     ) {
         return (
             _institution,
-            _team,
+            _team1,
+            _team2,
             _foundation,
             _reserve,
             _community

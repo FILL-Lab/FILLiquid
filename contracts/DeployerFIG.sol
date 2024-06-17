@@ -19,20 +19,19 @@ contract DeployerFIG {
     ERC20Pot immutable private _reserve;
     ERC20Pot immutable private _community;
 
-    uint constant INSTITUTION_LOCKING_PERIOD = 1036800; //360 days
+    // According to the meeting at 2024-06-17 10:00:00
+    uint constant INSTITUTION_LOCKING_PERIOD = 0; 
     uint constant TEAM_LOCKING_PERIOD = 3110400; //1080 days
     uint constant FOUNDATION_LOCKING_PERIOD = 3110400; //1080 days
-    uint constant RESERVE_LOCKING_PERIOD = 1036800; //360 days
-    uint constant COMMUNITY_LOCKING_PERIOD = 259200; //90 days
+    uint constant RESERVE_LOCKING_PERIOD = 0; 
+    uint constant COMMUNITY_LOCKING_PERIOD = 0;
 
-    uint constant INSTITUTION_SHARE = 250;
-    // uint constant TEAM_SHARE = 375;
-    // Team1 && Team2
-    uint constant TEAM1_SHARE = 175;
-    uint constant TEAM2_SHARE = 200;
-    uint constant FOUNDATION_SHARE = 125;
-    uint constant RESERVE_SHARE = 125;
-    uint constant COMMUNITY_SHARE = 125;
+    uint constant INSTITUTION_SHARE = 250;  // 25% * 40% = 10%
+    uint constant TEAM1_SHARE = 175;    // 17.5% * 40% = 7%
+    uint constant TEAM2_SHARE = 200;      // 20% * 40% = 8%
+    uint constant FOUNDATION_SHARE = 125; // 12.5% * 40% = 5%
+    uint constant RESERVE_SHARE = 125;   // 12.5% * 40% = 5%
+    uint constant COMMUNITY_SHARE = 125; // 12.5% * 40% = 5% 
     uint constant RATEBASE = 1000;
 
     bool settingDone;

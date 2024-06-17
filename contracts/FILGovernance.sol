@@ -61,7 +61,7 @@ contract FILGovernance is ERC20 {
         emit Minted(account, _msgSender(), amount);
     }
 
-    function burn(uint256 amount) external onlyManagerOrBurner {
+    function burn(uint256 amount) external {
         address sender = _msgSender();
         _burn(sender, amount);
         emit Burnt(sender, amount);

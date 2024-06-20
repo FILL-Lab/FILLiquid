@@ -6,7 +6,7 @@ typechain
 typechain-types
 deployments
 .prettierrc.json
-test
+
 
 # Hardhat files
 cache
@@ -21,4 +21,4 @@ remix.sh
 
 migrations/
 package-lock.json
-test
+

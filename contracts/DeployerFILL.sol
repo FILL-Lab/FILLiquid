@@ -47,14 +47,16 @@ contract DeployerFILL {
 
     // FIG multisigner
     MultiSignFactory immutable private _institutionSigner;
-    MultiSignFactory immutable private _teamSigner;
+    MultiSignFactory immutable private _team1Signer;
+    MultiSignFactory immutable private _team2Signer;
     MultiSignFactory immutable private _foundationSigner;
     MultiSignFactory immutable private _reserveSigner;
     MultiSignFactory immutable private _communitySigner;
 
     // FIG ERC20Pot
     ERC20Pot immutable private _institutionPot;
-    ERC20Pot immutable private _teamPot;
+    ERC20Pot immutable private _team1Pot;
+    ERC20Pot immutable private _team2Pot;
     ERC20Pot immutable private _foundationPot;
     ERC20Pot immutable private _reservePot;
     ERC20Pot immutable private _communityPot;
@@ -93,10 +95,10 @@ contract DeployerFILL {
         (_filGovernance, _deployerFIGOwner) = deployerFIG.getAddrs1();
 
         // MultiSigner contracts addresses
-        (_deployerFIGMutilSignerOwner, _institutionSigner, _teamSigner, _foundationSigner, _reserveSigner, _communitySigner) = deployerFIGMultiSigner.getAddrs();
+        (_deployerFIGMutilSignerOwner, _institutionSigner, _team1Signer, _team2Signer, _foundationSigner, _reserveSigner, _communitySigner) = deployerFIGMultiSigner.getAddrs();
         
         // ERC20Pot contracts addresses
-        (_institutionPot, _teamPot, _foundationPot, _reservePot, _communityPot) = deployerFIG.getAddrs2();
+        (_institutionPot, _team1Pot, _team2Pot, _foundationPot, _reservePot, _communityPot) = deployerFIG.getAddrs2();
         
         (_deployerFeeMultiSignerOwner, _feeReceiverSigner, _feeReceiverPot) = deployerFeeMultiSigner.getAddrs();
 
@@ -186,11 +188,12 @@ contract DeployerFILL {
     }
 
     function getMultiSignerAddrs() external view returns (
-        address, address, address, address, address, address
+        address, address, address, address, address, address, address
     ) {
         return (
             address(_institutionSigner),
-            address(_teamSigner),
+            address(_team1Signer),
+            address(_team2Signer),
             address(_foundationSigner),
             address(_reserveSigner),
             address(_communitySigner),
@@ -199,11 +202,12 @@ contract DeployerFILL {
     }
 
     function getPotAddrs() external view returns (
-        address, address, address, address, address, address
+        address, address, address, address, address, address, address
     ) {
         return (
             address(_institutionPot),
-            address(_teamPot),
+            address(_team1Pot),
+            address(_team2Pot),
             address(_foundationPot),
             address(_reservePot),
             address(_communityPot),

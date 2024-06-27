@@ -7,7 +7,8 @@ contract DeployerFIGMultiSigner {
     address _owner;
 
     MultiSignFactory immutable private _institutionSigner;
-    MultiSignFactory immutable private _teamSigner;
+    MultiSignFactory immutable private _team1Signer;
+    MultiSignFactory immutable private _team2Signer;
     MultiSignFactory immutable private _foundationSigner;
     MultiSignFactory immutable private _reserveSigner;
     MultiSignFactory immutable private _communitySigner;
@@ -15,8 +16,10 @@ contract DeployerFIGMultiSigner {
     constructor(
         address[] memory institutionSigners,
         uint institutionApprovalThreshold,
-        address[] memory teamSigners,
-        uint teamApprovalThreshold,
+        address[] memory team1Signers,
+        uint team1ApprovalThreshold,
+        address[] memory team2Signers,
+        uint team2ApprovalThreshold,
         address[] memory foundationSigners,
         uint foundationApprovalThreshold,
         address[] memory reserveSigners,
@@ -28,7 +31,9 @@ contract DeployerFIGMultiSigner {
         
         _institutionSigner = new MultiSignFactory(institutionSigners, institutionApprovalThreshold);
 
-        _teamSigner = new MultiSignFactory(teamSigners, teamApprovalThreshold);
+        _team1Signer = new MultiSignFactory(team1Signers, team1ApprovalThreshold);
+        
+        _team2Signer = new MultiSignFactory(team2Signers, team2ApprovalThreshold);
 
         _foundationSigner = new MultiSignFactory(foundationSigners, foundationApprovalThreshold);
 
@@ -43,12 +48,14 @@ contract DeployerFIGMultiSigner {
         MultiSignFactory,
         MultiSignFactory,
         MultiSignFactory,
+        MultiSignFactory,
         MultiSignFactory
     ) {
         return (
             _owner,
             _institutionSigner,
-            _teamSigner,
+            _team1Signer,
+            _team2Signer,
             _foundationSigner,
             _reserveSigner,
             _communitySigner

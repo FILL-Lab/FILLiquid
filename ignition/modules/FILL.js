@@ -5,8 +5,10 @@ module.exports = buildModule("FILL", (m) => {
     // Get the foundation address
     const institutionSigners = m.getParameter("institutionSigners");
     const institutionApprovalThreshold = m.getParameter("institutionApprovalThreshold");
-    const teamSigners = m.getParameter("teamSigners");
-    const teamApprovalThreshold = m.getParameter("teamApprovalThreshold");
+    const team1Signers = m.getParameter("team1Signers");
+    const team1ApprovalThreshold = m.getParameter("team1ApprovalThreshold");
+    const team2Signers = m.getParameter("team2Signers");
+    const team2ApprovalThreshold = m.getParameter("team2ApprovalThreshold");
     const foundationSigners = m.getParameter("foundationSigners");
     const foundationApprovalThreshold = m.getParameter("foundationApprovalThreshold");
     const reserveSigners = m.getParameter("reserveSigners");
@@ -23,7 +25,8 @@ module.exports = buildModule("FILL", (m) => {
     const deployerFeeMultiSigner = m.contract("DeployerFeeMultiSigner", [feeReceiverSigners, feeReceiverApprovalThreshold]);
     const deployerFIGMultiSigner = m.contract("DeployerFIGMultiSigner", [
         institutionSigners, institutionApprovalThreshold,
-        teamSigners, teamApprovalThreshold,
+        team1Signers, team1ApprovalThreshold,
+        team2Signers, team2ApprovalThreshold,
         foundationSigners, foundationApprovalThreshold,
         reserveSigners, reserveApprovalThreshold,
         communitySigners, communityApprovalThreshold,

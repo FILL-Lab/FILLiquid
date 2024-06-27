@@ -20,10 +20,17 @@ contract DeployerFIG {
     ERC20Pot immutable private _community;
 
     // According to the meeting at 2024-06-17 10:00:00
+
+    // The lock-up period here is set to 0 for temporary custody, 
+    // this section will be locked in other contracts.
     uint constant INSTITUTION_LOCKING_PERIOD = 0; 
     uint constant TEAM_LOCKING_PERIOD = 3110400; //1080 days
     uint constant FOUNDATION_LOCKING_PERIOD = 3110400; //1080 days
+    
+    // This section should not be used in common cases.
     uint constant RESERVE_LOCKING_PERIOD = 0; 
+
+    // This section will be used for incentivizing community 
     uint constant COMMUNITY_LOCKING_PERIOD = 0;
 
     uint constant INSTITUTION_SHARE = 250;  // 25% * 40% = 10%

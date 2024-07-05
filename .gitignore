@@ -23,6 +23,7 @@ migrations/
 package-lock.json
 test
 
+.deps/
 .states
 build/
 goabi/

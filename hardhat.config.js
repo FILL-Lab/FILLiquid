@@ -12,6 +12,7 @@ module.exports = {
         enabled: true,
         runs: 10,
       },
+      viaIR: true
     },
   },
   defaultNetwork: "calibration",

@@ -24,8 +24,7 @@ contract FILPot is Context {
     function transfer(address payable receiver, uint amount) external onlyOwner {
         require (amount <= address(this).balance, "Invalid amount");
         emit Transferred(receiver, amount);
-        (bool result,) = receiver.call{value: amount}("");
-        require(result);
+        receiver.transfer(amount);
     }
 
     function transferAll(address payable receiver) external onlyOwner {

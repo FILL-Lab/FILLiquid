@@ -40,12 +40,10 @@ contract Claim is Context {
     uint constant MINER_PAYBACK_TWICE_SUPPLY = 40 * SUPPLY_UNIT;
 
     // airdrop only lasted for 1000 blocks, after that, the actions will be expired
-    uint private _startBlock = 0;
-    uint private _airdropEndBlock = 0;
-    uint private _releaseEndBLock = 0;
+    uint _startBlock = 0;
+    uint _endBlock = 0;
     uint constant MONTH_IN_SECONDS = 30 * 24 * 60 * 60;
     uint constant BLOCK_SECONDS = 30;
-    uint constant AIRDROP_LAST_TIME = 1000;                                 // 1000 blocks
     uint constant RELEASE_LAST_TIME = 6 * MONTH_IN_SECONDS / BLOCK_SECONDS; // 6 months
 
     // the number of actions
@@ -61,8 +59,7 @@ contract Claim is Context {
 
         // setting up the time
         _startBlock = block.number;
-        _airdropEndBlock = _startBlock + AIRDROP_LAST_TIME;
-        _releaseEndBLock = _startBlock + RELEASE_LAST_TIME;
+        _endBlock = _startBlock + RELEASE_LAST_TIME;
 
         // setting up the supplys
         _supplys[Action.FigBalance] = FIG_BALANCE_SUPPLY;
@@ -94,7 +91,7 @@ contract Claim is Context {
         }
     }
 
-    function claim(bytes32[][] memory proofs, bytes32[] memory leafs) notExpire(false) equals(proofs.length, leafs.length, 4) external payable returns (uint) {
+    function claim(bytes32[][] memory proofs, bytes32[] memory leafs) equals(proofs.length, leafs.length, 4) external payable returns (uint) {
         address account = _msgSender();
         require(_claimeds[account] == false, "Claim: already claimed");
         require(_batchVerify(Action.FigBalance, proofs, leafs), "Claim: invalid proof");
@@ -108,7 +105,7 @@ contract Claim is Context {
         return sum;
     }
 
-    function withdraw(bytes32[][] memory proofs, bytes32[] memory leafs) notExpire(true) equals(proofs.length, leafs.length, 3) external payable returns (uint) {
+    function withdraw(bytes32[][] memory proofs, bytes32[] memory leafs) expire() equals(proofs.length, leafs.length, 3) external payable returns (uint) {
         address account = _msgSender();
         require(_batchVerify(Action.MinerBorrow, proofs, leafs), "Claim: invalid proof");
 
@@ -136,16 +133,7 @@ contract Claim is Context {
         return _merkleRoots[act];
     }
 
-    function getStartEndTimes() external view returns (uint[3] memory r) {
-        r[0] = _startBlock;
-        r[1] = _airdropEndBlock;
-        r[2] = _releaseEndBLock;
-    }
-    
     function balanceOf(address account, bytes32[][] memory proofs, bytes32[] memory leafs) equals(proofs.length, leafs.length, 4) external view returns (uint) {
-        if (_checkTime(false) == false) {
-            return 0;
-        }
         if (_claimeds[account] == true) {
             return 0;
         }
@@ -215,16 +203,12 @@ contract Claim is Context {
        return MerkleProof.verify(proof, merkleRoot, leaf);
     }
 
-    function _checkTime(bool isWithdraw) private view returns (bool) {
-        if (isWithdraw) {
-            return block.number <= _releaseEndBLock;
-        } else {
-            return block.number <= _airdropEndBlock;
-        }
+    function _checkTime() private view returns (bool) {
+        return block.number <= _endBlock;
     }
 
-    modifier notExpire(bool isWithdraw) {
-        require(_checkTime(isWithdraw), "Claim expired");
+    modifier expire() {
+        require(_checkTime(), "Claim expired");
         _;
     }
 

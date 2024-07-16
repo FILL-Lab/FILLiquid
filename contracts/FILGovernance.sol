@@ -132,7 +132,7 @@ contract FILGovernance is ERC20 {
         return tokens * 10 ** decimals();
     }
 
-    function _afterTokenTransfer(address, address, uint256) internal view {
+    function _afterTokenTransfer(address, address, uint256) internal override view {
         require(totalSupply() <= _withDecimal(MAX_SUPPLY), "Total supply cannot exceed max supply.");
     }
 }

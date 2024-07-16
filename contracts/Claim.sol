@@ -23,11 +23,11 @@ contract Claim is Context {
     address private _owner;
     ERC20 private _token;
 
-    mapping (Action => uint) private _supplys;          // mapping action to the supply
-    mapping (Action => bytes32) private _merkleRoots;   // mapping action to the merkle root
-    mapping (address => bool) private _claimeds;        // mapping address to the claim status
-    mapping (address => uint) private _withdrawns;      // mapping address to the withdraw status
-    mapping (Action => uint) private _stats;            // mapping action to the number of users
+    mapping (Action => uint) private _supplys;                              // mapping action to the supply
+    mapping (Action => bytes32) private _merkleRoots;                       // mapping action to the merkle root
+    mapping (address => mapping (Action => bool)) private _claimeds;        // mapping address to the claim status
+    mapping (address => mapping (Action => uint)) private _withdrawns;      // mapping address to the withdraw status
+    mapping (Action => uint) private _stats;                                // mapping action to the number of users
 
     // the supplys of the claimable actions
     uint constant SUPPLY_UNIT = 10000 * 1e18;
@@ -51,10 +51,14 @@ contract Claim is Context {
 
     // the data structure of the claim request
     struct claimRequestData {
-        Action  action;
-        address account;
+        Action action;
         bytes32[][] proofs;
         bytes32[] leafs;
+    }
+    struct withdrawData {
+        Action action;
+        uint withdrawn;         // already withdrawn
+        uint canWithdraw;       // can withdraw, which equals to the total / userCnt * (block.number - _startBlock) / RELEASE_LAST_TIME - withdrawn
     }
 
     // the supplys of the claimable actions
@@ -99,30 +103,25 @@ contract Claim is Context {
         }
     }
 
-    function claim(bytes32[][] memory proofs, bytes32[] memory leafs) equals(proofs.length, leafs.length, 4) external payable returns (uint) {
+    function claim(claimRequestData[] request) external payable returns (uint) {
         address account = _msgSender();
-        require(_claimeds[account] == false, "Claim: already claimed");
-        require(_batchVerify(Action.FigBalance, proofs, leafs), "Claim: invalid proof");
-
-        uint sum = calculateStake();
-        require(sum > 0, "Claim: no claimable token");
+        
+        actions, sum = calculateStake(account, request);
+        setStakeActions(account, actions);        
         _token.transfer(account, sum);
-        _claimeds[account] = true;
         
         emit Claimed(account, sum);
         return sum;
     }
 
-    function withdraw(bytes32[][] memory proofs, bytes32[] memory leafs) expire() equals(proofs.length, leafs.length, 3) external payable returns (uint) {
+    function withdraw(claimRequestData[] request) expire() external payable returns (uint) {
         address account = _msgSender();
-        require(_batchVerify(Action.MinerBorrow, proofs, leafs), "Claim: invalid proof");
+        withdrawData[] memory withdraws;
+        uint sum;
 
-        uint[3] memory r = calculateBorrow(account);
-        uint value = r[2];
-        require(value > 0, "Claim: no claimable token");
-
-        _token.transfer(account, value);
-        _withdrawns[account] += value;
+        withdraws, sum = calculateBorrow(account, request);
+        setWithdrawActions(account, withdraws);
+        _token.transfer(account, sum);
 
         emit Withdrawn(account, r[0], value);
         return value;
@@ -133,7 +132,7 @@ contract Claim is Context {
     // 
     //-------------------------------------------------------------------------
 
-    function verify(Action act, bytes32[] memory proof, bytes32 leaf) public view returns (bool) {
+    function verify(Action act, bytes32[] memory proof, bytes32 leaf) external view returns (bool) {
        return _verify(act, proof, leaf);
     }
 
@@ -141,33 +140,12 @@ contract Claim is Context {
         return _merkleRoots[act];
     }
 
-    function balanceOf(address account, claimRequestData[] data) external view returns (uint) {
-        if (_claimeds[account] == true) {
-            return 0;
-        }
-        uint sum = 0;
-        for (uint i = 0; i < data.length; i++) {
-            Action act = data[i].action;
-            if (_isStakeAction(act) == false) {
-                continue;
-            }
-            if (_verify(act, data[i].proofs, data[i].leafs) == false) {
-                return 0;
-            }
-            sum += _calculate(act);
-        }
-
-        return sum;
+    function balanceOf(address account, claimRequestData[] request) external view returns (uint sum) {
+       _, sum = calculateStake(account, request);
     }
 
-    function canWithdraw(address account, bytes32[][] memory proofs, bytes32[] memory leafs) equals(proofs.length, leafs.length, 3) external view returns (uint[3] memory r) {
-        if (_checkTime(true) == false) {
-            return r;
-        }
-        if (_batchVerify(Action.MinerBorrow, proofs, leafs) == false) {
-            return r;
-        }
-        r = calculateBorrow(account);
+    function canWithdraw(address account, claimRequestData[] request) external view returns (uint sum) {
+        _, sum = calculateBorrow(account, request);
     }
 
     //-------------------------------------------------------------------------
@@ -175,44 +153,70 @@ contract Claim is Context {
     // 
     //-------------------------------------------------------------------------
 
-    function calculateStake() private view returns (uint) {
-        uint sum = 0;
-        sum += _calculate(Action.FigBalance);
-        sum += _calculate(Action.FitGovernance);
-        sum += _calculate(Action.DiscordPharse2);
-        sum += _calculate(Action.DiscordLevel5);
-        return sum;
+    function calculateStake(address account, claimRequestData[] request) private view returns (Action[] actions, uint sum) {
+        for (uint i = 0; i < request.length; i++) {
+            claimRequestData memory data = request[i];
+            Action act = data.action;
+
+            if (_isStakeAction(act) == false) {
+                continue;
+            }
+            if (_claimeds[account][act] == true) {
+                continue;
+            }
+            if (_verify(act, data.proofs, data.leafs) == false) {
+                continue;
+            }
+            sum += _calculate(act);
+            actions.push(act);
+        }
     }
 
-    function calculateBorrow(address account) private view returns (uint[3] memory r) {
-        uint sum = 0;
-        sum += _calculate(Action.MinerBorrow);
-        sum += _calculate(Action.MinerPayback);
-        sum += _calculate(Action.MinerPaybackTwice);
+    function calculateBorrow(address account, claimRequestData[] request) private view returns (withdrawData[] withdraws , uint sum) {
+        for (uint i = 0; i < request.length; i++) {
+            claimRequestData memory data = request[i];
+            Action act = data.action;
 
-        uint withdrawn = _withdrawns[account];
-        uint current = sum * (block.number - _startBlock) / RELEASE_LAST_TIME;
-        require(current >= withdrawn, "Claim: no claimable token");
+            if (_isBorrowAction(act) == false) {
+                continue;
+            }
+            if (_verify(act, data.proofs, data.leafs) == false) {
+                continue;
+            }
 
-        r[0] = sum;
-        r[1] = withdrawn;
-        r[2] = current - withdrawn;
+            uint withdrawn = _withdrawns[account][act];
+            uint total = _calculate(act);
+            uint current = total * (block.number - _startBlock) / RELEASE_LAST_TIME;
+            require(current >= withdrawn, "Claim: no claimable token");
+            uint rest = current - withdrawn;
+
+            withdrawData wd = withdrawData(act, withdrawn, rest);
+            withdraws.push(wd);
+            sum += rest;
+        }
+    }
+
+    function setStakeActions(address account, Action[] actions) private {
+        for (uint i = 0; i < actions.length; i++) {
+            Action act = actions[i];
+            if (_claimeds[account][act] == true) {
+                continue;
+            }
+            _claimeds[account][act] = true;
+        }
+    }
+
+    function setWithdrawActions(address account, withdrawData[] list) private {
+        for (uint i = 0; i < list.length; i++) {
+            Action act = list[i].action;
+            _withdrawns[account][act] += list[i].canWithdraw;
+        }
     }
 
     function _calculate(Action act) private view returns (uint) {
         uint supply = _supplys[act];
         uint userCnt = _stats[act];
         return supply / userCnt;
-    }
-
-    function _batchVerify(Action startAction, bytes32[][] memory proofs, bytes32[] memory leafs) public view returns (bool) {
-        for (uint i = 0; i < leafs.length; i++) {
-            Action act = Action(uint(startAction) + i);
-            if (_verify(act, proofs[i], leafs[i]) == false) {
-                return false;
-            }
-        }
-        return true;
     }
 
     function _verify(Action act, bytes32[] memory proof, bytes32 leaf) private view returns (bool) {
@@ -239,16 +243,6 @@ contract Claim is Context {
 
     modifier onlyOwner() {
         require(msg.sender == _owner, "Only owner can call this function");
-        _;
-    }
-
-    modifier equal(uint num1, uint num2) {
-        require(num1 > 0 && num1 == num2,  "Invalid args length");
-        _;
-    }
-
-    modifier equals(uint num1, uint num2, uint num3) {
-        require(num1 > 0 && num1 == num2 && num3 == num1,  "Invalid args length");
         _;
     }
 }

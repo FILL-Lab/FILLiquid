@@ -49,6 +49,14 @@ contract Claim is Context {
     // the number of actions
     uint private CLAIMABLE_ACTIONS = uint(Action.ActionEnd) - 1;
 
+    // the data structure of the claim request
+    struct claimRequestData {
+        Action  action;
+        address account;
+        bytes32[][] proofs;
+        bytes32[] leafs;
+    }
+
     // the supplys of the claimable actions
     event Claimed(address indexed account, uint amount);
     event Withdrawn(address indexed account, uint total, uint amount);
@@ -133,14 +141,23 @@ contract Claim is Context {
         return _merkleRoots[act];
     }
 
-    function balanceOf(address account, bytes32[][] memory proofs, bytes32[] memory leafs) equals(proofs.length, leafs.length, 4) external view returns (uint) {
+    function balanceOf(address account, claimRequestData[] data) external view returns (uint) {
         if (_claimeds[account] == true) {
             return 0;
         }
-        if (_batchVerify(Action.FigBalance, proofs, leafs) == false) {
-            return 0;
+        uint sum = 0;
+        for (uint i = 0; i < data.length; i++) {
+            Action act = data[i].action;
+            if (_isStakeAction(act) == false) {
+                continue;
+            }
+            if (_verify(act, data[i].proofs, data[i].leafs) == false) {
+                return 0;
+            }
+            sum += _calculate(act);
         }
-        return calculateStake();
+
+        return sum;
     }
 
     function canWithdraw(address account, bytes32[][] memory proofs, bytes32[] memory leafs) equals(proofs.length, leafs.length, 3) external view returns (uint[3] memory r) {
@@ -205,6 +222,14 @@ contract Claim is Context {
 
     function _checkTime() private view returns (bool) {
         return block.number <= _endBlock;
+    }
+
+    function _isStakeAction(Action act) private view returns (bool) {
+        return act == Action.FigBalance || act == Action.FitGovernance || act == Action.DiscordPharse2 || act == Action.DiscordLevel5;
+    }
+
+    function _isBorrowAction(Action act) private view returns (bool) {
+        return act == Action.MinerBorrow || act == Action.MinerPayback || act == Action.MinerPaybackTwice;
     }
 
     modifier expire() {

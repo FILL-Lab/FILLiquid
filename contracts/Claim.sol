@@ -39,10 +39,10 @@ contract Claim is Context {
     uint constant MINER_PAYBACK_SUPPLY = 60 * SUPPLY_UNIT;
     uint constant MINER_PAYBACK_TWICE_SUPPLY = 40 * SUPPLY_UNIT;
 
-    // airdrop only lasted for 1000 blocks, after that, the actions will be expired
+    // borrow airdrop will last 6 months
     uint _startBlock = 0;
     uint _endBlock = 0;
-    uint constant MONTH_IN_SECONDS = 30 * 24 * 60 * 60;
+    uint constant MONTH_IN_SECONDS = 30 * 86400;
     uint constant BLOCK_SECONDS = 30;
     uint constant RELEASE_LAST_TIME = 6 * MONTH_IN_SECONDS / BLOCK_SECONDS; // 6 months
 
@@ -50,20 +50,15 @@ contract Claim is Context {
     uint private CLAIMABLE_ACTIONS = uint(Action.ActionEnd) - 1;
 
     // the data structure of the claim request
-    struct claimRequestData {
+    struct Request {
         Action action;
-        bytes32[][] proofs;
-        bytes32[] leafs;
+        bytes32[] proofs;
+        bytes32 leaf;
     }
-    struct withdrawData {
-        Action action;
-        uint withdrawn;         // already withdrawn
-        uint canWithdraw;       // can withdraw, which equals to the total / userCnt * (block.number - _startBlock) / RELEASE_LAST_TIME - withdrawn
-    }
-
+   
     // the supplys of the claimable actions
     event Claimed(address indexed account, uint amount);
-    event Withdrawn(address indexed account, uint total, uint amount);
+    event Withdrawn(address indexed account, uint amount);
 
     constructor(address token) {
         _owner = msg.sender;
@@ -91,125 +86,116 @@ contract Claim is Context {
         _stats[act] = num;
     }
 
-    function setMerkleRootList(bytes32[] calldata roots) equal(roots.length, CLAIMABLE_ACTIONS) external onlyOwner {
+    // parameter of `roots` shoule be sorted by the action
+    function setMerkleRootList(bytes32[] calldata roots) external onlyOwner {
+        require(roots.length == CLAIMABLE_ACTIONS, "Claim: invalid length");
+
         for (uint i = 0; i < roots.length; i++) {
             _merkleRoots[Action(i+1)] = roots[i]; // first action is unknwon
         }
     }
 
-    function setUserNumList(uint[] calldata nums) equal(nums.length, CLAIMABLE_ACTIONS) external onlyOwner {
+    // parameter of `nums` shoule be sorted by the action
+    function setUserNumList(uint[] calldata nums) external onlyOwner {
+        require(nums.length == CLAIMABLE_ACTIONS, "Claim: invalid length");
+
         for (uint i = 0; i < nums.length; i++) {
             _stats[Action(i+1)] = nums[i]; // first action is unknwon
         }
     }
 
-    function claim(claimRequestData[] request) external payable returns (uint) {
+    function claim(Request[] calldata requests) external payable returns (uint) {
         address account = _msgSender();
         
-        actions, sum = calculateStake(account, request);
-        setStakeActions(account, actions);        
-        _token.transfer(account, sum);
-        
+        uint sum = calculateStake(account, requests, true);
+        if (sum > 0) {
+            _token.transfer(account, sum);
+        }
         emit Claimed(account, sum);
+
         return sum;
     }
 
-    function withdraw(claimRequestData[] request) expire() external payable returns (uint) {
+    function withdraw(Request[] calldata requests) external payable returns (uint) {        
         address account = _msgSender();
-        withdrawData[] memory withdraws;
-        uint sum;
+        
+        uint sum = calculateBorrow(account, requests, true);
+        if (sum > 0) {
+            _token.transfer(account, sum);
+        }
+        emit Withdrawn(account, sum);
 
-        withdraws, sum = calculateBorrow(account, request);
-        setWithdrawActions(account, withdraws);
-        _token.transfer(account, sum);
-
-        emit Withdrawn(account, r[0], value);
-        return value;
+        return sum;
     }
 
     //-------------------------------------------------------------------------
     //  View functions
     // 
     //-------------------------------------------------------------------------
+    function checkStake(address account, Request calldata data) public view returns (bool) {
+        if (_isStakeAction(data.action) == false) {
+            return false;
+        }
+        if (_claimeds[account][data.action] == true) {
+            return false;
+        }
+        return _verify(data);
+    }
 
-    function verify(Action act, bytes32[] memory proof, bytes32 leaf) external view returns (bool) {
-       return _verify(act, proof, leaf);
+    function checkBorrow(Request calldata data) public view returns (bool) {
+        if (_isBorrowAction(data.action) == false) {
+            return false;
+        }
+        return _verify(data);
+    }
+
+    function verify(Request calldata data) external view returns (bool) {
+       return _verify(data);
     }
 
     function getMerkleRoot(Action act) onlyOwner external view returns (bytes32) {
         return _merkleRoots[act];
     }
 
-    function balanceOf(address account, claimRequestData[] request) external view returns (uint sum) {
-       _, sum = calculateStake(account, request);
+    function balanceOf(address account, Request[] calldata requests) external returns (uint sum) {
+       return calculateStake(account, requests, false);
     }
 
-    function canWithdraw(address account, claimRequestData[] request) external view returns (uint sum) {
-        _, sum = calculateBorrow(account, request);
+    function canWithdraw(address account, Request[] calldata requests) external returns (uint sum) {
+        return calculateBorrow(account, requests, false);
     }
 
     //-------------------------------------------------------------------------
     //  Help functions
     // 
     //-------------------------------------------------------------------------
-
-    function calculateStake(address account, claimRequestData[] request) private view returns (Action[] actions, uint sum) {
-        for (uint i = 0; i < request.length; i++) {
-            claimRequestData memory data = request[i];
-            Action act = data.action;
-
-            if (_isStakeAction(act) == false) {
-                continue;
+    function calculateStake(address account, Request[] calldata requests, bool shouldClaim) internal returns (uint sum) {
+        for (uint i = 0; i < requests.length; i++) {
+            Request calldata data = requests[i];
+            if (checkStake(account, data)) {
+                sum += _calculate(data.action);
+                if (shouldClaim) {
+                    _claimeds[account][data.action] = true;
+                }
             }
-            if (_claimeds[account][act] == true) {
-                continue;
-            }
-            if (_verify(act, data.proofs, data.leafs) == false) {
-                continue;
-            }
-            sum += _calculate(act);
-            actions.push(act);
         }
     }
 
-    function calculateBorrow(address account, claimRequestData[] request) private view returns (withdrawData[] withdraws , uint sum) {
-        for (uint i = 0; i < request.length; i++) {
-            claimRequestData memory data = request[i];
-            Action act = data.action;
+    function calculateBorrow(address account, Request[] calldata requests, bool shouldMark) internal returns (uint sum){
+        for (uint i = 0; i < requests.length; i++) {
+            Request calldata data = requests[i];
+            if (checkBorrow(data)) {
+                uint withdrawn = _withdrawns[account][data.action];
+                uint total = _calculate(data.action);
+                uint current = total * (block.number - _startBlock) / RELEASE_LAST_TIME;
+                require(current >= withdrawn, "Claim: no claimable token");
+                uint rest = current - withdrawn;
+                sum += rest;
 
-            if (_isBorrowAction(act) == false) {
-                continue;
+                if (shouldMark) {
+                    _withdrawns[account][data.action] += rest;
+                }
             }
-            if (_verify(act, data.proofs, data.leafs) == false) {
-                continue;
-            }
-
-            uint withdrawn = _withdrawns[account][act];
-            uint total = _calculate(act);
-            uint current = total * (block.number - _startBlock) / RELEASE_LAST_TIME;
-            require(current >= withdrawn, "Claim: no claimable token");
-            uint rest = current - withdrawn;
-
-            withdrawData wd = withdrawData(act, withdrawn, rest);
-            withdraws.push(wd);
-            sum += rest;
-        }
-    }
-
-    function setStakeActions(address account, Action[] actions) private {
-        for (uint i = 0; i < actions.length; i++) {
-            Action act = actions[i];
-            if (_claimeds[account][act] == true) {
-                continue;
-            }
-            _claimeds[account][act] = true;
-        }
-    }
-
-    function setWithdrawActions(address account, withdrawData[] list) private {
-        for (uint i = 0; i < list.length; i++) {
-            Action act = list[i].action;
-            _withdrawns[account][act] += list[i].canWithdraw;
         }
     }
 
@@ -219,26 +205,17 @@ contract Claim is Context {
         return supply / userCnt;
     }
 
-    function _verify(Action act, bytes32[] memory proof, bytes32 leaf) private view returns (bool) {
-       bytes32 merkleRoot = _merkleRoots[act];
-       return MerkleProof.verify(proof, merkleRoot, leaf);
+    function _verify(Request calldata data) private view returns (bool) {
+       bytes32 merkleRoot = _merkleRoots[data.action];
+       return MerkleProof.verify(data.proofs, merkleRoot, data.leaf);
     }
 
-    function _checkTime() private view returns (bool) {
-        return block.number <= _endBlock;
-    }
-
-    function _isStakeAction(Action act) private view returns (bool) {
+    function _isStakeAction(Action act) private pure returns (bool) {
         return act == Action.FigBalance || act == Action.FitGovernance || act == Action.DiscordPharse2 || act == Action.DiscordLevel5;
     }
 
-    function _isBorrowAction(Action act) private view returns (bool) {
+    function _isBorrowAction(Action act) private pure returns (bool) {
         return act == Action.MinerBorrow || act == Action.MinerPayback || act == Action.MinerPaybackTwice;
-    }
-
-    modifier expire() {
-        require(_checkTime(), "Claim expired");
-        _;
     }
 
     modifier onlyOwner() {

@@ -47,7 +47,9 @@ contract Claim is Context {
     uint constant RELEASE_LAST_TIME = 6 * MONTH_IN_SECONDS / BLOCK_SECONDS; // 6 months
 
     // the number of actions
+    bool private _once;
     uint private CLAIMABLE_ACTIONS = uint(Action.ActionEnd) - 1;
+    uint _supplySum = FIG_BALANCE_SUPPLY + FIT_GOVERNANCE_SUPPLY + DISCORD_PHARSE2_SUPPLY + DISCORD_LEVEL5_SUPPLY + MINER_BORROW_SUPPLY + MINER_PAYBACK_SUPPLY + MINER_PAYBACK_TWICE_SUPPLY;
 
     // the data structure of the claim request
     struct Request {
@@ -76,6 +78,8 @@ contract Claim is Context {
         _supplys[Action.MinerBorrow] = MINER_BORROW_SUPPLY;
         _supplys[Action.MinerPayback] = MINER_PAYBACK_SUPPLY;
         _supplys[Action.MinerPaybackTwice] = MINER_PAYBACK_TWICE_SUPPLY;
+
+        _once = false;
     }
     
     function setMerkleRoot(Action act, bytes32 root) external onlyOwner {
@@ -105,8 +109,9 @@ contract Claim is Context {
     }
 
     function claim(Request[] calldata requests) external payable returns (uint) {
+        _checkBalance();
+
         address account = _msgSender();
-        
         uint sum = calculateStake(account, requests, true);
         if (sum > 0) {
             _token.transfer(account, sum);
@@ -117,8 +122,9 @@ contract Claim is Context {
     }
 
     function withdraw(Request[] calldata requests) external payable returns (uint) {        
+        _checkBalance();
+
         address account = _msgSender();
-        
         uint sum = calculateBorrow(account, requests, true);
         if (sum > 0) {
             _token.transfer(account, sum);
@@ -228,6 +234,14 @@ contract Claim is Context {
 
     function _isBorrowAction(Action act) private pure returns (bool) {
         return act == Action.MinerBorrow || act == Action.MinerPayback || act == Action.MinerPaybackTwice;
+    }
+
+    function _checkBalance() internal {
+        if (_once == false) {
+            uint balance = _token.balanceOf(address(this));
+            require(balance >= _supplySum, "Claim: invalid balance");
+            _once = true;
+        }
     }
 
     modifier onlyOwner() {

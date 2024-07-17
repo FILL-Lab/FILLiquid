@@ -170,20 +170,31 @@ contract Claim is Context {
     // 
     //-------------------------------------------------------------------------
     function calculateStake(address account, Request[] calldata requests, bool shouldClaim) internal returns (uint sum) {
+        bool[] memory actRecord = new bool[](uint(Action.ActionEnd));
+
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
+            if (actRecord[uint(data.action)]) {
+                continue;
+            }
             if (checkStake(account, data)) {
                 sum += _calculate(data.action);
                 if (shouldClaim) {
                     _claimeds[account][data.action] = true;
                 }
             }
+            actRecord[uint(data.action)] = true;
         }
     }
 
     function calculateBorrow(address account, Request[] calldata requests, bool shouldMark) internal returns (uint sum){
+        bool[] memory actRecord = new bool[](uint(Action.ActionEnd));
+
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
+            if (actRecord[uint(data.action)]) {
+                continue;
+            }
             if (checkBorrow(data)) {
                 uint withdrawn = _withdrawns[account][data.action];
                 uint total = _calculate(data.action);
@@ -196,6 +207,7 @@ contract Claim is Context {
                     _withdrawns[account][data.action] += rest;
                 }
             }
+            actRecord[uint(data.action)] = true;
         }
     }
 

@@ -32,3 +32,5 @@ BatchTransfer.sol
 *.sh
 gen_abi.sh
 remix-compiler.config.js
+.deps/
+DeployParameters.json

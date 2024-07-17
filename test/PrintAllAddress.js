@@ -29,28 +29,31 @@ async function main() {
     
     console.log("\nmuliSigner:");
     console.log("institutionSigner", multiSignerAddrs[0]);
-    console.log("teamSigner", multiSignerAddrs[1]);
-    console.log("foundationSigner", multiSignerAddrs[2]);
-    console.log("reserveSigner", multiSignerAddrs[3]);
-    console.log("communitySigner", multiSignerAddrs[4]);
-    console.log("feeReceiverSigner", multiSignerAddrs[5]);
+    console.log("team1Signer", multiSignerAddrs[1]);
+    console.log("team2Signer", multiSignerAddrs[2]);
+    console.log("foundationSigner", multiSignerAddrs[3]);
+    console.log("reserveSigner", multiSignerAddrs[4]);
+    console.log("communitySigner", multiSignerAddrs[5]);
+    console.log("feeReceiverSigner", multiSignerAddrs[6]);
 
     const erc20Pot = await deployerFILL.getPotAddrs();
     console.log("\nERC20Pot:");
     console.log("institutionPot", erc20Pot[0]);
-    console.log("teamPot", erc20Pot[1]);
-    console.log("foundationPot", erc20Pot[2]);
-    console.log("reservePot", erc20Pot[3]);
-    console.log("communityPot", erc20Pot[4]);
-    console.log("feeReceiverPot", erc20Pot[5]);
+    console.log("team1Pot", erc20Pot[1]);
+    console.log("team2Pot", erc20Pot[2]);
+    console.log("foundationPot", erc20Pot[3]);
+    console.log("reservePot", erc20Pot[4]);
+    console.log("communityPot", erc20Pot[5]);
+    console.log("feeReceiverPot", erc20Pot[6]);
 
     const config_addrs = {
         "institution": [multiSignerAddrs[0], erc20Pot[0]],
-        "team": [multiSignerAddrs[1], erc20Pot[1]],
-        "foundation": [multiSignerAddrs[2], erc20Pot[2]],
-        "reserve": [multiSignerAddrs[3], erc20Pot[3]],
-        "community": [multiSignerAddrs[4], erc20Pot[4]],
-        "feeReceiver": [multiSignerAddrs[5], erc20Pot[5]],
+        "team1": [multiSignerAddrs[1], erc20Pot[1]],
+        "team2": [multiSignerAddrs[2], erc20Pot[2]],
+        "foundation": [multiSignerAddrs[3], erc20Pot[3]],
+        "reserve": [multiSignerAddrs[4], erc20Pot[4]],
+        "community": [multiSignerAddrs[5], erc20Pot[5]],
+        "feeReceiver": [multiSignerAddrs[6], erc20Pot[6]],
     }
     console.log("\nconfig_addrs:", JSON.stringify(config_addrs));
 }

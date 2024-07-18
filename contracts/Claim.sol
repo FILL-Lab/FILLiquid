@@ -47,7 +47,7 @@ contract Claim is Context {
     uint constant RELEASE_LAST_TIME = 6 * MONTH_IN_SECONDS / BLOCK_SECONDS; // 6 months
 
     // the number of actions
-    bool private _once;
+    bool private _once;    // check balance only once
     uint private CLAIMABLE_ACTIONS = uint(Action.ActionEnd) - 1;
     uint _supplySum = FIG_BALANCE_SUPPLY + FIT_GOVERNANCE_SUPPLY + DISCORD_PHARSE2_SUPPLY + DISCORD_LEVEL5_SUPPLY + MINER_BORROW_SUPPLY + MINER_PAYBACK_SUPPLY + MINER_PAYBACK_TWICE_SUPPLY;
 
@@ -179,8 +179,8 @@ contract Claim is Context {
                 if (shouldClaim) {
                     _claimeds[account][data.action] = true;
                 }
+                actRecord[uint(data.action)] = true;
             }
-            actRecord[uint(data.action)] = true;
         }
     }
 
@@ -203,8 +203,8 @@ contract Claim is Context {
                 if (shouldMark) {
                     _withdrawns[account][data.action] += rest;
                 }
+                actRecord[uint(data.action)] = true;
             }
-            actRecord[uint(data.action)] = true;
         }
     }
 

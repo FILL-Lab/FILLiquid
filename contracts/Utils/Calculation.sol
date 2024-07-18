@@ -17,7 +17,7 @@ contract Calculation {
     }
 
     function getN(uint u_1, uint u_m, uint r_1, uint r_m, uint rateBase) external pure returns (uint n) {
-        n = ((_toUD60x18Direct(r_m).log2() - _toUD60x18Direct(r_1).log2()) / (_toUD60x18Direct(rateBase - u_1).log2() - _toUD60x18Direct(rateBase - u_m).log2())).intoUint256();
+        n = ((_toUD60x18Direct(r_m) / _toUD60x18Direct(r_1)).log2() / (_toUD60x18Direct(rateBase - u_1) / _toUD60x18Direct(rateBase - u_m)).log2()).intoUint256();
         require(n >= uUNIT, "Invalid N");
     }
 

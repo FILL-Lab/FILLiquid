@@ -108,7 +108,9 @@ contract Claim is Context {
     function retrive() external {
         require(block.number > _airdropEndBlock, "Claim: not reach the end block");
         uint restBalance = _token.balanceOf(address(this));
-        _token.transfer(_reserve, restBalance);
+        if (restBalance > 0) {
+            _token.transfer(_reserve, restBalance);
+        }
     }
 
     function claim(Request[] calldata requests) expire() external payable returns (uint) {

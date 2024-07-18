@@ -179,8 +179,8 @@ contract Claim is Context {
                 if (shouldClaim) {
                     _claimeds[account][data.action] = true;
                 }
-                actRecord[uint(data.action)] = true;
             }
+            actRecord[uint(data.action)] = true;
         }
     }
 
@@ -203,8 +203,8 @@ contract Claim is Context {
                 if (shouldMark) {
                     _withdrawns[account][data.action] += rest;
                 }
-                actRecord[uint(data.action)] = true;
             }
+            actRecord[uint(data.action)] = true;
         }
     }
 

@@ -20,7 +20,8 @@ contract Claim is Context {
         ActionEnd               // 8 
     }
 
-    address private _owner;
+    address private _fundation;   // the owner of the contract, which is an multi-sig address
+    address private _reserve;     // the reserve address, the rest token will be sent to this address  
     ERC20 private _token;
 
     mapping (Action => uint) private _supplys;                              // mapping action to the supply
@@ -41,10 +42,12 @@ contract Claim is Context {
 
     // borrow airdrop will last 6 months
     uint _startBlock = 0;
-    uint _endBlock = 0;
+    uint _releaseEndBlock = 0;
+    uint _airdropEndBlock = 0;
     uint constant MONTH_IN_SECONDS = 30 * 86400;
     uint constant BLOCK_SECONDS = 30;
-    uint constant RELEASE_LAST_TIME = 6 * MONTH_IN_SECONDS / BLOCK_SECONDS; // 6 months
+    uint constant RELEASE_LAST_TIME = 6 * MONTH_IN_SECONDS / BLOCK_SECONDS;                     // 6 months
+    uint constant AIRDROP_LAST_TIME = RELEASE_LAST_TIME + 6 * MONTH_IN_SECONDS / BLOCK_SECONDS; // 12 months
 
     // the number of actions
     bool private _once;    // check balance only once
@@ -62,8 +65,9 @@ contract Claim is Context {
     event Claimed(address indexed account, uint amount);
     event Withdrawn(address indexed account, uint amount);
 
-    constructor(address token, bytes32[] memory merkleRoots, uint[] memory userNums) {
-        _owner = msg.sender;
+    constructor(address token, address fundation, address reserve, bytes32[] memory merkleRoots, uint[] memory userNums) {
+        _fundation = fundation;
+        _reserve = reserve;
         _token = ERC20(token);
 
         // set up the merkle roots and user numbers, the first action is unkown
@@ -76,7 +80,8 @@ contract Claim is Context {
 
         // setting up the time
         _startBlock = block.number;
-        _endBlock = _startBlock + RELEASE_LAST_TIME;
+        _releaseEndBlock = _startBlock + RELEASE_LAST_TIME;
+        _airdropEndBlock = _startBlock + AIRDROP_LAST_TIME;
 
         // setting up the supplys
         _supplys[Action.FigBalance] = FIG_BALANCE_SUPPLY;
@@ -91,15 +96,22 @@ contract Claim is Context {
     }
     
     // if the contract deployed with the wrong merkle root, the owner can reset it
-    function setMerkleRoot(Action act, bytes32 root) external onlyOwner {
+    function setMerkleRoot(Action act, bytes32 root) external onlyFundation {
         _merkleRoots[act] = root;
     }
     // if the contract deployed with the wrong user number, the owner can reset it
-    function setUserNum(Action act, uint num) external onlyOwner {
+    function setUserNum(Action act, uint num) external onlyFundation {
         _stats[act] = num;
     }
 
-    function claim(Request[] calldata requests) external payable returns (uint) {
+    // if the contract has some token left, the owner can retrive it after the airdrop end
+    function retrive() external {
+        require(block.number > _airdropEndBlock, "Claim: not reach the end block");
+        uint restBalance = _token.balanceOf(address(this));
+        _token.transfer(_reserve, restBalance);
+    }
+
+    function claim(Request[] calldata requests) expire() external payable returns (uint) {
         _checkBalance();
 
         address account = _msgSender();
@@ -112,7 +124,7 @@ contract Claim is Context {
         return sum;
     }
 
-    function withdraw(Request[] calldata requests) external payable returns (uint) {        
+    function withdraw(Request[] calldata requests) expire() external payable returns (uint) {        
         _checkBalance();
 
         address account = _msgSender();
@@ -150,15 +162,21 @@ contract Claim is Context {
        return _verify(data);
     }
 
-    function getMerkleRoot(Action act) onlyOwner external view returns (bytes32) {
+    function getMerkleRoot(Action act) external view returns (bytes32) {
         return _merkleRoots[act];
     }
 
     function balanceOf(address account, Request[] calldata requests) external returns (uint sum) {
-       return calculateStake(account, requests, false);
+        if (_checkTime() == false) {
+            return 0;
+        }
+        return calculateStake(account, requests, false);
     }
 
     function canWithdraw(address account, Request[] calldata requests) external returns (uint sum) {
+        if (_checkTime() == false) {
+            return 0;
+        }
         return calculateBorrow(account, requests, false);
     }
 
@@ -195,7 +213,8 @@ contract Claim is Context {
             if (checkBorrow(data)) {
                 uint withdrawn = _withdrawns[account][data.action];
                 uint total = _calculate(data.action);
-                uint current = total * (block.number - _startBlock) / RELEASE_LAST_TIME;
+                uint height = block.number > _releaseEndBlock ? _releaseEndBlock : block.number;
+                uint current = total * (height - _startBlock) / RELEASE_LAST_TIME;
                 require(current >= withdrawn, "Claim: no claimable token");
                 uint rest = current - withdrawn;
                 sum += rest;
@@ -235,8 +254,17 @@ contract Claim is Context {
         }
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == _owner, "Only owner can call this function");
+    function _checkTime() private view returns (bool) {
+        return block.number <= _airdropEndBlock;
+    }
+
+    modifier expire() {
+        require(_checkTime(), "Claim: airdrop expired");
+        _;
+    }
+
+    modifier onlyFundation() {
+        require(msg.sender == _fundation, "Only owner can call this function");
         _;
     }
 }

@@ -62,9 +62,17 @@ contract Claim is Context {
     event Claimed(address indexed account, uint amount);
     event Withdrawn(address indexed account, uint amount);
 
-    constructor(address token) {
+    constructor(address token, bytes32[] memory merkleRoots, uint[] memory userNums) {
         _owner = msg.sender;
         _token = ERC20(token);
+
+        // set up the merkle roots and user numbers, the first action is unkown
+        require(merkleRoots.length == userNums.length && userNums.length == CLAIMABLE_ACTIONS, "Claim: invalid length");
+        for (uint i = 0; i < merkleRoots.length; i++) {
+            Action act = Action(i+1);
+            _merkleRoots[act] = merkleRoots[i];
+            _stats[act] = userNums[i];
+        }
 
         // setting up the time
         _startBlock = block.number;
@@ -82,30 +90,13 @@ contract Claim is Context {
         _once = false;
     }
     
+    // if the contract deployed with the wrong merkle root, the owner can reset it
     function setMerkleRoot(Action act, bytes32 root) external onlyOwner {
         _merkleRoots[act] = root;
     }
-
+    // if the contract deployed with the wrong user number, the owner can reset it
     function setUserNum(Action act, uint num) external onlyOwner {
         _stats[act] = num;
-    }
-
-    // parameter of `roots` shoule be sorted by the action
-    function setMerkleRootList(bytes32[] calldata roots) external onlyOwner {
-        require(roots.length == CLAIMABLE_ACTIONS, "Claim: invalid length");
-
-        for (uint i = 0; i < roots.length; i++) {
-            _merkleRoots[Action(i+1)] = roots[i]; // first action is unknwon
-        }
-    }
-
-    // parameter of `nums` shoule be sorted by the action
-    function setUserNumList(uint[] calldata nums) external onlyOwner {
-        require(nums.length == CLAIMABLE_ACTIONS, "Claim: invalid length");
-
-        for (uint i = 0; i < nums.length; i++) {
-            _stats[Action(i+1)] = nums[i]; // first action is unknwon
-        }
     }
 
     function claim(Request[] calldata requests) external payable returns (uint) {

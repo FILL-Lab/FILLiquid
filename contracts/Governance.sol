@@ -145,8 +145,8 @@ contract Governance is Context {
     uint constant DEFAULT_MAX_NO_WITH_VETO = 333333;
     uint constant DEFAULT_QUORUM = 400000;
     uint constant DEFAULT_LIQUIDATE = 200000;
-    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 10;    // 0.001% (10/1000000)
-    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 1e22;  // 10000FIG 
+    uint constant DEFAULT_DEPOSIT_RATIO_THRESHOLD = 50;    // 0.005% (50/1000000)
+    uint constant DEFAULT_DEPOSIT_AMOUNT_THRESHOLD = 5e21;  // 5000FIG 
     uint constant DEFAULT_VOTE_THRESHOLD = 1e19;
     uint constant DEFAULT_VOTING_PERIOD = 40320; // 14 days
     uint constant DEFAULT_EXECUTION_PERIOD = 20160; // 7 days

@@ -331,10 +331,10 @@ contract FILLiquid is Context, FILLiquidInterface {
     uint constant DEFAULT_BORROW_FEE_RATE = 10000;
     uint constant DEFAULT_COLLATERAL_RATE = 500000;
     uint constant DEFAULT_U_1 = 500000;
-    uint constant DEFAULT_R_0 = 10000;
-    uint constant DEFAULT_R_1 = 100000;
-    uint constant DEFAULT_R_M = 600000;
     uint constant DEFAULT_U_M = 900000;
+    uint constant DEFAULT_R_0 = 10000;
+    uint constant DEFAULT_R_1 = 80000;
+    uint constant DEFAULT_R_M = 400000;
     uint constant DEFAULT_MAX_LIQUIDATIONS = 10;
     uint constant DEFAULT_MIN_LIQUIDATE_INTERVAL = 12 hours;
     uint constant DEFAULT_ALERT_THRESHOLD = 750000;

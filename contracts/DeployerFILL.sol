@@ -102,8 +102,6 @@ contract DeployerFILL {
         
         (_deployerFeeMultiSignerOwner, _feeReceiverSigner, _feeReceiverPot) = deployerFeeMultiSigner.getAddrs();
 
-        _feeReceiverPot = new FILPot(address(_feeReceiverSigner));
-
         require(_owner == _deployerMixOwner, "owner mismatch 0");
         require(_deployerMixOwner == _deployerUtilsOwner, "owner mismatch1");
         require(_deployerUtilsOwner == _deployerFIGOwner, "owner mismatch2");

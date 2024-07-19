@@ -54,13 +54,24 @@ contract Claim is Context {
     uint private CLAIMABLE_ACTIONS = uint(Action.ActionEnd) - 1;
     uint _supplySum = FIG_BALANCE_SUPPLY + FIT_GOVERNANCE_SUPPLY + DISCORD_PHARSE2_SUPPLY + DISCORD_LEVEL5_SUPPLY + MINER_BORROW_SUPPLY + MINER_PAYBACK_SUPPLY + MINER_PAYBACK_TWICE_SUPPLY;
 
+    uint private calculateActionLength = 4;
+
     // the data structure of the claim request
     struct Request {
         Action action;
         bytes32[] proofs;
         bytes32 leaf;
     }
-   
+    struct CalculateResult {
+        uint sum;
+        CalculateData[] data;
+    }
+    struct CalculateData {
+        Action action;
+        uint amount;
+        bool claimed;
+    }
+
     // the supplys of the claimable actions
     event Claimed(address indexed account, uint amount);
     event Withdrawn(address indexed account, uint amount);
@@ -117,26 +128,34 @@ contract Claim is Context {
         _checkBalance();
 
         address account = _msgSender();
-        uint sum = calculateStake(account, requests, true);
-        if (sum > 0) {
-            _token.transfer(account, sum);
+        CalculateResult memory r = calculateStake(account, requests);
+        if (r.sum > 0) {
+            _token.transfer(account, r.sum);
         }
-        emit Claimed(account, sum);
+        for (uint i = 0; i < r.data.length; i++) {
+            CalculateData memory item = r.data[i];
+            _claimeds[account][item.action] = true;
+        }
+        emit Claimed(account, r.sum);
 
-        return sum;
+        return r.sum;
     }
 
     function withdraw(Request[] calldata requests) expire() external payable returns (uint) {        
         _checkBalance();
 
         address account = _msgSender();
-        uint sum = calculateBorrow(account, requests, true);
-        if (sum > 0) {
-            _token.transfer(account, sum);
+        CalculateResult memory r = calculateBorrow(account, requests);
+        if (r.sum > 0) {
+            _token.transfer(account, r.sum);
         }
-        emit Withdrawn(account, sum);
+        for (uint i = 0; i < r.data.length; i++) {
+            CalculateData memory item = r.data[i];
+            _withdrawns[account][item.action] += item.amount;
+        }
+        emit Withdrawn(account, r.sum);
 
-        return sum;
+        return r.sum;
     }
 
     //-------------------------------------------------------------------------
@@ -168,26 +187,29 @@ contract Claim is Context {
         return _merkleRoots[act];
     }
 
-    function balanceOf(address account, Request[] calldata requests) external returns (uint sum) {
+    function balanceOf(address account, Request[] calldata requests) public view returns (uint sum) {
         if (_checkTime() == false) {
             return 0;
         }
-        return calculateStake(account, requests, false);
+        CalculateResult memory r = calculateStake(account, requests);
+        return r.sum;
     }
 
-    function canWithdraw(address account, Request[] calldata requests) external returns (uint sum) {
+    function canWithdraw(address account, Request[] calldata requests) public view returns (uint sum) {
         if (_checkTime() == false) {
             return 0;
         }
-        return calculateBorrow(account, requests, false);
+        CalculateResult memory r = calculateBorrow(account, requests);
+        return r.sum;
     }
 
     //-------------------------------------------------------------------------
     //  Help functions
     // 
     //-------------------------------------------------------------------------
-    function calculateStake(address account, Request[] calldata requests, bool shouldClaim) internal returns (uint sum) {
+    function calculateStake(address account, Request[] calldata requests) private view returns (CalculateResult memory r) {
         bool[] memory actRecord = new bool[](uint(Action.ActionEnd));
+        CalculateData[] memory list = new CalculateData[](requests.length);
 
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
@@ -195,17 +217,17 @@ contract Claim is Context {
                 continue;
             }
             if (checkStake(account, data)) {
-                sum += _calculate(data.action);
-                if (shouldClaim) {
-                    _claimeds[account][data.action] = true;
-                }
+                r.sum += _calculate(data.action);
+                list[i] = CalculateData(data.action, 0, true);
             }
             actRecord[uint(data.action)] = true;
         }
+        r.data = list;
     }
 
-    function calculateBorrow(address account, Request[] calldata requests, bool shouldMark) internal returns (uint sum){
+    function calculateBorrow(address account, Request[] calldata requests) private view returns (CalculateResult memory r){
         bool[] memory actRecord = new bool[](uint(Action.ActionEnd));
+        CalculateData[] memory list = new CalculateData[](requests.length);
 
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
@@ -219,14 +241,12 @@ contract Claim is Context {
                 uint current = total * (height - _startBlock) / RELEASE_LAST_TIME;
                 require(current >= withdrawn, "Claim: no claimable token");
                 uint rest = current - withdrawn;
-                sum += rest;
-
-                if (shouldMark) {
-                    _withdrawns[account][data.action] += rest;
-                }
+                r.sum += rest;
+                list[i] = CalculateData(data.action, rest, true);
             }
             actRecord[uint(data.action)] = true;
         }
+        r.data = list;
     }
 
     function _calculate(Action act) private view returns (uint) {

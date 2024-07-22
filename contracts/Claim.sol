@@ -53,8 +53,6 @@ contract Claim is Context {
     uint private CLAIMABLE_ACTIONS = uint(Action.ActionEnd) - 1;
     uint _supplySum = FIG_BALANCE_SUPPLY + FIT_GOVERNANCE_SUPPLY + DISCORD_PHARSE2_SUPPLY + DISCORD_LEVEL5_SUPPLY + MINER_BORROW_SUPPLY + MINER_PAYBACK_SUPPLY + MINER_PAYBACK_TWICE_SUPPLY;
 
-    uint private calculateActionLength = 4;
-
     // the data structure of the claim request
     struct Request {
         Action action;

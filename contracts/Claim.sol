@@ -238,7 +238,7 @@ contract Claim is Context {
                 uint withdrawn = _withdrawns[account][data.action];
                 uint total = _calculate(data.action);
                 uint height = block.number > _releaseEndBlock ? _releaseEndBlock : block.number;
-                uint current = total * (height - _startBlock) / RELEASE_LAST_TIME;
+                uint current = total * (height - _startBlock) / RELEASE_LAST_BLOCK;
                 require(current >= withdrawn, "Claim: no claimable token");
                 uint rest = current - withdrawn;
                 r.sum += rest;

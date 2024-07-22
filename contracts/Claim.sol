@@ -205,31 +205,31 @@ contract Claim is Context {
     // 
     //-------------------------------------------------------------------------
     function calculateStake(address account, Request[] calldata requests) private view returns (CalculateResult memory r) {
-        bool[] memory actDumpRrcord = new bool[](uint(Action.ActionEnd));
+        bool[] memory actDumpRecord = new bool[](uint(Action.ActionEnd));
         CalculateData[] memory list = new CalculateData[](requests.length);
 
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
-            if (actDumpRrcord[uint(data.action)]) {
+            if (actDumpRecord[uint(data.action)]) {
                 continue;
             }
             if (checkStake(account, data)) {
                 uint amount = _calculate(data.action);
                 r.sum += amount;
                 list[i] = CalculateData(data.action, amount);
-                actDumpRrcord[uint(data.action)] = true;
+                actDumpRecord[uint(data.action)] = true;
             }
         }
         r.data = list;
     }
 
     function calculateBorrow(address account, Request[] calldata requests) private view returns (CalculateResult memory r){
-        bool[] memory actDumpRrcord = new bool[](uint(Action.ActionEnd));
+        bool[] memory actDumpRecord = new bool[](uint(Action.ActionEnd));
         CalculateData[] memory list = new CalculateData[](requests.length);
 
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
-            if (actDumpRrcord[uint(data.action)]) {
+            if (actDumpRecord[uint(data.action)]) {
                 continue;
             }
             if (checkBorrow(data)) {
@@ -242,7 +242,7 @@ contract Claim is Context {
                 r.sum += rest;
                 r.total += total;
                 list[i] = CalculateData(data.action, rest);
-                actDumpRrcord[uint(data.action)] = true;
+                actDumpRecord[uint(data.action)] = true;
             }
         }
         r.data = list;

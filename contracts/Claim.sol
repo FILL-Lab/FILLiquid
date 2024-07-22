@@ -44,10 +44,9 @@ contract Claim is Context {
     uint _startBlock = 0;
     uint _releaseEndBlock = 0;
     uint _airdropEndBlock = 0;
-    uint constant MONTH_IN_SECONDS = 30 * 86400;
-    uint constant BLOCK_SECONDS = 30;
-    uint constant RELEASE_LAST_TIME = 6 * MONTH_IN_SECONDS / BLOCK_SECONDS;                     // 6 months
-    uint constant AIRDROP_LAST_TIME = RELEASE_LAST_TIME + 6 * MONTH_IN_SECONDS / BLOCK_SECONDS; // 12 months
+    uint constant BLOCK_PER_MOUNTH = 30 * 86400 / 30;
+    uint constant RELEASE_LAST_BLOCK = 6 * BLOCK_PER_MOUNTH;                        // 6 months
+    uint constant AIRDROP_LAST_BLOCK = RELEASE_LAST_BLOCK + 6 * BLOCK_PER_MOUNTH;   // 12 months
 
     // the number of actions
     bool private _once;    // check balance only once
@@ -90,8 +89,8 @@ contract Claim is Context {
 
         // setting up the time
         _startBlock = block.number;
-        _releaseEndBlock = _startBlock + RELEASE_LAST_TIME;
-        _airdropEndBlock = _startBlock + AIRDROP_LAST_TIME;
+        _releaseEndBlock = _startBlock + RELEASE_LAST_BLOCK;
+        _airdropEndBlock = _startBlock + AIRDROP_LAST_BLOCK;
 
         // setting up the supplys
         _supplys[Action.FigBalance] = FIG_BALANCE_SUPPLY;

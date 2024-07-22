@@ -62,7 +62,8 @@ contract Claim is Context {
         bytes32 leaf;
     }
     struct CalculateResult {
-        uint sum;
+        uint sum;           // can get at most sum token
+        uint total;         // total amount
         CalculateData[] data;
     }
     struct CalculateData {
@@ -187,19 +188,18 @@ contract Claim is Context {
     }
 
     function balanceOf(address account, Request[] calldata requests) public view returns (uint sum) {
-        if (_checkTime() == false) {
-            return 0;
+        if (_checkTime()) {
+            CalculateResult memory r = calculateStake(account, requests);
+            sum = r.sum;
         }
-        CalculateResult memory r = calculateStake(account, requests);
-        return r.sum;
     }
 
-    function canWithdraw(address account, Request[] calldata requests) public view returns (uint sum) {
-        if (_checkTime() == false) {
-            return 0;
+    function canWithdraw(address account, Request[] calldata requests) public view returns (uint sum, uint total) {
+        if (_checkTime()) {
+            CalculateResult memory r = calculateBorrow(account, requests);
+            sum = r.sum;
+            total = r.total;
         }
-        CalculateResult memory r = calculateBorrow(account, requests);
-        return r.sum;
     }
 
     //-------------------------------------------------------------------------
@@ -242,6 +242,7 @@ contract Claim is Context {
                 require(current >= withdrawn, "Claim: no claimable token");
                 uint rest = current - withdrawn;
                 r.sum += rest;
+                r.total += total;
                 list[i] = CalculateData(data.action, rest);
                 actDumpRrcord[uint(data.action)] = true;
             }

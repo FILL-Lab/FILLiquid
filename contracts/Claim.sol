@@ -69,7 +69,6 @@ contract Claim is Context {
     struct CalculateData {
         Action action;
         uint amount;
-        bool claimed;
     }
 
     // the supplys of the claimable actions
@@ -116,14 +115,18 @@ contract Claim is Context {
     }
 
     // if the contract has some token left, the owner can retrive it after the airdrop end
-    function retrive() external {
+    // anyone can call this function
+    function retrive() external payable returns (uint) {
         require(block.number > _airdropEndBlock, "Claim: not reach the end block");
+
         uint restBalance = _token.balanceOf(address(this));
         if (restBalance > 0) {
             _token.transfer(_reserve, restBalance);
         }
+        return restBalance;
     }
 
+    // user paritipant test1,test3 governance and discord can be claimed, and user will get the reward
     function claim(Request[] calldata requests) expire() external payable returns (uint) {
         _checkBalance();
 
@@ -141,6 +144,7 @@ contract Claim is Context {
         return r.sum;
     }
 
+    // user borrow and payback FIL token can be withdrawn, and user will get the reward
     function withdraw(Request[] calldata requests) expire() external payable returns (uint) {        
         _checkBalance();
 
@@ -183,10 +187,6 @@ contract Claim is Context {
        return _verify(data);
     }
 
-    function getMerkleRoot(Action act) external view returns (bytes32) {
-        return _merkleRoots[act];
-    }
-
     function balanceOf(address account, Request[] calldata requests) public view returns (uint sum) {
         if (_checkTime() == false) {
             return 0;
@@ -208,30 +208,31 @@ contract Claim is Context {
     // 
     //-------------------------------------------------------------------------
     function calculateStake(address account, Request[] calldata requests) private view returns (CalculateResult memory r) {
-        bool[] memory actRecord = new bool[](uint(Action.ActionEnd));
+        bool[] memory actDumpRrcord = new bool[](uint(Action.ActionEnd));
         CalculateData[] memory list = new CalculateData[](requests.length);
 
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
-            if (actRecord[uint(data.action)]) {
+            if (actDumpRrcord[uint(data.action)]) {
                 continue;
             }
             if (checkStake(account, data)) {
-                r.sum += _calculate(data.action);
-                list[i] = CalculateData(data.action, 0, true);
+                uint amount = _calculate(data.action);
+                r.sum += amount;
+                list[i] = CalculateData(data.action, amount);
+                actDumpRrcord[uint(data.action)] = true;
             }
-            actRecord[uint(data.action)] = true;
         }
         r.data = list;
     }
 
     function calculateBorrow(address account, Request[] calldata requests) private view returns (CalculateResult memory r){
-        bool[] memory actRecord = new bool[](uint(Action.ActionEnd));
+        bool[] memory actDumpRrcord = new bool[](uint(Action.ActionEnd));
         CalculateData[] memory list = new CalculateData[](requests.length);
 
         for (uint i = 0; i < requests.length; i++) {
             Request calldata data = requests[i];
-            if (actRecord[uint(data.action)]) {
+            if (actDumpRrcord[uint(data.action)]) {
                 continue;
             }
             if (checkBorrow(data)) {
@@ -242,9 +243,9 @@ contract Claim is Context {
                 require(current >= withdrawn, "Claim: no claimable token");
                 uint rest = current - withdrawn;
                 r.sum += rest;
-                list[i] = CalculateData(data.action, rest, true);
+                list[i] = CalculateData(data.action, rest);
+                actDumpRrcord[uint(data.action)] = true;
             }
-            actRecord[uint(data.action)] = true;
         }
         r.data = list;
     }

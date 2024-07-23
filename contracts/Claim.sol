@@ -16,7 +16,7 @@ contract Claim is Context {
         DiscordLevel5,          // 4
         MinerBorrow,            // 5
         MinerPayback,           // 6
-        MinerPaybackTwice,      // 7
+        MinerBorrowTwice,       // 7
         ActionEnd               // 8 
     }
 
@@ -38,7 +38,7 @@ contract Claim is Context {
     uint constant DISCORD_LEVEL5_SUPPLY = 150 * SUPPLY_UNIT;
     uint constant MINER_BORROW_SUPPLY = 100 * SUPPLY_UNIT;
     uint constant MINER_PAYBACK_SUPPLY = 60 * SUPPLY_UNIT;
-    uint constant MINER_PAYBACK_TWICE_SUPPLY = 40 * SUPPLY_UNIT;
+    uint constant MINER_BORROW_TWICE_SUPPLY = 40 * SUPPLY_UNIT;
 
     // borrow airdrop will last 6 months
     uint _startBlock = 0;
@@ -51,7 +51,7 @@ contract Claim is Context {
     // the number of actions
     bool private _once;    // check balance only once
     uint private CLAIMABLE_ACTIONS = uint(Action.ActionEnd) - 1;
-    uint _supplySum = FIG_BALANCE_SUPPLY + FIT_GOVERNANCE_SUPPLY + DISCORD_PHARSE2_SUPPLY + DISCORD_LEVEL5_SUPPLY + MINER_BORROW_SUPPLY + MINER_PAYBACK_SUPPLY + MINER_PAYBACK_TWICE_SUPPLY;
+    uint _supplySum = FIG_BALANCE_SUPPLY + FIT_GOVERNANCE_SUPPLY + DISCORD_PHARSE2_SUPPLY + DISCORD_LEVEL5_SUPPLY + MINER_BORROW_SUPPLY + MINER_PAYBACK_SUPPLY + MINER_BORROW_TWICE_SUPPLY;
 
     // the data structure of the claim request
     struct Request {
@@ -98,7 +98,7 @@ contract Claim is Context {
         _supplys[Action.DiscordLevel5] = DISCORD_LEVEL5_SUPPLY;
         _supplys[Action.MinerBorrow] = MINER_BORROW_SUPPLY;
         _supplys[Action.MinerPayback] = MINER_PAYBACK_SUPPLY;
-        _supplys[Action.MinerPaybackTwice] = MINER_PAYBACK_TWICE_SUPPLY;
+        _supplys[Action.MinerBorrowTwice] = MINER_BORROW_TWICE_SUPPLY;
 
         _once = false;
     }
@@ -264,7 +264,7 @@ contract Claim is Context {
     }
 
     function _isBorrowAction(Action act) private pure returns (bool) {
-        return act == Action.MinerBorrow || act == Action.MinerPayback || act == Action.MinerPaybackTwice;
+        return act == Action.MinerBorrow || act == Action.MinerPayback || act == Action.MinerBorrowTwice;
     }
 
     function _checkBalance() internal {

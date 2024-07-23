@@ -13,7 +13,6 @@ contract BatchTransfer is Context {
     constructor(address asset) {
         _token = ERC20(asset);
         _owner = _msgSender();
-        _managers[_owner] = true;
     }
 
     // ---------------------------------------------------------------------------------
@@ -28,7 +27,8 @@ contract BatchTransfer is Context {
     // add or delete manager
     function setManager(address manager, bool add) onlyOwner() external {
         require(manager != address(0), "Invalid manager address");
-
+        require(manager != _owner, "Owner can not be manager");
+        
         if (add) {
             require(!_managers[manager], "Manager already exists");
             _managers[manager] = true;
@@ -36,6 +36,10 @@ contract BatchTransfer is Context {
             require(_managers[manager], "Manager not exists");    
             delete _managers[manager];
         }
+    }
+
+    function approve(uint amount) onlyManager() external {
+        _token.approve(address(this), amount);
     }
 
     // before batch transfer, manager should approve enough amount to this contract

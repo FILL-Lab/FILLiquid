@@ -31,4 +31,4 @@ gen_abi.sh
 remix-compiler.config.js
 .deps/
 DeployParameters.json
-MintableToken
+MintableToken.sol

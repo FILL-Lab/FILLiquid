@@ -8,7 +8,7 @@ contract BatchTransfer is Context {
     
     address private _owner;
     ERC20 private _token;
-    mapping (address => bool) _managers;
+    mapping (address => bool) private _managers;
 
     constructor(address asset) {
         _token = ERC20(asset);
@@ -16,14 +16,26 @@ contract BatchTransfer is Context {
         _managers[_owner] = true;
     }
 
-    // change owner
+    // ---------------------------------------------------------------------------------
+    //  execute functions
+    // 
+    // ---------------------------------------------------------------------------------
     function changeOwner(address newOwner) onlyOwner() external {
+        require(newOwner != address(0), "Invalid owner address");
         _owner = newOwner;
     }
 
     // add or delete manager
-    function setManager(address manager, bool status) onlyOwner() external {
-        _managers[manager] = status;
+    function setManager(address manager, bool add) onlyOwner() external {
+        require(manager != address(0), "Invalid manager address");
+
+        if (add) {
+            require(!_managers[manager], "Manager already exists");
+            _managers[manager] = true;
+        } else {
+            require(_managers[manager], "Manager not exists");    
+            delete _managers[manager];
+        }
     }
 
     // before batch transfer, manager should approve enough amount to this contract
@@ -33,6 +45,10 @@ contract BatchTransfer is Context {
         }
     }
 
+    // ---------------------------------------------------------------------------------
+    //  view functions
+    // 
+    // ---------------------------------------------------------------------------------
     function batchBalance(address [] memory users) public view returns (uint256[] memory) {
         uint256[] memory balances = new uint256[](users.length);
         for (uint256 i = 0; i < users.length; i++) {
@@ -40,6 +56,19 @@ contract BatchTransfer is Context {
         }
         return balances;
     }
+
+    function getInfo() public view returns (address, address) {
+        return (_owner, address(_token));
+    }
+
+    function checkManager(address manager) public view returns (bool) {
+        return _managers[manager];
+    }
+    
+    // ---------------------------------------------------------------------------------
+    //  help functions
+    // 
+    // ---------------------------------------------------------------------------------
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "Only owner can call this function");

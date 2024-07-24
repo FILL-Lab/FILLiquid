@@ -171,18 +171,18 @@ contract Claim is Context {
         if (_claimeds[account][data.action] == true) {
             return false;
         }
-        return _verify(data);
+        return _verify(account, data);
     }
 
-    function checkBorrow(Request calldata data) public view returns (bool) {
+    function checkBorrow(address account, Request calldata data) public view returns (bool) {
         if (_isBorrowAction(data.action) == false) {
             return false;
         }
-        return _verify(data);
+        return _verify(account, data);
     }
 
-    function verify(Request calldata data) external view returns (bool) {
-       return _verify(data);
+    function verify(address account, Request calldata data) external view returns (bool) {
+       return _verify(account, data);
     }
 
     function balanceOf(address account, Request[] calldata requests) public view returns (uint sum) {
@@ -232,7 +232,7 @@ contract Claim is Context {
             if (actDumpRecord[uint(data.action)]) {
                 continue;
             }
-            if (checkBorrow(data)) {
+            if (checkBorrow(account, data)) {
                 uint withdrawn = _withdrawns[account][data.action];
                 uint total = _calculate(data.action);
                 uint height = block.number > _releaseEndBlock ? _releaseEndBlock : block.number;
@@ -254,9 +254,23 @@ contract Claim is Context {
         return supply / userCnt;
     }
 
-    function _verify(Request calldata data) private view returns (bool) {
-       bytes32 merkleRoot = _merkleRoots[data.action];
-       return MerkleProof.verify(data.proofs, merkleRoot, data.leaf);
+    function _calculateLeafHash(address account) private pure returns (bytes32) {
+        // Encode the address
+        bytes memory encoded = abi.encode(account);
+
+        // Perform double Keccak256 hashing
+        bytes32 hash1 = keccak256(encoded);
+        bytes32 hash2 = keccak256(abi.encodePacked(hash1));
+
+        return hash2;
+    }
+
+    function _verify(address account, Request calldata data) private view returns (bool) {
+        bytes32 leafHash = _calculateLeafHash(account);
+        require(leafHash == data.leaf, "Claim: invalid leaf hash");
+
+        bytes32 merkleRoot = _merkleRoots[data.action];
+        return MerkleProof.verify(data.proofs, merkleRoot, data.leaf);
     }
 
     function _isStakeAction(Action act) private pure returns (bool) {

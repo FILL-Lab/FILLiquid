@@ -18,17 +18,19 @@ contract BatchTransfer is Context {
         ERC20 _token = ERC20(asset);
         address spender = _msgSender();
 
+        // wont provide retrive function for native token, so the native token value should be equal to total
         if (asset == nativeToken) {
-            require(msg.value >= total, "Invalid amount");
+            require(msg.value == total, "Invalid amount");
         } else {
             require(_token.allowance(spender, address(this)) >= total, "Not enough allowance");
         }
 
         for (uint256 i = 0; i < recipients.length; i++) {
+            address recipient = recipients[i];
             if (asset == nativeToken) {
-                payable(recipients[i]).transfer(amount);
+                payable(recipient).transfer(amount);
             } else {
-                _token.transferFrom(_msgSender(), recipients[i], amount);
+                _token.transferFrom(spender, recipient, amount);
             }
             sum += amount;
         }

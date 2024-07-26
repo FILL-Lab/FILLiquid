@@ -27,9 +27,9 @@ test
 build/
 goabi/
 TERC20.sol
-BatchTransfer.sol
 *.sh
 gen_abi.sh
 remix-compiler.config.js
 .deps/
 DeployParameters.json
+MintableToken.sol

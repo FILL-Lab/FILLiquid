@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract BatchTransfer is Context {
+contract BatchToken is Context {
     
     address public nativeToken = address(0x0000000000000000000000000000000000000000);
 

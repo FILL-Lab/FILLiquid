@@ -18,9 +18,8 @@ contract BatchToken is Context {
         ERC20 _token = ERC20(asset);
         address spender = _msgSender();
 
-        // wont provide retrive function for native token, so the native token value should be equal to total
         if (asset == nativeToken) {
-            require(msg.value == total, "Invalid amount");
+            require(msg.value >= total, "Invalid amount");
         } else {
             require(_token.allowance(spender, address(this)) >= total, "Not enough allowance");
         }

@@ -4,8 +4,10 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+import "filecoin-solidity-api/contracts/v0.8/utils/FilAddressIdConverter.sol";
+
 contract BatchToken is Context {
-    
+
     address public nativeToken = address(0x0000000000000000000000000000000000000000);
 
     // ---------------------------------------------------------------------------------
@@ -51,4 +53,15 @@ contract BatchToken is Context {
             }
         }
     }
+
+    function minerBalances(uint64[] calldata minerIds) public view returns (uint sum) {
+        for (uint256 i = 0; i < minerIds.length; i++) {
+            sum += toAddress(minerIds[i]).balance;
+        }
+    }
+    
+    function toAddress(uint64 actorId) public view returns (address) {
+        return FilAddressIdConverter.toAddress(actorId);
+    }
+
 }

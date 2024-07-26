@@ -533,7 +533,7 @@ contract FILLiquid is Context, FILLiquidInterface {
         if (sender != _toAddress(_filecoinAPI.getOwnerActorId(minerId))) {
             _validation.validateOwner(minerId, signature, sender);
         }
-        _minerBindsMap[minerId] = sender;
+        _minerBindsMap[minerId] = sender; 
         _userMinerPairs[sender].push(minerId);
         if (!_binds[minerId].onceBound) _allMiners.push(minerId);
         _binds[minerId] = BindStatus(true, true);

@@ -2,46 +2,40 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import "filecoin-solidity-api/contracts/v0.8/utils/FilAddressIdConverter.sol";
 
 contract BatchTransfer is Context {
-    
-    address private _owner;
-    ERC20 private _token;
-    mapping (address => bool) private _managers;
 
-    constructor(address asset) {
-        _token = ERC20(asset);
-        _owner = _msgSender();
-    }
+    using SafeERC20 for IERC20;
+
+    address public immutable nativeToken = address(0x0000000000000000000000000000000000000000);
 
     // ---------------------------------------------------------------------------------
     //  execute functions
     // 
     // ---------------------------------------------------------------------------------
-    function changeOwner(address newOwner) onlyOwner() external {
-        require(newOwner != address(0), "Invalid owner address");
-        _owner = newOwner;
-    }
-
-    // add or delete manager
-    function setManager(address manager, bool add) onlyOwner() external {
-        require(manager != address(0), "Invalid manager address");
-        require(manager != _owner, "Owner can not be manager");
-
-        if (add) {
-            require(!_managers[manager], "Manager already exists");
-            _managers[manager] = true;
-        } else {
-            require(_managers[manager], "Manager not exists");    
-            delete _managers[manager];
-        }
-    }
-
     // before batch transfer, manager should approve enough amount to this contract
-    function batchTransfer(address[] memory recipients, uint256 amount) onlyManager() external {
+    function transfer(address asset, address[] memory recipients, uint256 amount) external payable returns (uint sum) {
+        uint total = amount * recipients.length;
+        IERC20 _token = IERC20(asset);
+        address spender = _msgSender();
+
+        if (asset == nativeToken) {
+            require(msg.value >= total, "Invalid amount");
+        } else {
+            require(_token.allowance(spender, address(this)) >= total, "Not enough allowance");
+        }
+
         for (uint256 i = 0; i < recipients.length; i++) {
-            _token.transferFrom(_msgSender(), recipients[i], amount);
+            address recipient = recipients[i];
+            if (asset == nativeToken) {
+                payable(recipient).transfer(amount);
+            } else {
+                _token.safeTransferFrom(spender, recipient, amount);
+            }
+            sum += amount;
         }
     }
 
@@ -49,34 +43,27 @@ contract BatchTransfer is Context {
     //  view functions
     // 
     // ---------------------------------------------------------------------------------
-    function batchBalance(address [] memory users) public view returns (uint256[] memory) {
-        uint256[] memory balances = new uint256[](users.length);
+    function balances(address asset, address [] memory users) public view returns (uint[] memory result) {
+        result = new uint[](users.length);
+        IERC20 _token = IERC20(asset);
+
         for (uint256 i = 0; i < users.length; i++) {
-            balances[i] = _token.balanceOf(users[i]);
+            if (asset == nativeToken) {
+                result[i] = users[i].balance;
+            } else {
+                result[i] = _token.balanceOf(users[i]);
+            }
         }
-        return balances;
     }
 
-    function getInfo() public view returns (address, address) {
-        return (_owner, address(_token));
-    }
-
-    function checkManager(address manager) public view returns (bool) {
-        return _managers[manager];
+    function minerBalances(uint64[] calldata minerIds) public view returns (uint sum) {
+        for (uint256 i = 0; i < minerIds.length; i++) {
+            sum += toAddress(minerIds[i]).balance;
+        }
     }
     
-    // ---------------------------------------------------------------------------------
-    //  help functions
-    // 
-    // ---------------------------------------------------------------------------------
-
-    modifier onlyOwner() {
-        require(_msgSender() == _owner, "Only owner can call this function");
-        _;
+    function toAddress(uint64 actorId) public view returns (address) {
+        return FilAddressIdConverter.toAddress(actorId);
     }
 
-    modifier onlyManager() {
-        require(_managers[_msgSender()], "Only manager can call this function");
-        _;
-    }
 }

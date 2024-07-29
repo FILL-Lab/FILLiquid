@@ -30,7 +30,7 @@ contract Claim is Context, ReentrancyGuard {
     mapping (Action => bytes32) public _merkleRoots;                        // mapping action to the merkle root
     mapping (address => mapping (Action => bool)) public _claimeds;         // mapping address to the claim status
     mapping (address => mapping (Action => uint)) public _withdrawns;       // mapping address to the withdraw status
-    mapping (Action => uint) public _stats;                                 // mapping action to the number of users
+    mapping (Action => uint) public _stats;                                 // mapping action to the single user reward
 
     // the supplys of the claimable actions
     uint constant SUPPLY_UNIT = 10000 * 1e18;
@@ -81,12 +81,7 @@ contract Claim is Context, ReentrancyGuard {
 
         // set up the merkle roots and user numbers, the first action is unkown
         require(merkleRoots.length == userNums.length && userNums.length == CLAIMABLE_ACTIONS, "Claim: invalid length");
-        for (uint i = 0; i < merkleRoots.length; i++) {
-            Action act = Action(i+1);
-            _merkleRoots[act] = merkleRoots[i];
-            _stats[act] = userNums[i];
-        }
-
+        
         // setting up the time
         _startBlock = block.number;
         _releaseEndBlock = _startBlock + RELEASE_LAST_BLOCK;
@@ -100,6 +95,13 @@ contract Claim is Context, ReentrancyGuard {
         _supplies[Action.MinerBorrow] = MINER_BORROW_SUPPLY;
         _supplies[Action.MinerPayback] = MINER_PAYBACK_SUPPLY;
         _supplies[Action.MinerBorrowTwice] = MINER_BORROW_TWICE_SUPPLY;
+
+        // setting up merkle roots and stats
+        for (uint i = 0; i < merkleRoots.length; i++) {
+            Action act = Action(i+1);
+            _merkleRoots[act] = merkleRoots[i];
+            _stats[act] = _supplies[act] / userNums[i];
+        }
 
         _once = false;
     }
@@ -241,9 +243,7 @@ contract Claim is Context, ReentrancyGuard {
     }
 
     function _calculate(Action act) private view returns (uint) {
-        uint supply = _supplies[act];
-        uint userCnt = _stats[act];
-        return supply / userCnt;
+        return _stats[act];
     }
 
     function _calculateLeafHash(address account) private pure returns (bytes32) {

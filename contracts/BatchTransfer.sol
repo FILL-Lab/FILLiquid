@@ -24,8 +24,6 @@ contract BatchTransfer is Context {
 
         if (asset == nativeToken) {
             require(msg.value >= total, "Invalid amount");
-        } else {
-            require(_token.allowance(spender, address(this)) >= total, "Not enough allowance");
         }
 
         for (uint256 i = 0; i < recipients.length; i++) {

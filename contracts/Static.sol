@@ -5,7 +5,7 @@ import "./FILLiquid.sol";
 
 import "filecoin-solidity-api/contracts/v0.8/utils/FilAddressIdConverter.sol";
 
-contract Statics {
+contract Static {
     
     FILLiquidInterface public _filliquid;
 

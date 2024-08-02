@@ -9,36 +9,27 @@ contract Static {
     
     FILLiquidInterface public _filliquid;
 
-    struct TVLData {
-        uint minerNum;                  // all miners in `fil-liquid` subset
-        uint collaterizedMinerNum;      // miners still bound in `fil-liquid`
-        uint totalLockedMinerBalance;   // total locked FIL balance of collaterized miners
-        uint totalFILLiquidity;         // total FIL liquidity in `fil-liquid`
-        uint availableFILLiquidity;     // available FIL liquidity in `fil-liquid`
-        uint TVL;                       // the sum of `totalLockedMinerBalance` and `availableFILLiquidity`
-    }
-
     constructor(address filliquid) {
         _filliquid = FILLiquidInterface(filliquid);
     }
 
-    function getTVL() external view returns (TVLData memory data) {
+    function getTVL() external view returns (uint minerNum, uint collaterizedMinerNum, uint totalLockedMinerBalance, uint totalFILLiquidity, uint availableFILLiquidity, uint tvl) {
         uint start = 0;
         uint end = _filliquid.allMinersCount();
-        data.minerNum = end;
+        minerNum = end;
 
         FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
         for (uint j = 0; j < allMiners.length; j++) {
             FILLiquid.BindStatusInfo memory info = allMiners[j];
             if (!info.status.stillBound) continue;
-            data.collaterizedMinerNum++;
-            data.totalLockedMinerBalance += minerBalance(info.minerId);
+            collaterizedMinerNum++;
+            totalLockedMinerBalance += minerBalance(info.minerId);
         }
 
         FILLiquid.FILLiquidInfo memory filLiquidInfo = _filliquid.getStatus();
-        data.totalFILLiquidity = filLiquidInfo.totalFIL;
-        data.availableFILLiquidity = filLiquidInfo.availableFIL;
-        data.TVL = data.totalLockedMinerBalance + data.availableFILLiquidity;
+        totalFILLiquidity = filLiquidInfo.totalFIL;
+        availableFILLiquidity = filLiquidInfo.availableFIL;
+        tvl = totalLockedMinerBalance + availableFILLiquidity;
     }
 
     function minerBalance(uint64 minerId) internal view returns (uint) {

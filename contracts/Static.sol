@@ -13,23 +13,25 @@ contract Static {
         _filliquid = FILLiquidInterface(filliquid);
     }
 
-    function getTVL() external view returns (uint minerNum, uint collaterizedMinerNum, uint totalLockedMinerBalance, uint totalFILLiquidity, uint availableFILLiquidity, uint tvl) {
+    function getTVL() external view returns (uint) {
         uint start = 0;
         uint end = _filliquid.allMinersCount();
-        minerNum = end;
+        uint totalLockedMinerBalance = 0;
+        uint availableFILLiquidity = 0;
+        uint tvl = 0;
 
         FILLiquid.BindStatusInfo[] memory allMiners = _filliquid.allMinersSubset(start, end);
         for (uint j = 0; j < allMiners.length; j++) {
             FILLiquid.BindStatusInfo memory info = allMiners[j];
             if (!info.status.stillBound) continue;
-            collaterizedMinerNum++;
             totalLockedMinerBalance += minerBalance(info.minerId);
         }
 
         FILLiquid.FILLiquidInfo memory filLiquidInfo = _filliquid.getStatus();
-        totalFILLiquidity = filLiquidInfo.totalFIL;
         availableFILLiquidity = filLiquidInfo.availableFIL;
         tvl = totalLockedMinerBalance + availableFILLiquidity;
+        
+        return tvl;
     }
 
     function minerBalance(uint64 minerId) internal view returns (uint) {

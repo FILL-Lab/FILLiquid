@@ -2,9 +2,11 @@
 
 ### [A Filecoin Liquidity Pool for Storage Providers](https://github.com/FILL-Lab/FILL_doc)
 
+Welcome to the official solidity implementation of the FIL liquid project!
 
+FIll is a universal DeFi on the filecoin chain. The project will actively assist the filecoin ecosystem.
 
-
+### Data structure
 ```solidity
     struct BorrowInfo {
         uint256 id; // borrow id

@@ -2,13 +2,11 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "filecoin-solidity-api/contracts/v0.8/utils/FilAddressIdConverter.sol";
 
 contract BatchTransfer is Context {
-
-    using SafeERC20 for IERC20;
 
     address public immutable nativeToken = address(0x0000000000000000000000000000000000000000);
 
@@ -31,7 +29,7 @@ contract BatchTransfer is Context {
             if (asset == nativeToken) {
                 payable(recipient).transfer(amount);
             } else {
-                _token.safeTransferFrom(spender, recipient, amount);
+                _token.transferFrom(spender, recipient, amount);
             }
             sum += amount;
         }

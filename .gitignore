@@ -32,3 +32,4 @@ remix-compiler.config.js
 .deps/
 DeployParameters.json
 MintableToken.sol
+verified-sources/

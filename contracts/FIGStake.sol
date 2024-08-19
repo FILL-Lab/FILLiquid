@@ -14,11 +14,10 @@ contract FIGStake is Context{
     }
 
     struct Stake {
+        address staker;
         uint id;
         uint amount;
         uint start;
-        uint duration;                          // in blocks
-        address staker;
         uint startBounsId;
         uint withdrawn;                         // already withdraw
         StakeType stakeType;
@@ -31,6 +30,11 @@ contract FIGStake is Context{
         uint startStakeId;
     }
 
+    struct Factor {
+        uint duration;
+        uint powerRate;
+    }
+
     event BonusCreated(address indexed foundation, uint indexed bonusId, uint amount);
     event StakeCreated(address indexed staker, uint indexed stakeId, uint amount, uint duration);
 
@@ -38,7 +42,6 @@ contract FIGStake is Context{
     uint constant MIN_BONUS_AMOUNT = 100 * 1e18;
     uint constant MIN_STAKE_AMOUNT = 100 * 1e18;
     uint constant BLOCKS_PER_DAY = 86400 / 32;
-    uint constant BONUS_LASTED_BLOCKS = BLOCKS_PER_DAY * 7;
     uint constant MAX_USER_STAKE_NUMBER = 5;
 
     ERC20 private immutable _token;
@@ -49,15 +52,21 @@ contract FIGStake is Context{
 
     uint private _totalPower = 0;
     uint private _totalStake = 0;
-    mapping (uint => uint) private _stakePower;     // mapping stake type to power;
+    mapping (StakeType => Factor) _factors;         // mapping stake type to factor;
+    mapping (StakeType => uint) private _stakePower;     // mapping stake type to power;
     mapping (uint => Stake) _stakes;                // mapping stake id to stake;               
     mapping (address => uint[]) _userStakes;        // mapping user address to stake id list;
     mapping (uint => uint[]) _bonusRewards;         // mapping bonus id to kinds of rewards;
-    mapping (address => uint) _userStakeAmount      // mapping user address to total stake amount;
+    mapping (address => uint) _userStakeAmount;     // mapping user address to total stake amount;
 
     constructor(address token, address foundation) {
         _token = ERC20(token);
         _foundation = foundation;
+
+        _factors[StakeType.Days30] = Factor(BLOCKS_PER_DAY * 30, 10);
+        _factors[StakeType.Days90] = Factor(BLOCKS_PER_DAY * 90, 20);
+        _factors[StakeType.Days180] = Factor(BLOCKS_PER_DAY * 180, 30);
+        _factors[StakeType.Days360] = Factor(BLOCKS_PER_DAY * 360, 40);
     }
 
     // foundation transfer FIL to this contract to create bonus
@@ -77,8 +86,8 @@ contract FIGStake is Context{
             // set bonus rewards
             uint[] memory rewards = new uint[](uint(StakeType.Days360) + 1);
             for (uint i = uint(StakeType.Days30); i <= uint(StakeType.Days360); i++) {
-                uint power = _stakePower[i];
-                uint rewards[i] = power * amount / _totalPower;
+                uint power = _stakePower[StakeType(i)];
+                rewards[i] = power * amount / _totalPower;
             }
             _bonusRewards[bonus.id] = rewards;
 
@@ -88,7 +97,7 @@ contract FIGStake is Context{
     }
 
     // 质押
-    function stake(uint amount, uint uStakeTyp) external payable returns (uint) {
+    function staking(uint amount, uint uStakeTyp) external payable returns (uint) {
 
         // check stake amount
         require(amount >= MIN_STAKE_AMOUNT, "Invalid stake amount");
@@ -101,7 +110,7 @@ contract FIGStake is Context{
         Stake[] memory stakes = getStakes(staker);
         uint validStkNum = 0;
         for (uint i = 0; i < stakes.length; i++) {
-            if (checkStakeEnd(stake)) {
+            if (checkStakeEnd(stakes[i])) {
                 validStkNum++;
             }
         }
@@ -109,12 +118,10 @@ contract FIGStake is Context{
         
         // get stake duration and power by stake type, and calculate power
         StakeType stktyp = StakeType(uStakeTyp);
-        uint[2] memory factors = getStakeDuration(stktyp);
-        uint duration = factors[0];
-        uint powerRate = factors[1];
-        uint power = powerRate * amount;
+        Factor memory factor = _factors[stktyp];
+        uint power = factor.powerRate * amount;
         _totalPower += power;
-        _stakePower[stakeTyp] += power;
+        _stakePower[stktyp] += power;
         _totalStake += amount;
         _userStakeAmount[staker] += amount;
 
@@ -122,7 +129,7 @@ contract FIGStake is Context{
         // mark(fuk): 极限情况，如果bonus和stake在同一区块，按照事件顺序计算
         uint startBonusId = nextBonusId();
         uint stakeId = _nextStakeId++;
-        _stakes[stakeId] = Stake(stakeId, amount, block.number, duration, staker, startBonusId, stktyp)
+        _stakes[stakeId] = Stake(staker, stakeId, amount, block.number, startBonusId, 0, stktyp);
         _userStakes[staker].push(stakeId);
         
         _token.transferFrom(staker, address(this), amount);
@@ -133,9 +140,6 @@ contract FIGStake is Context{
 
     // 赎回
     function unStake(uint stakeId) external returns (uint) { 
-        // check existing
-        require(_stakes.contains(stakeId), "Stake not exist");
-
         // check authority
         Stake memory stake = _stakes[stakeId];
         address staker = _msgSender();
@@ -145,31 +149,30 @@ contract FIGStake is Context{
         require(checkStakeEnd(stake) == false, "Stake duration not reached");
 
         // get stake duration and power by stake type, and calculate power     
-        uint[2] memory factors = getStakeDuration(stake.stakeType);
-        uint duration = factors[0];
-        uint powerRate = factors[1];
-        uint power = powerRate * amount;
+        Factor memory factor = _factors[stake.stakeType];
+        uint power = factor.powerRate * stake.amount;
         _totalPower -= power;
-        _stakePower[stakeTyp] -= power;
-        _totalStake -= amount;
-        _userStakeAmount[staker] -= amount;
+        _stakePower[stake.stakeType] -= power;
+        _totalStake -= stake.amount;
+        _userStakeAmount[staker] -= stake.amount;
 
         // delete stake record
-        Stake[] memory stakes = _userStakes[staker];
-        for (uint i = 0; i < stakes.length; i++) {
-            if (stakes[i].id == stakeId) {
-                stakes[i] = stakes[stakes.length - 1];
-                stakes.pop();
+        uint[] storage stakeIds = _userStakes[staker];
+        for (uint i = 0; i < stakeIds.length; i++) {
+            if (stakeIds[i] == stakeId) {
+                stakeIds[i] = stakeIds[stakeIds.length - 1];
+                stakeIds.pop();
                 break;
             }
         }
-        _stakes.delete(stakeId);
+        delete _stakes[stakeId];
 
         // transfer FIG to staker
-        uint canWithdraw = _calculate(stake);
-        uint withdrawn = stake.withdrawn + canWithdraw;
-        _token.transfer(staker, canWithdraw);
+        uint unWithdrawn = _calculate(stake);
+        uint withdrawn = stake.withdrawn + unWithdrawn;
+        _token.transfer(staker, unWithdrawn);
 
+        return unWithdrawn;
         // todo(fuk): emit event
     }
 
@@ -178,9 +181,9 @@ contract FIGStake is Context{
         uint sum = 0;
         address staker = _msgSender();
 
-        Stake[] memory stakes = _userStakes[staker];
+        Stake[] memory stakes = getStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
-            Stake stake = stakes[i];
+            Stake memory stake = stakes[i];
             uint reward = _calculate(stake);
             if (reward == 0) {
                 continue;
@@ -200,7 +203,7 @@ contract FIGStake is Context{
     // 
     // ---------------------------------------------------------------------------------
     function canWithdraw(address staker) public view returns (uint r) {
-        Stake[] memory stakes = _userStakes[staker];
+        Stake[] memory stakes = getStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
             r += _calculate(stakes[i]);
         }
@@ -217,9 +220,8 @@ contract FIGStake is Context{
         r -= stake.withdrawn;
     }
 
-    function getStakes(address staker) public view returns (Stake[] memory) {
-        uint[] ids = _userStakes[staker];
-        Stake[] memory stakes = new Stake[](ids.length);
+    function getStakes(address staker) public view returns (Stake[] memory stakes) {
+        uint[] memory ids = _userStakes[staker];
         for (uint i = 0; i < ids.length; i++) {
             stakes[i] = _stakes[ids[i]];
         }
@@ -233,30 +235,11 @@ contract FIGStake is Context{
         return _bonuses.length;
     }
 
-    function checkStakeEnd(Stake memory stake) private pure returns (bool) {
-        return stake.start + stake.duration < block.number;
+    function checkStakeEnd(Stake memory stake) private view returns (bool) {
+        return stake.start + _factors[stake.stakeType].duration < block.number;
     }
 
     function checkStakeType(uint stakeTyp) private pure returns (bool) {
         return stakeTyp >= uint(StakeType.Days30) && stakeTyp <= uint(StakeType.Days360);
-    }
-
-    function getStakeDuration(StakeType stkTyp) private pure returns (uint[2] memory r) {
-        if (stkTyp == StakeType.Days30) {
-            r[0] = BLOCKS_PER_DAY * 30;
-            r[1] = 10;
-        } else if (stkTyp == StakeType.Days90) {
-            r[0] = BLOCKS_PER_DAY * 90;
-            r[1] = 20;
-        } else if (stkTyp == StakeType.Days180) {
-            r[0] = BLOCKS_PER_DAY * 180;
-            r[1] = 30;
-        } else if (stkTyp == StakeType.Days360) {
-            r[0] = BLOCKS_PER_DAY * 360;
-            r[1] = 40;
-        } else {
-            r[0] = 0;
-            r[1] = 0;
-        }
     }
 }

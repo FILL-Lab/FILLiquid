@@ -27,7 +27,6 @@ contract FIGStake is Context{
         uint id;
         uint amount;
         uint start;
-        uint startStakeId;
     }
 
     struct Factor {
@@ -35,8 +34,10 @@ contract FIGStake is Context{
         uint powerRate;
     }
 
-    event BonusCreated(address indexed foundation, uint indexed bonusId, uint amount);
-    event StakeCreated(address indexed staker, uint indexed stakeId, uint amount, uint duration);
+    event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint totalPower, uint[] powers);
+    event StakeCreated(address indexed staker, uint stakeId, uint amount, uint stakeType, uint start, uint startBonusId, uint power);
+    event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn, uint power);
+    event withdrawed(address indexed staker, uint amount);
 
     uint constant RATE_BASE = 1000000;
     uint constant MIN_BONUS_AMOUNT = 100 * 1e18;
@@ -80,23 +81,24 @@ contract FIGStake is Context{
             uint amount = msg.value + address(this).balance;
 
             // create bonus
-            Bonus memory bonus = Bonus(nextBonusId(), amount, block.number, _nextStakeId);
+            Bonus memory bonus = Bonus(nextBonusId(), amount, block.number);
             _bonuses.push(bonus);
 
             // set bonus rewards
             uint[] memory rewards = new uint[](uint(StakeType.Days360) + 1);
+            uint[] memory powers = new uint[](uint(StakeType.Days360) + 1);
             for (uint i = uint(StakeType.Days30); i <= uint(StakeType.Days360); i++) {
                 uint power = _stakePower[StakeType(i)];
                 rewards[i] = power * amount / _totalPower;
+                powers[i] = power;
             }
             _bonusRewards[bonus.id] = rewards;
 
             // emit event，todo(fuk): add power and stake power
-            emit BonusCreated(_foundation, bonus.id, bonus.amount);
+            emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, _totalPower, powers);
         }
     }
 
-    // 质押
     function staking(uint amount, uint uStakeTyp) external payable returns (uint) {
 
         // check stake amount
@@ -134,11 +136,11 @@ contract FIGStake is Context{
         
         _token.transferFrom(staker, address(this), amount);
 
-        // todo(fuk): emit event
+        emit StakeCreated(staker, stakeId, amount, uStakeTyp, block.number, startBonusId, power);
+
         return amount;
     }
 
-    // 赎回
     function unStake(uint stakeId) external returns (uint) { 
         // check authority
         Stake memory stake = _stakes[stakeId];
@@ -172,11 +174,11 @@ contract FIGStake is Context{
         uint withdrawn = stake.withdrawn + unWithdrawn;
         _token.transfer(staker, unWithdrawn);
 
+        emit StakeDropped(staker, stakeId, stake.amount, uint(stake.stakeType), withdrawn, unWithdrawn, power);
+
         return unWithdrawn;
-        // todo(fuk): emit event
     }
 
-    // 提现分润
     function withdraw() external returns (uint) {
         uint sum = 0;
         address staker = _msgSender();
@@ -195,6 +197,9 @@ contract FIGStake is Context{
         if (sum > 0) {
             _token.transfer(staker, sum);
         }
+
+        emit withdrawed(staker, sum);
+
         return sum;
     }
 

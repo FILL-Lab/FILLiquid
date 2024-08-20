@@ -40,9 +40,8 @@ contract FIGStake is Context{
     event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn, uint power);
     event withdrawed(address indexed staker, uint amount);
 
-    uint constant RATE_BASE = 1000000;
-    uint constant MIN_BONUS_AMOUNT = 100 * 1e18;
-    uint constant MIN_STAKE_AMOUNT = 100 * 1e18;
+    uint constant MIN_BONUS_AMOUNT = 100 ether;
+    uint constant MIN_STAKE_AMOUNT = 100 ether;
     uint constant BLOCKS_PER_DAY = 86400 / 32;
     uint constant MAX_USER_STAKE_NUMBER = 5;
     uint constant BONUS_DURATION = BLOCKS_PER_DAY * 7;

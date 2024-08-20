@@ -53,13 +53,15 @@ contract FIGStake is Context{
     Bonus[] private _bonuses;
 
     uint private _totalPower = 0;
-    uint private _totalStake = 0;
-    mapping (StakeType => Factor) _factors;              // mapping stake type to factor;
-    mapping (StakeType => uint) private _stakePower;     // mapping stake type to power;
-    mapping (uint => Stake) _stakes;                     // mapping stake id to stake;               
-    mapping (address => uint[]) _userStakes;             // mapping user address to stake id list;
-    mapping (uint => uint[]) _bonusRewards;              // mapping bonus id to kinds of rewards;
-    mapping (address => uint) _userStakeAmount;          // mapping user address to total stake amount;
+    uint public _totalStake = 0;
+    uint public _userTransfer = 0;                        // user but not foundation transfer FIL to this contract, and the value will be part of next bonus
+    uint public _userTotalTransfer =0;                    // the sum of FIL transfered by user but not foundation
+    mapping (StakeType => Factor) public _factors;        // mapping stake type to factor;
+    mapping (StakeType => uint) private _stakePower;      // mapping stake type to power;
+    mapping (uint => Stake) public _stakes;               // mapping stake id to stake;               
+    mapping (address => uint[]) public _userStakes;       // mapping user address to stake id list;
+    mapping (uint => uint[]) public _bonusRewards;        // mapping bonus id to kinds of rewards;
+    mapping (address => uint) public _userStakeAmount;    // mapping user address to total stake amount;
 
     constructor(address token, address foundation) {
         _token = ERC20(token);
@@ -79,8 +81,10 @@ contract FIGStake is Context{
             require(_totalPower > 0, "Invalid transfer");
 
             // bonus amount should be the sum of transfer amount and the contract rest balance
-            uint amount = msg.value + address(this).balance;
-
+            uint amount = msg.value + _userTransfer;
+            _userTransfer = 0;
+            require(address(this).balance >= amount, "Insufficient balance");
+            
             // create bonus, bonus time range the scope of （start, end]
             uint start = block.number;
             uint end = start +  BONUS_DURATION;
@@ -99,6 +103,9 @@ contract FIGStake is Context{
 
             // emit event，todo(fuk): add power and stake power
             emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, _totalPower, powers);
+        } else {
+            _userTransfer += msg.value;
+            _userTotalTransfer += msg.value;
         }
     }
 

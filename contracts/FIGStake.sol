@@ -3,8 +3,9 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract FIGStake is Context{
+contract FIGStake is Context, ReentrancyGuard {
 
     enum StakeType {
         Days30,           // 0
@@ -75,7 +76,7 @@ contract FIGStake is Context{
 
     // foundation transfer FIL to this contract to create bonus
     // allow user to transfer FIL to this contract, and the value will be part of next bonus
-    receive() external payable {
+    receive() external payable nonReentrant {
         if (isFundation() && msg.value >= MIN_BONUS_AMOUNT) {
             // foundation should transfer after user staking FIL
             require(_totalPower > 0, "Invalid transfer");
@@ -109,7 +110,7 @@ contract FIGStake is Context{
         }
     }
 
-    function staking(uint amount, uint uStakeTyp) external payable returns (uint) {
+    function staking(uint amount, uint uStakeTyp) external nonReentrant returns (uint) {
 
         // check stake amount
         require(amount >= MIN_STAKE_AMOUNT, "Invalid stake amount");
@@ -151,7 +152,7 @@ contract FIGStake is Context{
         return amount;
     }
 
-    function unStake(uint stakeId) external returns (uint) { 
+    function unStake(uint stakeId) external nonReentrant returns (uint) { 
         // check authority
         Stake memory stake = _stakes[stakeId];
         address staker = _msgSender();
@@ -189,7 +190,7 @@ contract FIGStake is Context{
         return unWithdrawn;
     }
 
-    function withdraw() external returns (uint) {
+    function withdraw() external nonReentrant returns (uint) {
         uint sum = 0;
         address staker = _msgSender();
 

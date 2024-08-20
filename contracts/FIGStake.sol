@@ -47,22 +47,22 @@ contract FIGStake is Context, ReentrancyGuard {
     uint constant MAX_USER_STAKE_NUMBER = 5;
     uint constant BONUS_DURATION = BLOCKS_PER_DAY * 7;
 
-    ERC20 private immutable _token;
-    address private immutable _foundation;
+    ERC20 public immutable _token;
+    address public immutable _foundation;
     
     uint private _nextStakeId = 0;
     Bonus[] private _bonuses;
 
     uint private _totalPower = 0;
-    uint public _totalStake = 0;
-    uint public _userTransfer = 0;                        // user but not foundation transfer FIL to this contract, and the value will be part of next bonus
-    uint public _userTotalTransfer =0;                    // the sum of FIL transfered by user but not foundation
-    mapping (StakeType => Factor) public _factors;        // mapping stake type to factor;
+    uint private _totalStake = 0;
+    uint private _userTransfer = 0;                       // user but not foundation transfer FIL to this contract, and the value will be part of next bonus
+    uint private _userTotalTransfer = 0;                  // the sum of FIL transfered by user but not foundation
+    mapping (StakeType => Factor) private _factors;       // mapping stake type to factor;
     mapping (StakeType => uint) private _stakePower;      // mapping stake type to power;
-    mapping (uint => Stake) public _stakes;               // mapping stake id to stake;               
-    mapping (address => uint[]) public _userStakes;       // mapping user address to stake id list;
-    mapping (uint => uint[]) public _bonusRewards;        // mapping bonus id to kinds of rewards;
-    mapping (address => uint) public _userStakeAmount;    // mapping user address to total stake amount;
+    mapping (uint => Stake) private _stakes;              // mapping stake id to stake;               
+    mapping (address => uint[]) private _userStakes;      // mapping user address to stake id list;
+    mapping (uint => uint[]) private _bonusRewards;       // mapping bonus id to kinds of rewards;
+    mapping (address => uint) private _userStakeAmount;   // mapping user address to total stake amount;
 
     constructor(address token, address foundation) {
         _token = ERC20(token);
@@ -120,14 +120,8 @@ contract FIGStake is Context, ReentrancyGuard {
         require(_token.balanceOf(staker) >= amount, "Insufficient balance");
 
         // scan user stakes and check valid stake number
-        Stake[] memory stakes = getStakes(staker);
-        uint validStkNum = 0;
-        for (uint i = 0; i < stakes.length; i++) {
-            if (checkStakeEnd(stakes[i])) {
-                validStkNum++;
-            }
-        }
-        require(validStkNum < MAX_USER_STAKE_NUMBER, "User stakes too much");
+        Stake[] memory stakes = getUserStakes(staker);
+        require(stakes.length < MAX_USER_STAKE_NUMBER, "User stakes too much");
         
         // get stake duration and power by stake type, and calculate power
         StakeType stktyp = StakeType(uStakeTyp);
@@ -159,7 +153,7 @@ contract FIGStake is Context, ReentrancyGuard {
         require(stake.staker == staker, "Invalid staker");
 
         // check stake duration
-        require(checkStakeEnd(stake) == false, "Stake duration not reached");
+        require(stake.start + _factors[stake.stakeType].duration < block.number, "Stake end not reached");
 
         // get stake duration and power by stake type, and calculate power     
         Factor memory factor = _factors[stake.stakeType];
@@ -194,7 +188,7 @@ contract FIGStake is Context, ReentrancyGuard {
         uint sum = 0;
         address staker = _msgSender();
 
-        Stake[] memory stakes = getStakes(staker);
+        Stake[] memory stakes = getUserStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
             Stake memory stake = stakes[i];
             uint reward = _calculate(stake);
@@ -215,16 +209,59 @@ contract FIGStake is Context, ReentrancyGuard {
     }
 
     // ---------------------------------------------------------------------------------
-    //  view and help functions
+    //  view functions
     // 
     // ---------------------------------------------------------------------------------
+    function getStake(uint stakeId) public view returns (Stake memory) {
+        return _stakes[stakeId];
+    }
+
+    function getUserStakes(address staker) public view returns (Stake[] memory stakes) {
+        uint[] memory ids = _userStakes[staker];
+        for (uint i = 0; i < ids.length; i++) {
+            stakes[i] = _stakes[ids[i]];
+        }
+    }
+
+    function getUserStakeAmount(address staker) public view returns (uint) {
+        return _userStakeAmount[staker];
+    }
+
+    function getTotalStakeAmount() public view returns (uint) {
+        return _totalStake;
+    }
+
+    function getBonus(uint bonusId) public view returns (Bonus memory) {
+        return _bonuses[bonusId];
+    }
+
+    function getBonusRewards(uint bonusId) public view returns (uint[] memory r) {
+        return _bonusRewards[bonusId];
+    }
+
+    function getFactor(uint stakeType) public view returns (Factor memory) {
+        return _factors[StakeType(stakeType)];
+    }
+    
+    function getPower() public view returns (uint[5] memory r) {
+        r[0] = _totalPower;
+        r[1] = _stakePower[StakeType.Days30];
+        r[2] = _stakePower[StakeType.Days90];
+        r[3] = _stakePower[StakeType.Days180];
+        r[4] = _stakePower[StakeType.Days360];
+    }
+
     function canWithdraw(address staker) public view returns (uint r) {
-        Stake[] memory stakes = getStakes(staker);
+        Stake[] memory stakes = getUserStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
             r += _calculate(stakes[i]);
         }
     }
 
+    // ---------------------------------------------------------------------------------
+    //  help functions
+    // 
+    // ---------------------------------------------------------------------------------
     function _calculate(Stake memory stake) private view returns (uint r) {
         for (uint i = stake.startBounsId; i < _bonuses.length; i++) {
             Bonus memory bonus = _bonuses[i];
@@ -247,26 +284,11 @@ contract FIGStake is Context, ReentrancyGuard {
         r -= stake.withdrawn;
     }
 
-    function getStakes(address staker) public view returns (Stake[] memory stakes) {
-        uint[] memory ids = _userStakes[staker];
-        for (uint i = 0; i < ids.length; i++) {
-            stakes[i] = _stakes[ids[i]];
-        }
-    }
-
-    function isFundation() public view returns (bool) {
+    function isFundation() private view returns (bool) {
         return _msgSender() == _foundation;
     }
 
-    function nextBonusId() public view returns (uint) {
+    function nextBonusId() private view returns (uint) {
         return _bonuses.length;
-    }
-
-    function checkStakeEnd(Stake memory stake) private view returns (bool) {
-        return stake.start + _factors[stake.stakeType].duration < block.number;
-    }
-
-    function checkStakeType(uint stakeTyp) private pure returns (bool) {
-        return stakeTyp >= uint(StakeType.Days30) && stakeTyp <= uint(StakeType.Days360);
     }
 }

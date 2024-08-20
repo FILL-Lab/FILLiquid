@@ -27,6 +27,7 @@ contract FIGStake is Context{
         uint id;
         uint amount;
         uint start;
+        uint end;
     }
 
     struct Factor {
@@ -44,6 +45,7 @@ contract FIGStake is Context{
     uint constant MIN_STAKE_AMOUNT = 100 * 1e18;
     uint constant BLOCKS_PER_DAY = 86400 / 32;
     uint constant MAX_USER_STAKE_NUMBER = 5;
+    uint constant BONUS_DURATION = BLOCKS_PER_DAY * 7;
 
     ERC20 private immutable _token;
     address private immutable _foundation;
@@ -53,12 +55,12 @@ contract FIGStake is Context{
 
     uint private _totalPower = 0;
     uint private _totalStake = 0;
-    mapping (StakeType => Factor) _factors;         // mapping stake type to factor;
+    mapping (StakeType => Factor) _factors;              // mapping stake type to factor;
     mapping (StakeType => uint) private _stakePower;     // mapping stake type to power;
-    mapping (uint => Stake) _stakes;                // mapping stake id to stake;               
-    mapping (address => uint[]) _userStakes;        // mapping user address to stake id list;
-    mapping (uint => uint[]) _bonusRewards;         // mapping bonus id to kinds of rewards;
-    mapping (address => uint) _userStakeAmount;     // mapping user address to total stake amount;
+    mapping (uint => Stake) _stakes;                     // mapping stake id to stake;               
+    mapping (address => uint[]) _userStakes;             // mapping user address to stake id list;
+    mapping (uint => uint[]) _bonusRewards;              // mapping bonus id to kinds of rewards;
+    mapping (address => uint) _userStakeAmount;          // mapping user address to total stake amount;
 
     constructor(address token, address foundation) {
         _token = ERC20(token);
@@ -80,8 +82,10 @@ contract FIGStake is Context{
             // bonus amount should be the sum of transfer amount and the contract rest balance
             uint amount = msg.value + address(this).balance;
 
-            // create bonus
-            Bonus memory bonus = Bonus(nextBonusId(), amount, block.number);
+            // create bonus, bonus time range the scope of （start, end]
+            uint start = block.number;
+            uint end = start +  BONUS_DURATION;
+            Bonus memory bonus = Bonus(nextBonusId(), amount, start, end);
             _bonuses.push(bonus);
 
             // set bonus rewards
@@ -204,7 +208,7 @@ contract FIGStake is Context{
     }
 
     // ---------------------------------------------------------------------------------
-    //  view functions
+    //  view and help functions
     // 
     // ---------------------------------------------------------------------------------
     function canWithdraw(address staker) public view returns (uint r) {
@@ -217,11 +221,22 @@ contract FIGStake is Context{
     function _calculate(Stake memory stake) private view returns (uint r) {
         for (uint i = stake.startBounsId; i < _bonuses.length; i++) {
             Bonus memory bonus = _bonuses[i];
-            uint[] memory rewards = _bonusRewards[bonus.id];
-            for (uint j = 0; j < rewards.length; j++) {
-                r += rewards[j] * stake.amount;
+            uint reward = _bonusRewards[bonus.id][uint(stake.stakeType)];
+            if (reward == 0) {
+                continue;
+            }
+            
+            // bonus reward equals to `stakeType power * bonus reward amount / totalPower`, 
+            // and the bonus time range the scope of （start, end]
+            // the stake happend before the `startBonusId`, so the situation of `block.number < bonus.start` wont happend
+            if (block.number > bonus.end) {
+                r += reward * stake.amount;
+            } else if (block.number > bonus.start && block.number <= bonus.end) {
+                r += reward * stake.amount * (block.number - bonus.start) / (bonus.end - bonus.start);
             }
         }
+
+        require(r >= stake.withdrawn, "Invalid withdraw amount");
         r -= stake.withdrawn;
     }
 

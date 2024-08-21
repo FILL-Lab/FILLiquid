@@ -73,10 +73,10 @@ contract FIGStake is Context, ReentrancyGuard {
         _token = ERC20(token);
         _foundation = foundation;
 
-        _factors[StakeType.Days30] = Factor(BLOCKS_PER_DAY * 30, 10);
-        _factors[StakeType.Days90] = Factor(BLOCKS_PER_DAY * 90, 20);
-        _factors[StakeType.Days180] = Factor(BLOCKS_PER_DAY * 180, 30);
-        _factors[StakeType.Days360] = Factor(BLOCKS_PER_DAY * 360, 40);
+        _factors[StakeType.Days30] = Factor(BLOCKS_PER_DAY * 15, 10);
+        _factors[StakeType.Days90] = Factor(BLOCKS_PER_DAY * 30, 20);
+        _factors[StakeType.Days180] = Factor(BLOCKS_PER_DAY * 60, 30);
+        _factors[StakeType.Days360] = Factor(BLOCKS_PER_DAY * 90, 40);
     }
 
     // foundation transfer FIL to this contract to create bonus
@@ -164,6 +164,12 @@ contract FIGStake is Context, ReentrancyGuard {
         _stat.totalStake -= stake.amount;
         _userStakeAmount[staker] -= stake.amount;
 
+        // staker retrive `FIG` token and reward `FIL`
+        uint unWithdrawn = _calculate(stake);
+        uint withdrawn = stake.withdrawn + unWithdrawn;
+        _token.transfer(staker, stake.amount);
+        payable(staker).transfer(unWithdrawn);
+
         // delete stake record
         uint[] storage stakeIds = _userStakes[staker];
         for (uint i = 0; i < stakeIds.length; i++) {
@@ -175,11 +181,7 @@ contract FIGStake is Context, ReentrancyGuard {
         }
         delete _stakes[stakeId];
 
-        // transfer FIG to staker
-        uint unWithdrawn = _calculate(stake);
-        uint withdrawn = stake.withdrawn + unWithdrawn;
-        _token.transfer(staker, unWithdrawn);
-
+        // notify event
         emit StakeDropped(staker, stakeId, stake.amount, uint(stake.stakeType), withdrawn, unWithdrawn);
 
         return unWithdrawn;
@@ -203,7 +205,7 @@ contract FIGStake is Context, ReentrancyGuard {
         }
 
         if (sum > 0) {
-            _token.transfer(staker, sum);
+            payable(staker).transfer(sum);
         }
 
         emit Withdrawn(staker, sum);

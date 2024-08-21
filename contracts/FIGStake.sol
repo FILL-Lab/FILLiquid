@@ -48,11 +48,10 @@ contract FIGStake is Context, ReentrancyGuard {
     event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn);
     event Withdrawn(address indexed staker, uint amount);
     event Received(address indexed sender, uint amount);
-    event Test1(uint amount);
 
     uint constant MIN_BONUS_AMOUNT = 1 ether;               // todo: update to 100 ether
     uint constant MIN_STAKE_AMOUNT = 100 ether;             // the minimum amount of user staking FIG
-    uint constant BLOCKS_PER_DAY = 86400 / 32;              // blocks in one day
+    uint constant BLOCKS_PER_DAY = 1; // 86400 / 32;              // blocks in one day
     uint constant MAX_USER_STAKE_NUMBER = 5;                // the maximum number of user stakes
     uint constant BONUS_DURATION = BLOCKS_PER_DAY * 7;      // bonus duration
     uint constant RATE_BASE = 1000000;                      // used for calculate reward
@@ -65,7 +64,6 @@ contract FIGStake is Context, ReentrancyGuard {
     Stat private _stat;
     
     mapping (StakeType => Factor) private _factors;       // mapping stake type to factor;
-    //mapping (StakeType => uint) private _stakePower;      // mapping stake type to power;
     mapping (uint => Stake) private _stakes;              // mapping stake id to stake;               
     mapping (address => uint[]) private _userStakes;      // mapping user address to stake id list;
     mapping (uint => uint[]) private _bonusRewards;       // mapping bonus id to kinds of rewards;
@@ -199,7 +197,9 @@ contract FIGStake is Context, ReentrancyGuard {
                 continue;
             }
             sum += reward;
-            stake.withdrawn += reward;
+
+            // update stake withdrawn in storage but not memory
+            _stakes[stake.id].withdrawn += reward;
         }
 
         if (sum > 0) {
@@ -215,8 +215,8 @@ contract FIGStake is Context, ReentrancyGuard {
     //  view functions
     // 
     // ---------------------------------------------------------------------------------
-    function getStake(uint stakeId) public view returns (Stake memory) {
-        return _stakes[stakeId];
+    function getStake(uint stakeId) public view returns (Stake memory r) {
+        r = _stakes[stakeId];
     }
 
     function getUserStakes(address staker) public view returns (Stake[] memory r) {
@@ -235,19 +235,19 @@ contract FIGStake is Context, ReentrancyGuard {
         return _stat.totalStake;
     }
 
-    function getBonus(uint bonusId) public view returns (Bonus memory) {
-        return _bonuses[bonusId];
+    function getBonus(uint bonusId) public view returns (Bonus memory r) {
+        r = _bonuses[bonusId];
     }
 
     function getBonusRewards(uint bonusId) public view returns (uint[] memory r) {
-        return _bonusRewards[bonusId];
+        r = _bonusRewards[bonusId];
     }
 
-    function getFactor(uint stakeType) public view returns (Factor memory) {
-        return _factors[StakeType(stakeType)];
+    function getFactor(uint stakeType) public view returns (Factor memory r) {
+        r = _factors[StakeType(stakeType)];
     }
     
-    function getPower() public view returns (uint) {
+    function getPower() public view returns (uint r) {
         return _stat.totalPower;
     }
 

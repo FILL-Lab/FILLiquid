@@ -20,7 +20,7 @@ contract FIGStake is Context, ReentrancyGuard {
         uint amount;
         uint start;
         uint startBounsId;
-        uint withdrawn;                         // already withdraw
+        uint withdrawn;             // already withdraw
         StakeType stakeType;
     }
 
@@ -32,35 +32,40 @@ contract FIGStake is Context, ReentrancyGuard {
     }
 
     struct Factor {
-        uint duration;
-        uint powerRate;
+        uint duration;              // stake duration
+        uint powerRate;             // stake power rate, user power equals to `amount * powerRate`
     }
 
-    event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint totalPower, uint[] powers);
-    event StakeCreated(address indexed staker, uint stakeId, uint amount, uint stakeType, uint start, uint startBonusId, uint power);
-    event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn, uint power);
+    struct Stat {
+        uint totalPower;            // total power of all stakes
+        uint totalStake;            // total stake amount
+        uint userTransferRest;      // user but not foundation transfer FIL to this contract, and the value will be part of next bonus
+        uint userTotalTransfer;     // the sum of FIL transfered by user but not foundation
+    }
+
+    event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint end, uint totalPower);
+    event StakeCreated(address indexed staker, uint stakeId, uint amount, uint stakeType, uint start, uint startBonusId);
+    event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn);
     event Withdrawn(address indexed staker, uint amount);
     event Received(address indexed sender, uint amount);
     event Test1(uint amount);
 
-    uint constant MIN_BONUS_AMOUNT = 10000; //1 ether; // todo: update to 100 ether
-    uint constant MIN_STAKE_AMOUNT = 100 ether;
-    uint constant BLOCKS_PER_DAY = 86400 / 32;
-    uint constant MAX_USER_STAKE_NUMBER = 5;
-    uint constant BONUS_DURATION = BLOCKS_PER_DAY * 7;
+    uint constant MIN_BONUS_AMOUNT = 1 ether;               // todo: update to 100 ether
+    uint constant MIN_STAKE_AMOUNT = 100 ether;             // the minimum amount of user staking FIG
+    uint constant BLOCKS_PER_DAY = 86400 / 32;              // blocks in one day
+    uint constant MAX_USER_STAKE_NUMBER = 5;                // the maximum number of user stakes
+    uint constant BONUS_DURATION = BLOCKS_PER_DAY * 7;      // bonus duration
+    uint constant RATE_BASE = 1000000;                      // used for calculate reward
 
     ERC20 public immutable _token;
     address public immutable _foundation;
-    
+
     uint private _nextStakeId = 0;
     Bonus[] private _bonuses;
-
-    uint private _totalPower = 0;
-    uint private _totalStake = 0;
-    uint private _userTransfer = 0;                       // user but not foundation transfer FIL to this contract, and the value will be part of next bonus
-    uint private _userTotalTransfer = 0;                  // the sum of FIL transfered by user but not foundation
+    Stat private _stat;
+    
     mapping (StakeType => Factor) private _factors;       // mapping stake type to factor;
-    mapping (StakeType => uint) private _stakePower;      // mapping stake type to power;
+    //mapping (StakeType => uint) private _stakePower;      // mapping stake type to power;
     mapping (uint => Stake) private _stakes;              // mapping stake id to stake;               
     mapping (address => uint[]) private _userStakes;      // mapping user address to stake id list;
     mapping (uint => uint[]) private _bonusRewards;       // mapping bonus id to kinds of rewards;
@@ -83,11 +88,11 @@ contract FIGStake is Context, ReentrancyGuard {
         // can be `FILPot` contract address, so the `isFoundation` will return false.
         if (isFoundation() && msg.value >= MIN_BONUS_AMOUNT) {
             // foundation should transfer after user staking FIL
-            require(_totalPower > 0, "Invalid transfer");
+            require(_stat.totalPower > 0, "Invalid transfer");
 
             // bonus amount should be the sum of transfer amount and the contract rest balance
-            uint amount = msg.value + _userTransfer;
-            _userTransfer = 0;
+            uint amount = msg.value + _stat.userTransferRest;
+            _stat.userTransferRest = 0;
             require(address(this).balance >= amount, "Insufficient balance");
             
             // create bonus, bonus time range the scope of （start, end]
@@ -98,18 +103,15 @@ contract FIGStake is Context, ReentrancyGuard {
 
             // set bonus rewards
             uint[] memory rewards = new uint[](uint(StakeType.Days360) + 1);
-            uint[] memory powers = new uint[](uint(StakeType.Days360) + 1);
             for (uint i = uint(StakeType.Days30); i <= uint(StakeType.Days360); i++) {
-                uint power = _stakePower[StakeType(i)];
-                rewards[i] = power * amount / _totalPower;
-                powers[i] = power;
+                rewards[i] = _rewardUnit(i, bonus.amount);
             }
             _bonusRewards[bonus.id] = rewards;
 
-            emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, _totalPower, powers);
+            emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, bonus.end, _stat.totalPower);
         } else {
-            _userTransfer += msg.value;
-            _userTotalTransfer += msg.value;
+            _stat.userTransferRest += msg.value;
+            _stat.userTotalTransfer += msg.value;
             emit Received(tx.origin, msg.value);
         }
     }
@@ -130,10 +132,8 @@ contract FIGStake is Context, ReentrancyGuard {
         // get stake duration and power by stake type, and calculate power
         StakeType stktyp = StakeType(uStakeTyp);
         Factor memory factor = _factors[stktyp];
-        uint power = factor.powerRate * amount;
-        _totalPower += power;
-        _stakePower[stktyp] += power;
-        _totalStake += amount;
+        _stat.totalPower += factor.powerRate * amount;
+        _stat.totalStake += amount;        
         _userStakeAmount[staker] += amount;
 
         // create stake and transfer FIG to this contract
@@ -145,7 +145,7 @@ contract FIGStake is Context, ReentrancyGuard {
         
         _token.transferFrom(staker, address(this), amount);
 
-        emit StakeCreated(staker, stakeId, amount, uStakeTyp, block.number, startBonusId, power);
+        emit StakeCreated(staker, stakeId, amount, uStakeTyp, block.number, startBonusId);
 
         return amount;
     }
@@ -162,9 +162,8 @@ contract FIGStake is Context, ReentrancyGuard {
         // get stake duration and power by stake type, and calculate power     
         Factor memory factor = _factors[stake.stakeType];
         uint power = factor.powerRate * stake.amount;
-        _totalPower -= power;
-        _stakePower[stake.stakeType] -= power;
-        _totalStake -= stake.amount;
+        _stat.totalPower -= power;
+        _stat.totalStake -= stake.amount;
         _userStakeAmount[staker] -= stake.amount;
 
         // delete stake record
@@ -183,7 +182,7 @@ contract FIGStake is Context, ReentrancyGuard {
         uint withdrawn = stake.withdrawn + unWithdrawn;
         _token.transfer(staker, unWithdrawn);
 
-        emit StakeDropped(staker, stakeId, stake.amount, uint(stake.stakeType), withdrawn, unWithdrawn, power);
+        emit StakeDropped(staker, stakeId, stake.amount, uint(stake.stakeType), withdrawn, unWithdrawn);
 
         return unWithdrawn;
     }
@@ -233,7 +232,7 @@ contract FIGStake is Context, ReentrancyGuard {
     }
 
     function getTotalStakeAmount() public view returns (uint) {
-        return _totalStake;
+        return _stat.totalStake;
     }
 
     function getBonus(uint bonusId) public view returns (Bonus memory) {
@@ -248,17 +247,13 @@ contract FIGStake is Context, ReentrancyGuard {
         return _factors[StakeType(stakeType)];
     }
     
-    function getPower() public view returns (uint[5] memory r) {
-        r[0] = _totalPower;
-        r[1] = _stakePower[StakeType.Days30];
-        r[2] = _stakePower[StakeType.Days90];
-        r[3] = _stakePower[StakeType.Days180];
-        r[4] = _stakePower[StakeType.Days360];
+    function getPower() public view returns (uint) {
+        return _stat.totalPower;
     }
 
     function getTransfer() public view returns (uint[2] memory r) {
-        r[0] = _userTransfer;
-        r[1] = _userTotalTransfer;
+        r[0] = _stat.userTransferRest;
+        r[1] = _stat.userTotalTransfer;
     }
 
     function canWithdraw(address staker) public view returns (uint r) {
@@ -275,8 +270,8 @@ contract FIGStake is Context, ReentrancyGuard {
     function _calculate(Stake memory stake) private view returns (uint r) {
         for (uint i = stake.startBounsId; i < _bonuses.length; i++) {
             Bonus memory bonus = _bonuses[i];
-            uint reward = _bonusRewards[bonus.id][uint(stake.stakeType)];
-            if (reward == 0) {
+            uint rewardUnit = _bonusRewards[bonus.id][uint(stake.stakeType)];
+            if (rewardUnit == 0) {
                 continue;
             }
             
@@ -284,14 +279,23 @@ contract FIGStake is Context, ReentrancyGuard {
             // and the bonus time range the scope of （start, end]
             // the stake happend before the `startBonusId`, so the situation of `block.number < bonus.start` wont happend
             if (block.number > bonus.end) {
-                r += reward * stake.amount;
+                r += _reward(rewardUnit, stake.amount);
             } else if (block.number > bonus.start && block.number <= bonus.end) {
-                r += reward * stake.amount * (block.number - bonus.start) / (bonus.end - bonus.start);
+                r += _reward(rewardUnit, stake.amount) * (block.number - bonus.start) / (bonus.end - bonus.start);
             }
         }
 
         require(r >= stake.withdrawn, "Invalid withdraw amount");
         r -= stake.withdrawn;
+    }
+
+    // calculate single FIG stake reward, reward equals to `stakeType powerRate * bonus reward amount / totalPower`
+    function _rewardUnit(uint stakeType, uint bonusAmount) private view returns (uint) {
+        return _factors[StakeType(stakeType)].powerRate * bonusAmount * RATE_BASE / _stat.totalPower;
+    }
+
+    function _reward(uint rewardUnit, uint stakeAmount) private pure returns (uint) {
+        return  rewardUnit * stakeAmount / RATE_BASE;
     }
 
     function isFoundation() private view returns (bool) {

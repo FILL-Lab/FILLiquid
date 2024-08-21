@@ -39,9 +39,11 @@ contract FIGStake is Context, ReentrancyGuard {
     event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint totalPower, uint[] powers);
     event StakeCreated(address indexed staker, uint stakeId, uint amount, uint stakeType, uint start, uint startBonusId, uint power);
     event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn, uint power);
-    event withdrawed(address indexed staker, uint amount);
+    event Withdrawn(address indexed staker, uint amount);
+    event Received(address indexed sender, uint amount);
+    event Test1(uint amount);
 
-    uint constant MIN_BONUS_AMOUNT = 100 ether;
+    uint constant MIN_BONUS_AMOUNT = 10000; //1 ether; // todo: update to 100 ether
     uint constant MIN_STAKE_AMOUNT = 100 ether;
     uint constant BLOCKS_PER_DAY = 86400 / 32;
     uint constant MAX_USER_STAKE_NUMBER = 5;
@@ -76,8 +78,10 @@ contract FIGStake is Context, ReentrancyGuard {
 
     // foundation transfer FIL to this contract to create bonus
     // allow user to transfer FIL to this contract, and the value will be part of next bonus
-    receive() external payable nonReentrant {
-        if (isFundation() && msg.value >= MIN_BONUS_AMOUNT) {
+    receive() external payable {
+        // `isFoundation` will compare the tx.origin address but not msg.sender, the msg.sender 
+        // can be `FILPot` contract address, so the `isFoundation` will return false.
+        if (isFoundation() && msg.value >= MIN_BONUS_AMOUNT) {
             // foundation should transfer after user staking FIL
             require(_totalPower > 0, "Invalid transfer");
 
@@ -102,11 +106,11 @@ contract FIGStake is Context, ReentrancyGuard {
             }
             _bonusRewards[bonus.id] = rewards;
 
-            // emit event，todo(fuk): add power and stake power
             emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, _totalPower, powers);
         } else {
             _userTransfer += msg.value;
             _userTotalTransfer += msg.value;
+            emit Received(tx.origin, msg.value);
         }
     }
 
@@ -203,7 +207,7 @@ contract FIGStake is Context, ReentrancyGuard {
             _token.transfer(staker, sum);
         }
 
-        emit withdrawed(staker, sum);
+        emit Withdrawn(staker, sum);
 
         return sum;
     }
@@ -216,10 +220,11 @@ contract FIGStake is Context, ReentrancyGuard {
         return _stakes[stakeId];
     }
 
-    function getUserStakes(address staker) public view returns (Stake[] memory stakes) {
+    function getUserStakes(address staker) public view returns (Stake[] memory r) {
         uint[] memory ids = _userStakes[staker];
+        r = new Stake[](ids.length);
         for (uint i = 0; i < ids.length; i++) {
-            stakes[i] = _stakes[ids[i]];
+            r[i] = _stakes[ids[i]];
         }
     }
 
@@ -249,6 +254,11 @@ contract FIGStake is Context, ReentrancyGuard {
         r[2] = _stakePower[StakeType.Days90];
         r[3] = _stakePower[StakeType.Days180];
         r[4] = _stakePower[StakeType.Days360];
+    }
+
+    function getTransfer() public view returns (uint[2] memory r) {
+        r[0] = _userTransfer;
+        r[1] = _userTotalTransfer;
     }
 
     function canWithdraw(address staker) public view returns (uint r) {
@@ -284,8 +294,8 @@ contract FIGStake is Context, ReentrancyGuard {
         r -= stake.withdrawn;
     }
 
-    function isFundation() private view returns (bool) {
-        return _msgSender() == _foundation;
+    function isFoundation() private view returns (bool) {
+        return tx.origin == _foundation;
     }
 
     function nextBonusId() private view returns (uint) {

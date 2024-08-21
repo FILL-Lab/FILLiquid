@@ -32,3 +32,7 @@ remix-compiler.config.js
 .deps/
 DeployParameters.json
 verified-sources/
+
+compiler_config.json
+contracts/FILPot.sol
+yarn.lock

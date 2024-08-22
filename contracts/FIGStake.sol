@@ -56,7 +56,6 @@ contract FIGStake is Context, ReentrancyGuard {
     uint constant RATE_BASE = 1000000;                      // used for calculate reward
 
     ERC20 public immutable _token;
-    address public immutable _foundation;
 
     uint private _nextStakeId = 0;
     Bonus[] private _bonuses;
@@ -68,9 +67,8 @@ contract FIGStake is Context, ReentrancyGuard {
     mapping (uint => uint[]) private _bonusRewards;       // mapping bonus id to kinds of rewards;
     mapping (address => uint) private _userStakeAmount;   // mapping user address to total stake amount;
 
-    constructor(address token, address foundation) {
+    constructor(address token) {
         _token = ERC20(token);
-        _foundation = foundation;
 
         _factors[StakeType.Days30] = Factor(BLOCKS_PER_DAY * 15, 10);
         _factors[StakeType.Days90] = Factor(BLOCKS_PER_DAY * 30, 20);
@@ -81,12 +79,14 @@ contract FIGStake is Context, ReentrancyGuard {
     receive() external payable {}
 
     // createBonus returns the bonus amount, any one can create bonus if the contract have enough balance
-    function createBonus() external nonReentrant() returns (uint) {
-        // foundation should transfer after user staking FIL
+    function createBonus() external nonReentrant returns (uint) {
+        // bonus should be created after the first stake
         require(_stat.totalPower > 0, "Invalid transfer");
 
-        // bonus amount should be the sum of transfer amount and the contract rest balance
-        // and the amount should be greater than MIN_BONUS_AMOUNT, and less than the avaiable balance
+        // anyone can create a bonus, not just the foundation. If someone transfers `FIL` to the contract, 
+        // this part of `FIL` can also be used as part of the reward. The total amount of the reward should 
+        // be the total amount of FIL transferred by the foundation and the user. This value should be greater
+        // than MIN_BONUS_AMOUNT and less than the available balance.
         uint amount = avaiableFil();
         require(address(this).balance >= amount, "Insufficient balance");
         require(amount >= MIN_BONUS_AMOUNT, "Invalid bonus amount");
@@ -107,7 +107,9 @@ contract FIGStake is Context, ReentrancyGuard {
         // update stat
         _stat.totalBonus += bonus.amount;
 
-        emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, bonus.end, _stat.totalPower);
+        // notify event to log
+        address creator = _msgSender();
+        emit BonusCreated(creator, bonus.id, bonus.amount, bonus.start, bonus.end, _stat.totalPower);
 
         return amount;
     }
@@ -310,10 +312,6 @@ contract FIGStake is Context, ReentrancyGuard {
 
     function _reward(uint rewardUnit, uint stakeAmount) private pure returns (uint) {
         return  rewardUnit * stakeAmount / RATE_BASE;
-    }
-
-    function isFoundation() private view returns (bool) {
-        return tx.origin == _foundation;
     }
 
     function nextBonusId() private view returns (uint) {

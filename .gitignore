@@ -36,3 +36,4 @@ verified-sources/
 compiler_config.json
 contracts/FILPot.sol
 yarn.lock
+MockMiner.sol

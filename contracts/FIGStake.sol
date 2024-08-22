@@ -39,15 +39,14 @@ contract FIGStake is Context, ReentrancyGuard {
     struct Stat {
         uint totalPower;            // total power of all stakes
         uint totalStake;            // total stake amount
-        uint userTransferRest;      // user but not foundation transfer FIL to this contract, and the value will be part of next bonus
-        uint userTotalTransfer;     // the sum of FIL transfered by user but not foundation
+        uint totalBonus;            // total bonus amount
+        uint totalWithdrawn;        // total withdrawn amount
     }
 
     event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint end, uint totalPower);
     event StakeCreated(address indexed staker, uint stakeId, uint amount, uint stakeType, uint start, uint startBonusId);
     event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn);
     event Withdrawn(address indexed staker, uint amount);
-    event Received(address indexed sender, uint amount);
 
     uint constant MIN_BONUS_AMOUNT = 1 ether;               // todo: update to 100 ether
     uint constant MIN_STAKE_AMOUNT = 100 ether;             // the minimum amount of user staking FIG
@@ -79,39 +78,38 @@ contract FIGStake is Context, ReentrancyGuard {
         _factors[StakeType.Days360] = Factor(BLOCKS_PER_DAY * 90, 40);
     }
 
-    // foundation transfer FIL to this contract to create bonus
-    // allow user to transfer FIL to this contract, and the value will be part of next bonus
-    receive() external payable {
-        // `isFoundation` will compare the tx.origin address but not msg.sender, the msg.sender 
-        // can be `FILPot` contract address, so the `isFoundation` will return false.
-        if (isFoundation() && msg.value >= MIN_BONUS_AMOUNT) {
-            // foundation should transfer after user staking FIL
-            require(_stat.totalPower > 0, "Invalid transfer");
+    receive() external payable {}
 
-            // bonus amount should be the sum of transfer amount and the contract rest balance
-            uint amount = msg.value + _stat.userTransferRest;
-            _stat.userTransferRest = 0;
-            require(address(this).balance >= amount, "Insufficient balance");
-            
-            // create bonus, bonus time range the scope of （start, end]
-            uint start = block.number;
-            uint end = start +  BONUS_DURATION;
-            Bonus memory bonus = Bonus(nextBonusId(), amount, start, end);
-            _bonuses.push(bonus);
+    // createBonus returns the bonus amount, any one can create bonus if the contract have enough balance
+    function createBonus() external nonReentrant() returns (uint) {
+        // foundation should transfer after user staking FIL
+        require(_stat.totalPower > 0, "Invalid transfer");
 
-            // set bonus rewards
-            uint[] memory rewards = new uint[](uint(StakeType.Days360) + 1);
-            for (uint i = uint(StakeType.Days30); i <= uint(StakeType.Days360); i++) {
-                rewards[i] = _rewardUnit(i, bonus.amount);
-            }
-            _bonusRewards[bonus.id] = rewards;
+        // bonus amount should be the sum of transfer amount and the contract rest balance
+        // and the amount should be greater than MIN_BONUS_AMOUNT, and less than the avaiable balance
+        uint amount = avaiableFil();
+        require(address(this).balance >= amount, "Insufficient balance");
+        require(amount >= MIN_BONUS_AMOUNT, "Invalid bonus amount");
 
-            emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, bonus.end, _stat.totalPower);
-        } else {
-            _stat.userTransferRest += msg.value;
-            _stat.userTotalTransfer += msg.value;
-            emit Received(tx.origin, msg.value);
+        // create bonus, bonus time range the scope of （start, end]
+        uint start = block.number;
+        uint end = start +  BONUS_DURATION;
+        Bonus memory bonus = Bonus(nextBonusId(), amount, start, end);
+        _bonuses.push(bonus);
+
+        // set bonus rewards
+        uint[] memory rewards = new uint[](uint(StakeType.Days360) + 1);
+        for (uint i = uint(StakeType.Days30); i <= uint(StakeType.Days360); i++) {
+            rewards[i] = _rewardUnit(i, bonus.amount);
         }
+        _bonusRewards[bonus.id] = rewards;
+
+        // update stat
+        _stat.totalBonus += bonus.amount;
+
+        emit BonusCreated(_foundation, bonus.id, bonus.amount, bonus.start, bonus.end, _stat.totalPower);
+
+        return amount;
     }
 
     function staking(uint amount, uint uStakeTyp) external nonReentrant returns (uint) {
@@ -134,8 +132,8 @@ contract FIGStake is Context, ReentrancyGuard {
         _stat.totalStake += amount;        
         _userStakeAmount[staker] += amount;
 
-        // create stake and transfer FIG to this contract
-        // mark(fuk): 极限情况，如果bonus和stake在同一区块，按照事件顺序计算
+        // create stake and transfer FIG to this contract, there  is an extreme case, 
+        // if bonus and stake are in the same block, calculated according to the order of events
         uint startBonusId = nextBonusId();
         uint stakeId = _nextStakeId++;
         _stakes[stakeId] = Stake(staker, stakeId, amount, block.number, startBonusId, 0, stktyp);
@@ -169,8 +167,9 @@ contract FIGStake is Context, ReentrancyGuard {
         uint withdrawn = stake.withdrawn + unWithdrawn;
         _token.transfer(staker, stake.amount);
         payable(staker).transfer(unWithdrawn);
+        _stat.totalWithdrawn += unWithdrawn;
 
-        // delete stake record
+        // delete stake record, and the stake.withdrawn should not be updated
         uint[] storage stakeIds = _userStakes[staker];
         for (uint i = 0; i < stakeIds.length; i++) {
             if (stakeIds[i] == stakeId) {
@@ -202,6 +201,7 @@ contract FIGStake is Context, ReentrancyGuard {
 
             // update stake withdrawn in storage but not memory
             _stakes[stake.id].withdrawn += reward;
+            _stat.totalWithdrawn += reward;
         }
 
         if (sum > 0) {
@@ -233,10 +233,6 @@ contract FIGStake is Context, ReentrancyGuard {
         return _userStakeAmount[staker];
     }
 
-    function getTotalStakeAmount() public view returns (uint) {
-        return _stat.totalStake;
-    }
-
     function getBonus(uint bonusId) public view returns (Bonus memory r) {
         r = _bonuses[bonusId];
     }
@@ -248,21 +244,37 @@ contract FIGStake is Context, ReentrancyGuard {
     function getFactor(uint stakeType) public view returns (Factor memory r) {
         r = _factors[StakeType(stakeType)];
     }
-    
-    function getPower() public view returns (uint r) {
-        return _stat.totalPower;
-    }
-
-    function getTransfer() public view returns (uint[2] memory r) {
-        r[0] = _stat.userTransferRest;
-        r[1] = _stat.userTotalTransfer;
-    }
 
     function canWithdraw(address staker) public view returns (uint r) {
         Stake[] memory stakes = getUserStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
             r += _calculate(stakes[i]);
         }
+    }
+
+    function accumulatedDeposited() public view returns (uint) {
+        return address(this).balance + _stat.totalWithdrawn;
+    }
+
+    function accumulatedBonus() public view returns (uint) {
+        return _stat.totalBonus;
+    }
+
+    function accumulatedWithdrawn() public view returns (uint) {
+        return _stat.totalWithdrawn;
+    }
+
+    function accumulatedStake() public view returns (uint) {
+        return _stat.totalStake;
+    }
+
+    function accumulatedPower() public view returns (uint) {
+        return _stat.totalPower;
+    }
+
+    // calculate the avaiable balance which can used be bonus
+    function avaiableFil() public view returns (uint) {
+        return accumulatedDeposited() - accumulatedBonus();
     }
 
     // ---------------------------------------------------------------------------------

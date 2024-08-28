@@ -5,6 +5,9 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+// this contract used for user staking FIG to get FIL bonus rewards,
+// and contract description refs to https://github.com/FILL-Lab/FILLiquid/pull/130
+
 contract FIGStake is Context, ReentrancyGuard {
 
     enum StakeType {

@@ -44,6 +44,7 @@ contract FIGStake is Context, ReentrancyGuard {
         uint totalStake;            // total stake amount
         uint totalBonus;            // total bonus amount
         uint totalWithdrawn;        // total withdrawn amount
+        uint[] totalStakes;         // total stake amount of each stake type
     }
 
     event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint end, uint totalPower);
@@ -77,6 +78,8 @@ contract FIGStake is Context, ReentrancyGuard {
         _factors[StakeType.Days90] = Factor(BLOCKS_PER_DAY * 30, 20);
         _factors[StakeType.Days180] = Factor(BLOCKS_PER_DAY * 60, 30);
         _factors[StakeType.Days360] = Factor(BLOCKS_PER_DAY * 90, 40);
+
+        _stat.totalStakes = new uint[](uint(StakeType.Days360) + 1);
     }
 
     receive() external payable {}
@@ -137,7 +140,8 @@ contract FIGStake is Context, ReentrancyGuard {
         StakeType stktyp = StakeType(uStakeTyp);
         Factor memory factor = _factors[stktyp];
         _stat.totalPower += factor.powerRate * amount;
-        _stat.totalStake += amount;        
+        _stat.totalStake += amount;
+        _stat.totalStakes[uStakeTyp] += amount;
         _userStakeAmount[staker] += amount;
 
         // create stake and transfer FIG to this contract, there  is an extreme case, 
@@ -170,6 +174,7 @@ contract FIGStake is Context, ReentrancyGuard {
         uint power = factor.powerRate * stake.amount;
         _stat.totalPower -= power;
         _stat.totalStake -= stake.amount;
+        _stat.totalStakes[uint(stake.stakeType)] -= stake.amount;
         _userStakeAmount[staker] -= stake.amount;
 
         // staker retrive `FIG` token and reward `FIL`
@@ -264,6 +269,14 @@ contract FIGStake is Context, ReentrancyGuard {
         for (uint i = 0; i < stakes.length; i++) {
             r += _calculate(stakes[i]);
         }
+    }
+
+    function getTotalStakeList() public view returns (uint[] memory) {
+        return _stat.totalStakes;
+    }
+
+    function getBonusNum() public view returns (uint) {
+        return _bonuses.length;
     }
 
     function accumulatedDeposited() public view returns (uint) {

@@ -44,6 +44,7 @@ contract FIGStake is Context, ReentrancyGuard {
         uint totalStake;            // total stake amount
         uint totalBonus;            // total bonus amount
         uint totalWithdrawn;        // total withdrawn amount
+        uint totalRemain;           // total amount of FIL reward remaining after the user unStake
         uint[] totalStakes;         // total stake amount of each stake type
     }
 
@@ -178,7 +179,11 @@ contract FIGStake is Context, ReentrancyGuard {
         _userStakeAmount[staker] -= stake.amount;
 
         // staker retrive `FIG` token and reward `FIL`
-        uint unWithdrawn = _calculate(stake);
+        uint[2] memory data = _calculate(stake);
+        uint unWithdrawn = data[0];
+        if (data[1] > 0) {
+            _stat.totalRemain += data[1];
+        }
         uint withdrawn = stake.withdrawn + unWithdrawn;
         _token.transfer(staker, stake.amount);
         payable(staker).transfer(unWithdrawn);
@@ -212,7 +217,7 @@ contract FIGStake is Context, ReentrancyGuard {
         Stake[] memory stakes = getUserStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
             Stake memory stake = stakes[i];
-            uint reward = _calculate(stake);
+            uint reward = _calculate(stake)[0];
             if (reward == 0) {
                 continue;
             }
@@ -267,7 +272,7 @@ contract FIGStake is Context, ReentrancyGuard {
     function canWithdraw(address staker) public view returns (uint r) {
         Stake[] memory stakes = getUserStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
-            r += _calculate(stakes[i]);
+            r += _calculate(stakes[i])[0];
         }
     }
 
@@ -284,7 +289,7 @@ contract FIGStake is Context, ReentrancyGuard {
     }
 
     function accumulatedBonus() public view returns (uint) {
-        return _stat.totalBonus;
+        return _stat.totalBonus - _stat.totalRemain;
     }
 
     function accumulatedWithdrawn() public view returns (uint) {
@@ -310,7 +315,7 @@ contract FIGStake is Context, ReentrancyGuard {
     // ---------------------------------------------------------------------------------
 
     // calculate stake reward, reward equals to `stakeType powerRate * bonus reward amount / totalPower`
-    function _calculate(Stake memory stake) private view returns (uint r) {
+    function _calculate(Stake memory stake) private view returns (uint[2] memory r) {
         for (uint i = stake.startBounsId; i < _bonuses.length; i++) {
             Bonus memory bonus = _bonuses[i];
             uint rewardUnit = _bonusRewards[bonus.id][uint(stake.stakeType)];
@@ -322,14 +327,18 @@ contract FIGStake is Context, ReentrancyGuard {
             // and the bonus time range the scope of （start, end]
             // the stake happend before the `startBonusId`, so the situation of `block.number < bonus.start` wont happend
             if (block.number > bonus.end) {
-                r += _reward(rewardUnit, stake.amount);
+                r[0] += _reward(rewardUnit, stake.amount);
             } else if (block.number > bonus.start && block.number <= bonus.end) {
-                r += _reward(rewardUnit, stake.amount) * (block.number - bonus.start) / (bonus.end - bonus.start);
+                uint amount = _reward(rewardUnit, stake.amount);
+                uint remain = amount * (block.number - bonus.start) / (bonus.end - bonus.start);
+                r[0] += remain;
+                r[1] += amount - remain;
+                //r += _reward(rewardUnit, stake.amount) * (block.number - bonus.start) / (bonus.end - bonus.start);
             }
         }
 
-        require(r >= stake.withdrawn, "Invalid withdraw amount");
-        r -= stake.withdrawn;
+        require(r[0] >= stake.withdrawn, "Invalid withdraw amount");
+        r[0] -= stake.withdrawn;
     }
 
     // calculate single FIG stake reward, reward equals to `stakeType powerRate * bonus reward amount / totalPower`

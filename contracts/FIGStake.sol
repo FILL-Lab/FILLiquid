@@ -48,7 +48,7 @@ contract FIGStake is Context, ReentrancyGuard {
         uint[] totalStakes;         // total stake amount of each stake type
     }
 
-    event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint end, uint totalPower);
+    event BonusCreated(address indexed sender, uint bonusId, uint amount, uint start, uint end, uint totalStake);
     event StakeCreated(address indexed staker, uint stakeId, uint amount, uint stakeType, uint start, uint startBonusId);
     event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType, uint withdrawn, uint unWithdrawn);
     event Withdrawn(address indexed staker, uint amount);
@@ -116,7 +116,7 @@ contract FIGStake is Context, ReentrancyGuard {
 
         // notify event to log
         address creator = _msgSender();
-        emit BonusCreated(creator, bonus.id, bonus.amount, bonus.start, bonus.end, _stat.totalPower);
+        emit BonusCreated(creator, bonus.id, bonus.amount, bonus.start, bonus.end, _stat.totalStake);
 
         return amount;
     }

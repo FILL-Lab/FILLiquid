@@ -269,10 +269,12 @@ contract FIGStake is Context, ReentrancyGuard {
         r = _factors[StakeType(stakeType)];
     }
 
-    function canWithdraw(address staker) public view returns (uint r) {
+    function canWithdraw(address staker) public view returns (uint[2] memory r) {
         Stake[] memory stakes = getUserStakes(staker);
         for (uint i = 0; i < stakes.length; i++) {
-            r += _calculate(stakes[i])[0];
+            uint[2] memory data = _calculate(stakes[i]);
+            r[0] += data[0];
+            r[1] += data[1];
         }
     }
 

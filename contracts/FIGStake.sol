@@ -278,6 +278,11 @@ contract FIGStake is Context, ReentrancyGuard {
         }
     }
 
+    function stakeBonus(uint stakeId) public view returns (uint[2] memory r) {
+        Stake memory stake = _stakes[stakeId];
+        r = _calculate(stake);
+    }
+    
     function getTotalStakeList() public view returns (uint[] memory) {
         return _stat.totalStakes;
     }

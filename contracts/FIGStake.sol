@@ -337,10 +337,12 @@ contract FIGStake is Context, ReentrancyGuard {
                 r[0] += _reward(rewardUnit, stake.amount);
             } else if (block.number > bonus.start && block.number <= bonus.end) {
                 uint amount = _reward(rewardUnit, stake.amount);
-                uint remain = amount * (block.number - bonus.start) / (bonus.end - bonus.start);
-                r[0] += remain;
-                r[1] += amount - remain;
-                //r += _reward(rewardUnit, stake.amount) * (block.number - bonus.start) / (bonus.end - bonus.start);
+                // calculate the reward amount that can be withdrawn
+                uint canBeWithdraw = amount * (block.number - bonus.start) / (bonus.end - bonus.start);
+                // calculate the rest reward amount which cannot be withdrawn at present
+                uint rest = amount - canBeWithdraw;
+                r[0] += canBeWithdraw;
+                r[1] += rest;
             }
         }
 

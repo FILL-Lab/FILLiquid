@@ -198,6 +198,9 @@ contract FIGStake is Context, ReentrancyGuard {
                 break;
             }
         }
+        if (stakeIds.length == 0) {
+            delete _userStakes[staker];
+        }
         delete _stakes[stakeId];
 
         // notify event

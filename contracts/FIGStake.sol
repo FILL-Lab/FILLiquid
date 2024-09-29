@@ -53,12 +53,12 @@ contract FIGStake is Context, ReentrancyGuard {
     event StakeDropped(address indexed staker, uint stakeId, uint amount, uint stakeType);
     event Withdrawn(address indexed staker, uint stakeId, uint amount);
 
-    uint constant MIN_BONUS_AMOUNT = 1 ether;               // todo: update to 100 ether
-    uint constant MIN_STAKE_AMOUNT = 100 ether;             // the minimum amount of user staking FIG
-    uint constant BLOCKS_PER_DAY = 1; // 86400 / 32;              // blocks in one day
-    uint constant MAX_USER_STAKE_NUMBER = 5;                // the maximum number of user stakes
-    uint constant BONUS_DURATION = BLOCKS_PER_DAY * 7;      // bonus duration
-    uint constant RATE_BASE = 1000000;                      // used for calculate reward
+    uint constant MIN_BONUS_AMOUNT = 100 ether;               // the minimum amount of bonus
+    uint constant MIN_STAKE_AMOUNT = 10 ether;                // the minimum amount of user staking FIG
+    uint constant BLOCKS_PER_DAY = 86400 / 32;                // blocks in one day
+    uint constant MAX_USER_STAKE_NUMBER = 20;                 // the maximum number of user stakes
+    uint constant BONUS_DURATION = BLOCKS_PER_DAY * 180;      // bonus duration
+    uint constant RATE_BASE = 1000000;                        // used for calculate reward
 
     ERC20 public immutable _token;
 
@@ -75,10 +75,10 @@ contract FIGStake is Context, ReentrancyGuard {
     constructor(address token) {
         _token = ERC20(token);
 
-        _factors[StakeType.Days30] = Factor(BLOCKS_PER_DAY * 15, 10);
-        _factors[StakeType.Days90] = Factor(BLOCKS_PER_DAY * 30, 20);
-        _factors[StakeType.Days180] = Factor(BLOCKS_PER_DAY * 60, 30);
-        _factors[StakeType.Days360] = Factor(BLOCKS_PER_DAY * 90, 40);
+        _factors[StakeType.Days30] = Factor(BLOCKS_PER_DAY * 30, 10);
+        _factors[StakeType.Days90] = Factor(BLOCKS_PER_DAY * 90, 20);
+        _factors[StakeType.Days180] = Factor(BLOCKS_PER_DAY * 180, 30);
+        _factors[StakeType.Days360] = Factor(BLOCKS_PER_DAY * 360, 40);
 
         _stat.totalStakes = new uint[](uint(StakeType.Days360) + 1);
     }

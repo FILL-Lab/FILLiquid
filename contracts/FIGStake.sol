@@ -55,7 +55,7 @@ contract FIGStake is Context, ReentrancyGuard {
 
     uint constant MIN_BONUS_AMOUNT = 100 ether;               // the minimum amount of bonus
     uint constant MIN_STAKE_AMOUNT = 10 ether;                // the minimum amount of user staking FIG
-    uint constant BLOCKS_PER_DAY = 86400 / 32;                // blocks in one day
+    uint constant BLOCKS_PER_DAY = 86400 / 30;                // blocks in one day
     uint constant MAX_USER_STAKE_NUMBER = 20;                 // the maximum number of user stakes
     uint constant BONUS_DURATION = BLOCKS_PER_DAY * 180;      // bonus duration
     uint constant RATE_BASE = 1000000;                        // used for calculate reward
